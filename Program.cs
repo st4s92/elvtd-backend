@@ -19,7 +19,7 @@ builder.Services.AddSingleton<WebSocketServer>();
 var app = builder.Build();
 
 // Enable Swagger only in Development
-if (app.Environment.IsDevelopment())
+if (Environment.GetEnvironmentVariable("APP_ENV") == "dev")
 {
     app.UseSwagger();
     app.UseSwaggerUI();
