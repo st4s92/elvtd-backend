@@ -1,0 +1,29 @@
+name: 🚀 Deploy to Ubuntu Server
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔑 Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🚀 Run deploy script on remote server
+        run: |
+          ssh -o StrictHostKeyChecking=no root@103.149.177.20 "
+            cd ~/elvtd-backend && \
+            git fetch origin master && \
+            git reset --hard origin/master && \
+            chmod +x deploy.sh && \
+            ./deploy.sh
+          "

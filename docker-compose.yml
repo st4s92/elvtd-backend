@@ -9,12 +9,12 @@ services:
     env_file:
       - .env
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - DOC_DB_HOST=database
-      - DOC_DB_USER=${DOC_DB_USER}
-      - DOC_DB_PASSWORD=${DOC_DB_PASSWORD}
-      - DOC_DB_NAME=${DOC_DB_NAME}
-      - DOC_DB_PORT=3306
+      - DB_DRIVER=${DOC_DB_DRIVER}
+      - DB_HOST=${DOC_DB_HOST}
+      - DB_PORT=${DOC_DB_PORT}
+      - DB_NAME=${DOC_DB_NAME}
+      - DB_USER=${DOC_DB_USER}
+      - DB_PASSWORD=${DOC_DB_PASSWORD}
     depends_on:
       - database
 
