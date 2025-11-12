@@ -1,0 +1,106 @@
+namespace Backend.Helper;
+
+using Microsoft.EntityFrameworkCore;
+using Backend.Model;
+
+public class AppDbContext : DbContext
+{
+    // === DbSets ===
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<AppToken> AppTokens => Set<AppToken>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<MasterSlave> MasterSlaves => Set<MasterSlave>();
+    public DbSet<MasterSlavePair> MasterSlavePairs => Set<MasterSlavePair>();
+    public DbSet<MasterSlaveConfig> MasterSlaveConfigs => Set<MasterSlaveConfig>();
+
+    public AppDbContext(DbContextOptions<AppDbContext> options)
+        : base(options)
+    {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Order>()
+            .Property(o => o.Status)
+            .HasConversion<int>(); // ensure stored as int
+
+        // === Global soft delete filters ===
+        modelBuilder.Entity<User>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<Role>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<AppToken>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<Account>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<Order>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<MasterSlave>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<MasterSlavePair>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<MasterSlaveConfig>().HasQueryFilter(e => e.DeletedAt == null);
+
+        // === Relationships ===
+        // Account → User
+        modelBuilder.Entity<Account>()
+            .HasOne(a => a.User)
+            .WithMany(u => u.Accounts)
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Orders → Accounts
+        modelBuilder.Entity<Order>()
+            .HasOne(a => a.Account)
+            .WithMany(u => u.Orders)
+            .HasForeignKey(o => o.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Orders self-reference for master-slave link
+        modelBuilder.Entity<Order>()
+            .HasOne(a => a.MasterOrder)
+            .WithMany()
+            .HasForeignKey(o => o.MasterOrderId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ✅ Explicitly define Account ↔ MasterSlave relationships
+        modelBuilder.Entity<MasterSlave>()
+            .HasOne(ms => ms.MasterAccount)
+            .WithMany(a => a.MasterRelations)
+            .HasForeignKey(ms => ms.MasterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MasterSlave>()
+            .HasOne(ms => ms.SlaveAccount)
+            .WithMany(a => a.SlaveRelations)
+            .HasForeignKey(ms => ms.SlaveId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // MasterSlave → MasterSlaveConfig (1:N)
+        modelBuilder.Entity<MasterSlaveConfig>()
+            .HasOne(cfg => cfg.MasterSlave)
+            .WithMany(ms => ms.Configs)  // ✅ link to collection in MasterSlave
+            .HasForeignKey(cfg => cfg.MasterSlaveId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // MasterSlave → MasterSlavePair (1:N)
+        modelBuilder.Entity<MasterSlavePair>()
+            .HasOne(pair => pair.MasterSlave)
+            .WithMany(ms => ms.Pairs)  // ✅ link to collection in MasterSlave
+            .HasForeignKey(pair => pair.MasterSlaveId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+
+    public override int SaveChanges()
+    {
+        var entries = ChangeTracker.Entries<IAuditableEntity>();
+
+        foreach (var entry in entries)
+        {
+            if (entry.State == EntityState.Added)
+                entry.Entity.CreatedAt = DateTime.UtcNow;
+
+            if (entry.State == EntityState.Modified)
+                entry.Entity.UpdatedAt = DateTime.UtcNow;
+        }
+
+        return base.SaveChanges();
+    }
+}

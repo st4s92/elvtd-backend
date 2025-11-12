@@ -1,0 +1,44 @@
+# Build artifacts
+bin/
+obj/
+out/
+[Bb]uild/
+[Ll]ogs/
+
+# User-specific / IDE files
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET generated files
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+Thumbs.db
+
+# Publish profiles
+*.pubxml
+*.publishproj
+
+# Configuration / secrets (optional)
+.env
+secrets.json
+
+# OS-specific
+.DS_Store
+ehthumbs.db
+Icon?

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  database:
+    platform: linux/x86_64
+    image: mysql:8.0.28
+    container_name: elvtd_mysql
+    ports: 
+      - ${DOC_DB_PORT}:3306
+    environment: 
+      - MYSQL_ROOT_HOST=${DOC_DB_HOST} 
+      - MYSQL_USER=${DOC_DB_USER}
+      - MYSQL_PASSWORD=${DOC_DB_PASSWORD}
+      - MYSQL_DATABASE=${DOC_DB_NAME}
+      - MYSQL_ROOT_PASSWORD=${DOC_DB_PASSWORD}
+    volumes:
+      - database_mysql:/var/lib/mysql
+
+volumes:
+  database_mysql:
