@@ -6,6 +6,8 @@ services:
     container_name: elvtd_backend
     ports:
       - "5021:5021"
+    env_file:
+      - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - DOC_DB_HOST=database
