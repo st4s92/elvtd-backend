@@ -12,6 +12,7 @@ services:
       - DOC_DB_USER=${DOC_DB_USER}
       - DOC_DB_PASSWORD=${DOC_DB_PASSWORD}
       - DOC_DB_NAME=${DOC_DB_NAME}
+      - DOC_DB_PORT=3306
     depends_on:
       - database
 
