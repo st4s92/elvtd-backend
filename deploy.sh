@@ -16,10 +16,10 @@ git fetch origin master
 git reset --hard origin/master
 
 echo -e "${YELLOW}🛠️  Rebuilding Docker images...${NC}"
-docker-compose build
+docker compose build
 
 echo -e "${YELLOW}♻️  Restarting containers...${NC}"
-docker-compose up -d
+docker compose up -d
 
 echo -e "${YELLOW}🧹 Cleaning unused images...${NC}"
 docker image prune -f
