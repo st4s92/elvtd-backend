@@ -59,7 +59,7 @@ public static class OrderTimeHelper
     {
         utc = default;
 
-        // Supported formats
+        // Supported exact formats
         string[] formats =
         {
             "yyyy-MM-dd'T'HH:mm:ss'Z'",
@@ -67,10 +67,10 @@ public static class OrderTimeHelper
             "yyyy-MM-dd HH:mm:ss",
             "yyyy.MM.dd HH:mm:ss",
             "yyyy-MM-dd'T'HH:mm:ss.fff'Z'",
-            "o" // round-trip ISO 8601
+            "o" // ISO-8601 round-trip
         };
 
-        // Try exact formats first
+        // --- (1) Try exact formats first ---
         if (DateTime.TryParseExact(
                 raw,
                 formats,
@@ -81,7 +81,16 @@ public static class OrderTimeHelper
             return true;
         }
 
-        // Try general parse as fallback
+        // --- (2) Your requested line should go RIGHT HERE ---
+        // Force-parse using UTC assumptions
+        try
+        {
+            utc = DateTime.Parse(raw, null, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            return true;
+        }
+        catch { }
+
+        // --- (3) Try fallback general parse ---
         if (DateTime.TryParse(
                 raw,
                 CultureInfo.InvariantCulture,

@@ -336,7 +336,7 @@ public partial class TraderUsecase
                         OrderLot = (decimal)multiplier,
                         OrderPrice = 0,
                         Status = OrderStatus.Pending,
-                        OrderOpenAt = DateTime.Now
+                        OrderOpenAt = DateTime.UtcNow
                     };
                     newSlaveOrders.Add(slaveOrder);
                 }
@@ -377,7 +377,7 @@ public partial class TraderUsecase
                 }
                 if(messages.Count <= 0)
                     continue;
-                    
+
                 var msgs = JsonSerializer.Serialize(messages);
                 if (item.SlaveAccount?.AccountNumber != null)
                 {
