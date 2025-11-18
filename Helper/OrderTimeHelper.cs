@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 
 public static class OrderTimeHelper
 {
@@ -39,13 +40,18 @@ public static class OrderTimeHelper
         // 3) Compare with now (in UTC)
         // ------------------------------------------------------------------
         DateTime nowUtc = DateTime.UtcNow;
+        
         var age = nowUtc - orderUtc;
 
-        if (age < TimeSpan.Zero)          // future timestamps
+        if (age < TimeSpan.Zero){          // future timestamps
+            Console.WriteLine($"{nowUtc} - {orderUtc} = {age}");
             return false;
+        }
 
-        if (age > TimeSpan.FromSeconds(thresholdSeconds))
+        if (age > TimeSpan.FromSeconds(thresholdSeconds)){
+            Console.WriteLine($"{nowUtc} - {orderUtc} = {age}");
             return false;
+        }
 
         return true;
     }
