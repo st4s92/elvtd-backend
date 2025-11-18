@@ -9,11 +9,11 @@ public class Metatraders : IAuditableEntity
 {
     [Key]
     [Column("id")]
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     [Key]
     [Column("account_id")]
-    public int AccountId { get; set; }
+    public long AccountId { get; set; }
     [Key]
     [Column("path")]
     public string path { get; set; } = "";

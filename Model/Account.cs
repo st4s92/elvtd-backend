@@ -9,7 +9,7 @@ public class Account : IAuditableEntity
 {
     [Key]
     [Column("id")]
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     [Column("platform_name"), MaxLength(100)]
     public string PlatformName { get; set; } = "";
@@ -18,7 +18,7 @@ public class Account : IAuditableEntity
     public string? PlatformPath { get; set; } = "";
 
     [Column("account_number")]
-    public int AccountNumber { get; set; }
+    public long AccountNumber { get; set; }
 
     [Column("broker_name"), MaxLength(100)]
     public string BrokerName { get; set; } = "";
@@ -27,7 +27,7 @@ public class Account : IAuditableEntity
     public string ServerName { get; set; } = "";
 
     [Column("user_id")]
-    public int UserId { get; set; }
+    public long UserId { get; set; }
 
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
@@ -45,34 +45,43 @@ public class Account : IAuditableEntity
 
     // Reverse navigation
     [JsonIgnore]
-    public ICollection<User> Users { get; set; } = new List<User>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
     public ICollection<MasterSlave> MasterRelations { get; set; } = new List<MasterSlave>();
     public ICollection<MasterSlave> SlaveRelations { get; set; } = new List<MasterSlave>();
 }
 
-public class AccountAddPayload
+public class AccountPayload
 {
     [JsonPropertyName("platform_name")]
-    [Column("platform_name"), MaxLength(100)]
-    public string PlatformName { get; set; } = "";
+    public string? PlatformName { get; set; } = "";
 
     [JsonPropertyName("platform_path")]
-    [Column("platform_path"), MaxLength(300)]
     public string? PlatformPath { get; set; } = "";
 
     [JsonPropertyName("account_number")]
-    [Column("account_number")]
-    public int AccountNumber { get; set; }
+    public long? AccountNumber { get; set; }
 
     [JsonPropertyName("broker_name")]
-    public string BrokerName { get; set; } = "";
+    public string? BrokerName { get; set; } = "";
 
     [JsonPropertyName("server_name")]
-    [Column("server_name"), MaxLength(100)]
-    public string ServerName { get; set; } = "";
+    public string? ServerName { get; set; } = "";
 
     [JsonPropertyName("user_id")]
-    [Column("user_id")]
-    public int UserId { get; set; }
+    public long? UserId { get; set; }
+}
+
+public class AccountGetPayload : AccountPayload
+{
+    [JsonPropertyName("id")]
+    public long? Id { get; set; }
+}
+
+public class AccountGetPaginatedPayload : AccountGetPayload
+{
+    [JsonPropertyName("page_size")]
+    public int PageSize { get; set; }
+
+    [JsonPropertyName("page")]
+    public int Page { get; set; }
 }

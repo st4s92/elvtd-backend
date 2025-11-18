@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Backend.Model;
 
@@ -8,11 +9,11 @@ public class MasterSlaveConfig : IAuditableEntity
 {
     [Key]
     [Column("id")]
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     [Required]
     [Column("master_slave_id")]
-    public int MasterSlaveId { get; set; }
+    public long MasterSlaveId { get; set; }
 
     [ForeignKey(nameof(MasterSlaveId))]
     public virtual MasterSlave? MasterSlave { get; set; }
@@ -31,4 +32,29 @@ public class MasterSlaveConfig : IAuditableEntity
     public DateTime? DeletedAt { get; set; }
 
     public bool IsDeleted => DeletedAt.HasValue;
+}
+
+
+public class MasterSlaveConfigPayload
+{
+    [JsonPropertyName("master_slave_id")]
+    public long? MasterSlaveId { get; set; }
+    [JsonPropertyName("multiplier")]
+    public decimal? Multiplier { get; set; }
+}
+
+
+public class MasterSlaveConfigGetPayload : MasterSlaveConfigPayload
+{
+    [JsonPropertyName("id")]
+    public long? Id { get; set; }
+}
+
+public class MasterSlaveConfigGetPaginatedPayload : MasterSlaveConfigGetPayload
+{
+    [JsonPropertyName("page_size")]
+    public int PageSize { get; set; }
+
+    [JsonPropertyName("page")]
+    public int Page { get; set; }
 }

@@ -1,0 +1,97 @@
+using Backend.Application.Interfaces;
+using Backend.Helper;
+using Backend.Model;
+using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+
+namespace Backend.Infrastructure.Repositories
+{
+    public class BaseRepository<T> : IRepository<T> where T : class, IAuditableEntity
+    {
+        private readonly AppDbContext _context;
+        private readonly DbSet<T> _db;
+
+        public BaseRepository(AppDbContext context)
+        {
+            _context = context;
+            _db = context.Set<T>();
+        }
+
+        // GET (single)
+        public async Task<T?> Get(Expression<Func<T, bool>> predicate)
+        {
+            return await _db.AsNoTracking().FirstOrDefaultAsync(predicate);
+        }
+
+        // GET MANY
+        public async Task<List<T>> GetMany(Expression<Func<T, bool>> predicate)
+        {
+            return await _db.AsNoTracking().Where(predicate).ToListAsync();
+        }
+
+        // PAGINATED
+        public async Task<(List<T> items, long total)> GetPaginated(
+            Expression<Func<T, bool>> predicate,
+            int page,
+            int pageSize
+        )
+        {
+            var query = _db.AsNoTracking().Where(predicate);
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, total);
+        }
+
+        // SAVE (CREATE OR UPDATE)
+        public async Task<T> Save(
+            T entity,
+            Expression<Func<T, bool>> existsPredicate
+        )
+        {
+            var existing = await _db.FirstOrDefaultAsync(existsPredicate);
+
+            if (existing == null)
+            {
+                entity.CreatedAt = DateTime.Now;
+                entity.UpdatedAt = entity.CreatedAt;
+                _db.Add(entity);
+            }
+            else
+            {
+                _context.Entry(existing).CurrentValues.SetValues(entity);
+                existing.UpdatedAt = DateTime.Now;
+                entity = existing;
+            }
+
+            await _context.SaveChangesAsync();
+            return entity;
+        }
+
+        public async Task<T> Save(
+            T entity
+        )
+        {
+            _db.Add(entity); await _context.SaveChangesAsync();
+            return entity;
+        }
+
+        // DELETE
+        public async Task<bool> Delete(Expression<Func<T, bool>> predicate)
+        {
+            var entity = await _db.FirstOrDefaultAsync(predicate);
+
+            if (entity == null)
+                return false;
+
+            _db.Remove(entity);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+    }
+}

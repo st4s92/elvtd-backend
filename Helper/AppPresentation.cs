@@ -3,13 +3,13 @@ using Microsoft.AspNetCore.Http;
 
 namespace Backend.Helper;
 
-public record ApiResponse<T>(bool Status, int Code, T? Data,string? Message = null);
+public record ApiResponse<T>(bool Status, int Code, T? Data, string? Message = null);
 
 public static class Response
 {
     public static IResult Json<T>(T data, string? message = null)
     {
-        if(data is ITError terr)
+        if (data is ITError terr)
         {
             // Map to appropriate HTTP response
             var failResult = new ApiResponse<T>(

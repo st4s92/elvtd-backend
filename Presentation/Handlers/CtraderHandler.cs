@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend.Presentation.Handlers;
 
 public class CtraderHandler
-{    
+{
     private readonly CtraderUsecase _usecase;
 
     public CtraderHandler(

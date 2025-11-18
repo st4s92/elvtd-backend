@@ -3,9 +3,6 @@ using Backend.Model;
 
 namespace Backend.Application.Interfaces;
 
-public interface IUserRepository
+public interface IUserRepository : IRepository<User>
 {
-    public Task<(IEnumerable<User>, ITError?)> GetUsersAsync();
-    public Task<(User?, ITError?)> GetUserByIdAsync(int id);
-    public Task<(User?, ITError?)> GetUserByEmailAsync(string email);
 }

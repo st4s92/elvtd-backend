@@ -20,7 +20,7 @@ public class CtraderUsecase
     private readonly App _app;
     private readonly string _platformName = "CTRADER";
 
-    public CtraderUsecase(ICtraderRepository ctraderRepository,ITradingRepository tradingRepository,UserUsecase userUsecase)
+    public CtraderUsecase(ICtraderRepository ctraderRepository, ITradingRepository tradingRepository, UserUsecase userUsecase)
     {
         _userUsecase = userUsecase;
         _ctraderRepository = ctraderRepository;

@@ -7,10 +7,10 @@ public class AppToken : IAuditableEntity
 {
     [Key]
     [Column("id")]
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     [Column("user_id")]
-    public int UserID { get; set; } = 0;
+    public long UserID { get; set; } = 0;
 
     [Required, MaxLength(50)]
     [Column("platform")]

@@ -19,27 +19,27 @@ public class Order : IAuditableEntity
 {
     [Key]
     [Column("id")]
-    public int Id { get; set; }
+    public long Id { get; set; }
 
     [Column("account_id")]
-    public int AccountId { get; set; }
+    public long AccountId { get; set; }
 
     [JsonIgnore]
     [ForeignKey(nameof(AccountId))]
     public Account? Account { get; set; }
 
     [Column("master_order_id")]
-    public int? MasterOrderId { get; set; }
+    public long? MasterOrderId { get; set; }
 
     [JsonIgnore]
     [ForeignKey(nameof(MasterOrderId))]
     public Order? MasterOrder { get; set; }
 
     [Column("order_ticket")]
-    public int OrderTicket { get; set; }
+    public long OrderTicket { get; set; }
 
     [Column("close_ticket")]
-    public int? CloseTicket { get; set; }
+    public long? CloseTicket { get; set; }
 
     [Column("order_symbol"), MaxLength(20)]
     public string OrderSymbol { get; set; } = "";
@@ -94,7 +94,7 @@ public class BridgeOrderPayload
     public string ServerName { get; set; } = "";
 
     [JsonPropertyName("account_id")]
-    public int AccountId { get; set; }
+    public long AccountId { get; set; }
 
     [JsonPropertyName("orders")]
     public List<BridgeOrderItem> Orders { get; set; } = new();
@@ -103,10 +103,10 @@ public class BridgeOrderPayload
 public class BridgeOrderItem
 {
     [JsonPropertyName("order_ticket")]
-    public int OrderTicket { get; set; }
+    public long OrderTicket { get; set; }
 
     [JsonPropertyName("close_ticket")]
-    public int CloseTicket { get; set; }
+    public long CloseTicket { get; set; }
 
     [JsonPropertyName("order_symbol")]
     public string OrderSymbol { get; set; } = "";
@@ -148,19 +148,31 @@ public class BridgeOrderBroadcastPayload
     public double OrderLot { get; set; }
 
     [JsonPropertyName("order_ticket")]
-    public int OrderTicket { get; set; }
+    public long OrderTicket { get; set; }
     [JsonPropertyName("master_account_id")]
-    public int MasterAccountId { get; set; }
+    public long MasterAccountId { get; set; }
     [JsonPropertyName("copy_type")]
     public string CopyType { get; set; } = "";
 }
 
 public class OrderQuery
 {
-    public int? Id { get; set; }
-    public int? AccountId { get; set; }
-    public int? MasterOrderId { get; set; }
+    [JsonPropertyName("id")]
+    public long? Id { get; set; }
+    [JsonPropertyName("account_id")]
+    public long? AccountId { get; set; }
+    [JsonPropertyName("master_order_id")]
+    public long? MasterOrderId { get; set; }
+    [JsonPropertyName("order_symbol")]
     public string? OrderSymbol { get; set; }
+    [JsonPropertyName("order_type")]
     public string? OrderType { get; set; }
+    [JsonPropertyName("status")]
     public OrderStatus? Status { get; set; } = OrderStatus.None;
+    [JsonPropertyName("per_page")]
+
+    public int? PerPage { get; set; }
+    [JsonPropertyName("page")]
+
+    public int? Page { get; set; }
 }

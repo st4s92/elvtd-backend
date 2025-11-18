@@ -1,0 +1,96 @@
+using Backend.Application.Usecases;
+using Backend.Helper;
+using Backend.Model;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Backend.Presentation.Handlers;
+
+public partial class TraderHandler
+{
+    public async Task<IResult> GetOrder(int id)
+    {
+        var (res, terr) = await _usecase.GetOrder(new Order { Id = id });
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(res);
+    }
+
+    public async Task<IResult> GetOrders(OrderQuery query)
+    {
+        var orderFilter = new Order
+        {
+            Id = query.Id ?? 0,
+            AccountId = query.AccountId ?? 0,
+            MasterOrderId = query.MasterOrderId ?? 0,
+            OrderSymbol = query.OrderSymbol ?? "",
+            OrderType = query.OrderType ?? "",
+            Status = query.Status ?? 0
+        };
+
+        var (res, terr) = await _usecase.GetOrders(orderFilter);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(res);
+    }
+
+    public async Task<IResult> GetPaginatedOrders(OrderQuery query)
+    {
+        var orderFilter = new Order
+        {
+            Id = query.Id ?? 0,
+            AccountId = query.AccountId ?? 0,
+            MasterOrderId = query.MasterOrderId ?? 0,
+            OrderSymbol = query.OrderSymbol ?? "",
+            OrderType = query.OrderType ?? "",
+            Status = query.Status ?? 0,
+        };
+
+        var (res, terr) = await _usecase.GetOrders(orderFilter);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(res);
+    }
+
+    public async Task<IResult> UpdateOrder(long id, Order payload)
+    {
+        if (id == 0)
+        {
+            var terrs = TError.NewClient("Id should be filled");
+            return Response.Json(terrs);
+        }
+        if (payload == null)
+        {
+            var terrs = TError.NewClient("Invalid payload");
+            return Response.Json(terrs);
+        }
+
+        var (_, terr) = await _usecase.UpdateOrderById(id, payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
+
+    public async Task<IResult> HandleBridgeMasterOrder(BridgeOrderPayload payload)
+    {
+        if (payload == null)
+        {
+            var terrs = TError.NewClient("Invalid payload");
+            return Response.Json(terrs);
+        }
+
+        var terr = await _usecase.CreateBridgeMasterOrder(payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
+}

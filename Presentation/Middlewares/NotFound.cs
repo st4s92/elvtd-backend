@@ -10,7 +10,7 @@ public class NotFoundMiddleware
     public NotFoundMiddleware(RequestDelegate next, ILogger<NotFoundMiddleware> logger)
     {
         _next = next;
-         _logger = logger;
+        _logger = logger;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -30,6 +30,6 @@ public class NotFoundMiddleware
 
             // Execute the result manually
             await result.ExecuteAsync(context);
-        } 
+        }
     }
 }

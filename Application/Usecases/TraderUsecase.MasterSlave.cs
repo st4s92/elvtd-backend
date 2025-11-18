@@ -1,0 +1,152 @@
+using System.Linq.Expressions;
+using System.Text.Json;
+using Backend.Helper;
+using Backend.Model;
+
+namespace Backend.Application.Usecases;
+
+public partial class TraderUsecase
+{
+    private static Expression<Func<MasterSlave, bool>> FilterMasterSlave(MasterSlave param)
+    {
+        return (
+            a =>
+                (param.Id == 0 || a.Id == param.Id) &&
+                (param.MasterId == 0 || a.MasterId == param.MasterId) &&
+                (param.SlaveId == 0 || a.MasterId == param.SlaveId)
+        );
+    }
+    public async Task<(MasterSlave?, ITError?)> GetMasterSlave(MasterSlave param)
+    {
+        try
+        {
+            var data = await _masterSlaveRepository.Get(FilterMasterSlave(param));
+            if (data == null)
+                return (null, TError.NewNotFound("masterSlave not found"));
+            return (data, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, TError.NewServer("database error", ex.Message));
+        }
+    }
+
+    public async Task<(List<MasterSlave>, ITError?)> GetMasterSlaves(MasterSlave param)
+    {
+        try
+        {
+            var data = await _masterSlaveRepository.GetMany(FilterMasterSlave(param));
+            if (data == null)
+                return ([], TError.NewNotFound("master slave not found"));
+            return (data, null);
+        }
+        catch (Exception ex)
+        {
+            return ([], TError.NewServer("database error", ex.Message));
+        }
+    }
+
+    public async Task<(List<MasterSlave>, long total, ITError?)> GetPaginatedMasterSlaves(MasterSlave param, int page, int pageSize)
+    {
+        try
+        {
+            var (data, total) = await _masterSlaveRepository.GetPaginated(FilterMasterSlave(param), page, pageSize);
+            if (data == null)
+                return ([], 0, null);
+            return (data, total, null);
+        }
+        catch (Exception ex)
+        {
+            return ([], 0, TError.NewServer("database error", ex.Message));
+        }
+    }
+
+    private async Task<bool> IsMasterSlaveCrossing(MasterSlave masterSlave)
+    {
+        var data = _masterSlaveRepository.Get(a =>
+            a.MasterId == masterSlave.SlaveId &&
+            (masterSlave.Id <= 0 || a.Id != masterSlave.Id )
+        );
+        if(data != null)
+        {
+            return true;
+        }
+
+        data = _masterSlaveRepository.Get(a =>
+            a.SlaveId == masterSlave.MasterId &&
+            (masterSlave.Id <= 0 || a.Id != masterSlave.Id )
+        );
+        if(data != null)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    public async Task<(MasterSlave?, ITError?)> AddMasterSlave(MasterSlave masterSlave)
+    {
+        var existingMasterSlave = new MasterSlave
+        {
+            MasterId = masterSlave.MasterId,
+            SlaveId = masterSlave.SlaveId
+        };
+
+        var (_, terr) = await GetMasterSlave(existingMasterSlave);
+        if (terr != null)
+        {
+            if (terr.IsServer())
+            {
+                return (null, terr);
+            }
+        }
+        else
+        {
+            return (null, TError.NewClient("failed. masterSlave already exist"));
+        }
+
+        if (await IsMasterSlaveCrossing(masterSlave))
+        {
+            return (null, TError.NewClient("failed. check whether master id is not registered as slave before and vice versa for slave id"));
+        }
+
+        try
+        {
+            var data = await _masterSlaveRepository.Save(masterSlave);
+            if (data == null)
+                return (null, TError.NewServer("cannot create new masterSlave"));
+            return (data, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, TError.NewServer("database error", ex.Message));
+        }
+    }
+
+    public async Task<(MasterSlave?, ITError?)> UpdateMasterSlaveById(long id, MasterSlave param)
+    {   
+        try
+        {
+            var (existing, terr) = await GetMasterSlave(new MasterSlave {Id = id});
+            if(terr != null)
+                return (null, terr);
+
+            param.Id = id;
+
+            if (await IsMasterSlaveCrossing(param))
+            {
+                return (null, TError.NewClient("failed. check whether master id is not registered as slave before and vice versa for slave id"));
+            }
+            
+            var data = await _masterSlaveRepository.Save(param, a => a.Id == id);
+            if(data == null)
+                return (null, TError.NewServer("cannot save masterSlave"));
+
+            return (data, null);
+        }
+
+        catch (Exception ex)
+        {
+            return (null, TError.NewServer(ex.Message));
+        }
+    }
+}

@@ -3,6 +3,6 @@ using Backend.Model;
 
 namespace Backend.Application.Interfaces;
 
-public interface IOrderRepository : IRepository<Order>
+public interface IMasterSlaveConfigRepository : IRepository<MasterSlaveConfig>
 {
 }

@@ -25,6 +25,9 @@ public static class Rest
 
         builder.Services.AddHttpClient();
         builder.Services.AddScoped(typeof(AppLogger<>));
+        builder.Services.AddScoped<IMasterSlaveRepository, MasterSlaveRepository>();
+        builder.Services.AddScoped<IMasterSlaveConfigRepository, MasterSlaveConfigRepository>();
+        builder.Services.AddScoped<IMasterSlavePairRepository, MasterSlavePairRepository>();
         builder.Services.AddScoped<IOrderRepository, OrderRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<ITradingRepository, TradingRepository>();

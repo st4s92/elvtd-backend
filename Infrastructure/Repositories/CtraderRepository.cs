@@ -58,7 +58,7 @@ public class CtraderRepository : ICtraderRepository
 
         return (res, terr);
     }
-    
+
     public async Task<(AppToken?, ITError?)> GetTokenAsync(string code)
     {
         try
