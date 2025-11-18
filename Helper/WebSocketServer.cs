@@ -25,12 +25,15 @@ public class WebSocketServer
         => _clients.TryGetValue(clientKey, out socket!);
 
     public async Task BroadcastToAccounts(IEnumerable<string> clientKeys, string message)
-    {
+{
         var bytes = Encoding.UTF8.GetBytes(message);
 
         foreach (var key in clientKeys)
         {
-            if (_clients.TryGetValue(key, out var socket) && socket.State == WebSocketState.Open)
+            var normalizedKey = key.Replace(" ", "_");
+
+            if (_clients.TryGetValue(normalizedKey, out var socket) &&
+                socket.State == WebSocketState.Open)
             {
                 await socket.SendAsync(
                     new ArraySegment<byte>(bytes),
@@ -38,11 +41,11 @@ public class WebSocketServer
                     true,
                     CancellationToken.None
                 );
-                Console.WriteLine($"📤 Sent message to {key}");
+                Console.WriteLine($"📤 Sent message to {normalizedKey}");
             }
             else
             {
-                Console.WriteLine($"⚠️ Client not found or closed: {key}");
+                Console.WriteLine($"⚠️ Client not found or closed: {normalizedKey}");
             }
         }
     }
