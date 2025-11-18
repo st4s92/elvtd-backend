@@ -212,6 +212,7 @@ public partial class TraderUsecase
             var existingOrderTickets = existingOrders.Select(o => o.OrderTicket).ToHashSet();
             var newOrders = payload.Orders
                 .Where(po => !existingOrderTickets.Contains(po.OrderTicket))
+                .Where(po => OrderTimeHelper.IsOrderFresh(po.OrderOpenAt, 5))
                 .ToList();
 
             List<Order> newOdrs = [];
@@ -231,7 +232,7 @@ public partial class TraderUsecase
                     ActualPrice = item.ActualPrice ?? item.OrderPrice,
                     OrderComment = item.OrderComment,
                     Status = OrderStatus.Success,
-                    OrderOpenAt = DateTime.Now
+                    OrderOpenAt = item.OrderOpenAt
                 };
 
                 var (newOdr, terr) = await CreateOrder(order);
@@ -374,7 +375,9 @@ public partial class TraderUsecase
                     activedOrderSlave.OrderCloseAt = DateTime.Now;
                     updatedSlaveOrders.Add(activedOrderSlave);
                 }
-
+                if(messages.Count <= 0)
+                    continue;
+                    
                 var msgs = JsonSerializer.Serialize(messages);
                 if (item.SlaveAccount?.AccountNumber != null)
                 {
