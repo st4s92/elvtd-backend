@@ -78,7 +78,7 @@ public partial class TraderHandler
         return Response.Json("ok");
     }
 
-    public async Task<IResult> HandleBridgeMasterOrder(BridgeOrderPayload payload)
+    public async Task<IResult> HandleBridgeMasterOrder(BridgeListOrderPayload payload)
     {
         if (payload == null)
         {
@@ -87,6 +87,22 @@ public partial class TraderHandler
         }
 
         var terr = await _usecase.CreateBridgeMasterOrder(payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
+
+    public async Task<IResult> HandleBridgeSlaveOrderConfirmation(BridgeOrderPayload payload)
+    {
+        if (payload == null)
+        {
+            var terrs = TError.NewClient("Invalid payload");
+            return Response.Json(terrs);
+        }
+
+        var terr = await _usecase.ConfirmBridgeSlaveOrder(payload);
         if (terr != null)
         {
             return Response.Json(terr);

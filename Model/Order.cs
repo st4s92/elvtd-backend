@@ -85,7 +85,7 @@ public class Order : IAuditableEntity
 
 public record OrderSyncRequest(List<Order> Orders, Account Account);
 
-public class BridgeOrderPayload
+public class BridgeListOrderPayload
 {
     [JsonPropertyName("broker_name")]
     public string BrokerName { get; set; } = "";
@@ -100,8 +100,25 @@ public class BridgeOrderPayload
     public List<BridgeOrderItem> Orders { get; set; } = new();
 }
 
+public class BridgeOrderPayload
+{
+    [JsonPropertyName("broker_name")]
+    public string BrokerName { get; set; } = "";
+
+    [JsonPropertyName("server_name")]
+    public string ServerName { get; set; } = "";
+
+    [JsonPropertyName("account_id")]
+    public long AccountId { get; set; }
+
+    [JsonPropertyName("order")]
+    public BridgeOrderItem Order{ get; set; } = new();
+}
+
 public class BridgeOrderItem
 {
+    [JsonPropertyName("master_order_id")]
+    public long MasterOrderId { get; set; }
     [JsonPropertyName("order_ticket")]
     public long OrderTicket { get; set; }
 
@@ -149,8 +166,8 @@ public class BridgeOrderBroadcastPayload
 
     [JsonPropertyName("order_ticket")]
     public long OrderTicket { get; set; }
-    [JsonPropertyName("master_account_id")]
-    public long MasterAccountId { get; set; }
+    [JsonPropertyName("master_order_id")]
+    public long MasterOrderId { get; set; }
     [JsonPropertyName("copy_type")]
     public string CopyType { get; set; } = "";
 }

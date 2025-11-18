@@ -38,6 +38,19 @@ public partial class TraderUsecase
             var data = await _masterSlaveRepository.GetMany(FilterMasterSlave(param));
             if (data == null)
                 return ([], TError.NewNotFound("master slave not found"));
+
+            foreach (var item in data)
+            {
+                item.MasterAccount = await _accountRepository.Get(FilterAccount(new Account
+                {
+                    Id = item.MasterId
+                }));
+
+                item.SlaveAccount = await _accountRepository.Get(FilterAccount(new Account
+                {
+                    Id = item.SlaveId
+                }));
+            }
             return (data, null);
         }
         catch (Exception ex)

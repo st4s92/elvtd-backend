@@ -23,10 +23,15 @@ public static class TraderRoutes
             return await handler.GetPaginatedOrders(query);
         }).WithName("GetTraderPaginatedOrders").WithTags("Orders");
 
-        app.MapPost("/trader/bridge/master-order", async ([FromBody] BridgeOrderPayload payload, TraderHandler handler) =>
+        app.MapPost("/trader/bridge/master-order", async ([FromBody] BridgeListOrderPayload payload, TraderHandler handler) =>
         {
             return await handler.HandleBridgeMasterOrder(payload);
-        }).WithName("BridgeAddOrder").WithTags("Orders");
+        }).WithName("BridgeMasterAddOrder").WithTags("Orders");
+
+        app.MapPut("/trader/bridge/slave-order", async ([FromBody] BridgeOrderPayload payload, TraderHandler handler) =>
+        {
+            return await handler.HandleBridgeSlaveOrderConfirmation(payload);
+        }).WithName("BridgeSlaveConfirmOrder").WithTags("Orders");
 
         // account
         app.MapGet("/trader/account/{id:int}", async (int id, TraderHandler handler) =>

@@ -138,7 +138,51 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<ITError?> CreateBridgeMasterOrder(BridgeOrderPayload payload)
+    public async Task<ITError?> ConfirmBridgeSlaveOrder(BridgeOrderPayload payload)
+    {
+        try
+        {
+            var (account, accErr) = await GetAccount(new Account
+            {
+                ServerName = payload.ServerName,
+                AccountNumber = payload.AccountId
+            });
+            if (accErr != null)
+                return accErr;
+            
+            if (account == null)
+                return TError.NewNotFound("account not found");
+
+            var (existingOrder, terr) = await GetOrder(new Order
+            {
+                MasterOrderId = payload.Order.MasterOrderId,
+                AccountId = account.Id,
+            });
+            if (terr != null)
+                return terr;
+            
+            if (existingOrder == null)
+                return TError.NewNotFound("order not found");
+
+
+            existingOrder.OrderTicket = payload.Order.OrderTicket;
+            existingOrder.ActualPrice = payload.Order.ActualPrice;
+            existingOrder.OrderLot = payload.Order.OrderLot;
+            existingOrder.Status = OrderStatus.Success;
+
+            var (_, terrs) = await UpdateOrderById(existingOrder.Id, existingOrder);
+            if (terrs != null)
+                return terrs;
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+
+    public async Task<ITError?> CreateBridgeMasterOrder(BridgeListOrderPayload payload)
     {
         try
         {
@@ -234,7 +278,7 @@ public partial class TraderUsecase
             }
 
             List<Order> newSlaveOrders = [];
-            List<Order> updatedSalveOrders = [];
+            List<Order> updatedSlaveOrders = [];
 
             // iterate list of slaves
             foreach (var item in masterSlaves)
@@ -271,7 +315,7 @@ public partial class TraderUsecase
                         OrderType = order.OrderType,
                         OrderLot = multiplier,
                         OrderTicket = order.OrderTicket,
-                        MasterAccountId = order.AccountId,
+                        MasterOrderId = order.Id,
                         CopyType = "MASTER_ORDER_UPDATE"
                     };
 
@@ -290,7 +334,7 @@ public partial class TraderUsecase
                         OrderType = order.OrderType,
                         OrderLot = (decimal)multiplier,
                         OrderPrice = 0,
-                        Status = OrderStatus.Success,
+                        Status = OrderStatus.Pending,
                         OrderOpenAt = DateTime.Now
                     };
                     newSlaveOrders.Add(slaveOrder);
@@ -316,8 +360,9 @@ public partial class TraderUsecase
                         OrderType = order.OrderType,
                         OrderLot = (double)order.OrderLot,
                         OrderTicket = activedOrderSlave!.OrderTicket,
-                        MasterAccountId = order.AccountId,
-                        CopyType = "MASTER_ORDER_DELETE"
+                        MasterOrderId = order.Id,
+                        CopyType = "MASTER_ORDER_DELETE",
+
                     };
                     messages.Add(newOrderMsg);
 
@@ -327,7 +372,7 @@ public partial class TraderUsecase
                     }
 
                     activedOrderSlave.OrderCloseAt = DateTime.Now;
-                    newSlaveOrders.Add(activedOrderSlave);
+                    updatedSlaveOrders.Add(activedOrderSlave);
                 }
 
                 var msgs = JsonSerializer.Serialize(messages);
@@ -347,6 +392,15 @@ public partial class TraderUsecase
                 foreach (var item in newSlaveOrders)
                 {
                     var (_, terra) = await CreateOrder(item);
+                    if (terra != null)
+                    {
+                        return terra;
+                    }
+                }
+
+                foreach (var item in updatedSlaveOrders)
+                {
+                    var (_, terra) = await UpdateOrderById(item.Id, item);
                     if (terra != null)
                     {
                         return terra;
