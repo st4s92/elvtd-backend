@@ -44,11 +44,13 @@ public static class OrderTimeHelper
         var age = nowUtc - orderUtc;
 
         if (age < TimeSpan.Zero){          // future timestamps
+            Console.WriteLine("future time not allowed");
             Console.WriteLine($"{nowUtc} - {orderUtc} = {age}");
             return false;
         }
 
         if (age > TimeSpan.FromSeconds(thresholdSeconds)){
+            Console.WriteLine("less than threshold not allowed");
             Console.WriteLine($"{nowUtc} - {orderUtc} = {age}");
             return false;
         }

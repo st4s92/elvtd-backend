@@ -15,6 +15,7 @@ services:
       - DB_NAME=${DOC_DB_NAME}
       - DB_USER=${DOC_DB_USER}
       - DB_PASSWORD=${DOC_DB_PASSWORD}
+      - COPY_TOLERANCE_SECOND=${COPY_TOLERANCE_SECOND}
     depends_on:
       - database
 
