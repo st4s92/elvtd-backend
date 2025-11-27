@@ -102,6 +102,7 @@ CREATE TABLE `orders` (
   `order_type` varchar(20) NOT NULL,
   `order_lot` decimal(13,3) NOT NULL,
   `order_price` decimal(13,6) NOT NULL,
+  `close_price` decimal(13,6) DEFAULT NULL,
   `actual_price` decimal(13,6) DEFAULT NULL,
   `order_comment` varchar(255) DEFAULT NULL,
   `status` int NOT NULL DEFAULT '200',
@@ -116,5 +117,5 @@ CREATE TABLE `orders` (
   KEY `idx_master_order_id` (`master_order_id`),
   CONSTRAINT `fk_orders_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_orders_master_order` FOREIGN KEY (`master_order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=131 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

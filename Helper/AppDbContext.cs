@@ -88,19 +88,42 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);
     }
 
-    public override int SaveChanges()
+    private void ApplyAuditableRules()
     {
-        var entries = ChangeTracker.Entries<IAuditableEntity>();
+        var entries = ChangeTracker
+            .Entries<IAuditableEntity>()
+            .Where(e => e.State == EntityState.Added || e.State == EntityState.Modified);
+
+        var now = DateTime.UtcNow;
 
         foreach (var entry in entries)
         {
             if (entry.State == EntityState.Added)
-                entry.Entity.CreatedAt = DateTime.UtcNow;
-
-            if (entry.State == EntityState.Modified)
-                entry.Entity.UpdatedAt = DateTime.UtcNow;
+            {
+                entry.Entity.CreatedAt = now;
+                entry.Entity.UpdatedAt = now;
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                // Avoid changing CreatedAt on update (unless you intend to)
+                entry.Entity.UpdatedAt = now;
+            }
         }
+    }
 
+    public override int SaveChanges()
+    {
+        ApplyAuditableRules();
         return base.SaveChanges();
     }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplyAuditableRules();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    // optional convenience override
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => SaveChangesAsync(true, cancellationToken);
 }

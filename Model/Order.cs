@@ -11,7 +11,8 @@ public enum OrderStatus
     Failed = 300,
     Closed = 400,
     Canceled = 500,
-    Success = 600
+    Success = 600,
+    Complete = 700
 }
 
 [Table("orders")]
@@ -52,6 +53,9 @@ public class Order : IAuditableEntity
 
     [Column("order_price", TypeName = "decimal(13,6)")]
     public decimal OrderPrice { get; set; }
+
+    [Column("close_price", TypeName = "decimal(13,6)")]
+    public decimal? ClosePrice { get; set; }
 
     [Column("actual_price", TypeName = "decimal(13,6)")]
     public decimal? ActualPrice { get; set; }
@@ -137,6 +141,9 @@ public class BridgeOrderItem
     [JsonPropertyName("order_price")]
     public decimal OrderPrice { get; set; }
 
+    [JsonPropertyName("order_close_price")]
+    public decimal OrderClosePrice { get; set; }
+
     [JsonPropertyName("actual_price")]
     public decimal? ActualPrice { get; set; }
 
@@ -162,7 +169,7 @@ public class BridgeOrderBroadcastPayload
     public string OrderType { get; set; } = "";
 
     [JsonPropertyName("order_lot")]
-    public double OrderLot { get; set; }
+    public decimal OrderLot { get; set; }
 
     [JsonPropertyName("order_ticket")]
     public long OrderTicket { get; set; }

@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
 using Backend.Application.Interfaces;
 using Backend.Helper;
 using Backend.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Infrastructure.Repositories;
 
@@ -13,5 +15,14 @@ public class OrderRepository : BaseRepository<Order>, IOrderRepository
     {
         _context = context;
         _logger = logger;
+    }
+
+    public async Task<List<Order>> GetOrdersWithMaster(Expression<Func<Order, bool>> predicate)
+    {
+        return await _context.Orders
+            .Include(o => o.MasterOrder)
+            .AsNoTracking()
+            .Where(predicate)
+            .ToListAsync();
     }
 }
