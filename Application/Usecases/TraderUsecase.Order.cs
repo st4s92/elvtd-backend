@@ -157,7 +157,8 @@ public partial class TraderUsecase
 
             Order? existingOrder = null;
             ITError? terr = null;
-            if(payload.Order.OrderClosePrice <= 0){
+            if (payload.Order.OrderClosePrice <= 0)
+            {
                 (existingOrder, terr) = await GetOrder(new Order
                 {
                     MasterOrderId = payload.Order.MasterOrderId, // use master order id? it should be order id, it just using same payload
@@ -169,7 +170,7 @@ public partial class TraderUsecase
                 if (existingOrder == null)
                     return TError.NewNotFound("order not found");
 
-                
+
                 existingOrder.OrderOpenAt = DateTime.UtcNow;
                 existingOrder.OrderTicket = payload.Order.OrderTicket;
                 existingOrder.ActualPrice = payload.Order.ActualPrice;
@@ -185,7 +186,7 @@ public partial class TraderUsecase
                 if (terr != null)
                     return terr;
 
-                if (existingOrder == null) 
+                if (existingOrder == null)
                     return TError.NewNotFound("order not found");
 
                 existingOrder.OrderCloseAt = DateTime.UtcNow;
@@ -288,6 +289,7 @@ public partial class TraderUsecase
             {
                 return terr;
             }
+            _logger.Info("masterSlaves", masterSlaves);
 
             if (masterSlaves.Count <= 0)
             {
@@ -301,6 +303,7 @@ public partial class TraderUsecase
                 a.OrderOpenAt >= threshold && a.OrderOpenAt <= now
                 && a.OrderCloseAt == null && a.AccountId == masterAccount.Id
             );
+            _logger.Info("newOrders", newOrders);
 
             var closedThreshold = DateTime.UtcNow.AddDays(-30);
 
@@ -382,7 +385,7 @@ public partial class TraderUsecase
                             a.Status == OrderStatus.Success &&
                             a.AccountId == item.SlaveId
                     );
-                
+
                 closedOrders ??= [];
 
                 // iterate list of orders
@@ -416,6 +419,8 @@ public partial class TraderUsecase
                     continue;
 
                 var msgs = JsonSerializer.Serialize(messages);
+
+                _logger.Info("msgs", msgs);
                 if (item.SlaveAccount?.AccountNumber != null)
                 {
                     await _wsServer.BroadcastToAccounts(
