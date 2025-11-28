@@ -208,6 +208,7 @@ public partial class TraderUsecase
 
     public async Task<ITError?> CreateBridgeMasterOrder(BridgeListOrderPayload payload)
     {
+        await using var tx = await _orderRepository.BeginTransactionAsync();
         try
         {
             var (account, accErr) = await GetAccount(new Account
@@ -268,6 +269,8 @@ public partial class TraderUsecase
                     return terr;
             }
 
+            await _orderRepository.CommitAsync();
+
             var terrz = await CopyBridgeMasterOrder(account!);
             if (terrz != null)
                 return terrz;
@@ -276,6 +279,7 @@ public partial class TraderUsecase
         }
         catch (Exception ex)
         {
+            await _orderRepository.RollbackAsync();
             return TError.NewServer(ex.Message);
         }
     }

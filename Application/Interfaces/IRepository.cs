@@ -1,9 +1,16 @@
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Backend.Application.Interfaces
 {
     public interface IRepository<T> where T : class
     {
+        // transaction
+        Task<IDbContextTransaction> BeginTransactionAsync();
+        Task CommitAsync();
+        Task RollbackAsync();
+
+        // main code
         Task<T?> Get(Expression<Func<T, bool>> predicate);
         Task<List<T>> GetMany(Expression<Func<T, bool>> predicate);
 

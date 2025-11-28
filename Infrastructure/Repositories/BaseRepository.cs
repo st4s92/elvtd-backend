@@ -2,6 +2,7 @@ using Backend.Application.Interfaces;
 using Backend.Helper;
 using Backend.Model;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using System.Linq.Expressions;
 
 namespace Backend.Infrastructure.Repositories
@@ -93,5 +94,27 @@ namespace Backend.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return true;
         }
+
+        // unit of work
+        private IDbContextTransaction? _transaction;
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            _transaction = await _context.Database.BeginTransactionAsync();
+            return _transaction;
+        }
+
+        public async Task CommitAsync()
+        {
+            if (_transaction != null)
+                await _transaction.CommitAsync();
+        }
+
+        public async Task RollbackAsync()
+        {
+            if (_transaction != null)
+                await _transaction.RollbackAsync();
+        }
+
     }
 }
