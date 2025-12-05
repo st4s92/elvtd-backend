@@ -288,6 +288,10 @@ public partial class TraderUsecase
     {
         try
         {
+            // -------------------------------
+            // 1. GET ALL MASTER-SLAVE RELATIONS FIRST (NO DUPLICATE QUERIES)
+            // -------------------------------
+
             var (masterSlaves, terr) = await GetMasterSlaves(new MasterSlave { MasterId = masterAccount.Id });
             if (terr != null)
             {
@@ -300,59 +304,84 @@ public partial class TraderUsecase
                 return null;
             }
 
+            // -------------------------------
+            // 2. GET ALL NEW MASTER ORDERS IN ONE QUERY
+            // -------------------------------
+
             var toleranceSeconds = int.Parse(Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0");
             var threshold = DateTime.UtcNow.AddSeconds(-toleranceSeconds);
             var now = DateTime.UtcNow;
+
             var newOrders = await _orderRepository.GetMany(a =>
-                a.OrderOpenAt >= threshold && a.OrderOpenAt <= now
-                && a.OrderCloseAt == null && a.AccountId == masterAccount.Id
+                a.OrderOpenAt >= threshold && a.OrderOpenAt <= now &&
+                a.OrderCloseAt == null &&
+                a.AccountId == masterAccount.Id
             );
-            _logger.Info("newOrders", newOrders);
+
+            // -------------------------------
+            // PRELOAD ALL MASTER SLAVE PAIRS & CONFIG IN ONE GO
+            // so we don’t repeat SQL queries for each masterSlave
+            // -------------------------------
+
+            var allMasterSlaveIds = masterSlaves.Select(x => x.Id).ToList();
+
+            // load ALL pairs for ALL slaves
+            var allPairs = await _masterSlavePairRepository.GetMany(x => allMasterSlaveIds.Contains(x.MasterSlaveId));
+
+            // load ALL configs
+            var allConfigs = await _masterSlaveConfigRepository.GetMany(x => allMasterSlaveIds.Contains(x.MasterSlaveId));
+
+            // group pairs into a dictionary
+            var allPairsMap = allPairs
+                .GroupBy(x => x.MasterSlaveId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.ToDictionary(x => x.MasterPair, x => x.SlavePair)
+                );
+
+            // config lookup dictionary
+            var configMap = allConfigs.ToDictionary(x => x.MasterSlaveId, x => x);
 
             var closedThreshold = DateTime.UtcNow.AddDays(-30);
 
             List<Order> newSlaveOrders = [];
             List<Order> updatedSlaveOrders = [];
 
-            // iterate list of slaves
+            // -------------------------------------------
+            // LOOP EACH MASTER-SLAVE
+            // -------------------------------------------
             foreach (var item in masterSlaves)
             {
                 if (item == null)
-                {
                     continue;
-                }
 
-                // generate master slave pair map
-                var masterSlavePairs = await _masterSlavePairRepository.GetMany(a => a.MasterSlaveId == item.Id);
-                if (masterSlavePairs.Count <= 0)
-                {
+                // safe: if pairs not exist
+                if (!allPairsMap.TryGetValue(item.Id, out var masterSlavePair))
                     continue;
-                }
-                var masterSlavePairsMap = masterSlavePairs.GroupBy(x => x.MasterSlaveId)
-                    .ToDictionary(g => g.Key, g => g.ToDictionary(
-                        x => x.MasterPair, x => x.SlavePair
-                    ));
 
                 decimal multiplier = 1;
-
-                // generate master slave config map
-                var masterSlaveConfig = await _masterSlaveConfigRepository.Get(a => a.MasterSlaveId == item.Id);
-                multiplier = masterSlaveConfig?.Multiplier ?? multiplier;
+                if (configMap.TryGetValue(item.Id, out var cfg))
+                {
+                    multiplier = cfg.Multiplier == 0 ? multiplier : cfg.Multiplier;
+                }
 
                 List<BridgeOrderBroadcastPayload> messages = [];
-                // iterate list of orders
+
+                // -------------------------------------------
+                // APPLY NEW MASTER ORDERS → SLAVE
+                // -------------------------------------------
                 foreach (var order in newOrders)
                 {
-                    var masterSlavePair = masterSlavePairsMap[item.Id];
-                    if (masterSlavePair == null)
-                        break;
+                    // SAFE DICTIONARY ACCESS
+                    if (!masterSlavePair.TryGetValue(order.OrderSymbol, out var slavePair))
+                        continue;  // skip if symbol not mapped
 
-                    if (masterSlavePair[order.OrderSymbol] == "")
+                    if (string.IsNullOrEmpty(slavePair))
                         continue;
 
                     var newOrderMsg = new BridgeOrderBroadcastPayload
                     {
-                        SlavePair = masterSlavePair[order.OrderSymbol],
+                        SlavePair = slavePair,
                         OrderType = order.OrderType,
                         OrderLot = order.OrderLot * multiplier,
                         OrderTicket = order.OrderTicket,
@@ -363,15 +392,14 @@ public partial class TraderUsecase
                     messages.Add(newOrderMsg);
 
                     if (item.SlaveAccount == null)
-                    {
                         continue;
-                    }
+
                     var slaveOrder = new Order
                     {
                         AccountId = item.SlaveAccount.Id,
                         MasterOrderId = order.Id,
                         OrderTicket = 0,
-                        OrderSymbol = masterSlavePair[order.OrderSymbol],
+                        OrderSymbol = slavePair,
                         OrderType = order.OrderType,
                         OrderLot = Math.Round((decimal)multiplier, 2),
                         OrderPrice = 0,
@@ -381,52 +409,51 @@ public partial class TraderUsecase
                     newSlaveOrders.Add(slaveOrder);
                 }
 
+                // -------------------------------------------
+                // CLOSED ORDERS BROADCAST
+                // -------------------------------------------
+
                 var closedOrders = await _orderRepository.GetMany(
-                        a =>
-                            a.MasterOrder != null &&
-                            a.MasterOrder.OrderCloseAt != null &&
-                            a.MasterOrder.OrderCloseAt > closedThreshold &&
-                            a.Status == OrderStatus.Success &&
-                            a.AccountId == item.SlaveId
-                    );
+                    a =>
+                        a.MasterOrder != null &&
+                        a.MasterOrder.OrderCloseAt != null &&
+                        a.MasterOrder.OrderCloseAt > closedThreshold &&
+                        a.Status == OrderStatus.Success &&
+                        a.AccountId == item.SlaveId
+                );
 
                 closedOrders ??= [];
 
-                // iterate list of orders
                 foreach (var closeOrder in closedOrders)
                 {
                     if (closeOrder == null)
                         continue;
-                    if (closeOrder?.ClosePrice != null)
+                    if (closeOrder.ClosePrice != null)
                         continue;
 
-                    var newOrderMsg = new BridgeOrderBroadcastPayload
+                    var msg = new BridgeOrderBroadcastPayload
                     {
-                        SlavePair = closeOrder!.OrderSymbol,
-                        OrderType = closeOrder!.OrderType,
-                        OrderLot = closeOrder!.OrderLot,
-                        OrderTicket = closeOrder!.OrderTicket,
-                        MasterOrderId = closeOrder!.Id, // use actual slave order id for mt order detection
+                        SlavePair = closeOrder.OrderSymbol,
+                        OrderType = closeOrder.OrderType,
+                        OrderLot = closeOrder.OrderLot,
+                        OrderTicket = closeOrder.OrderTicket,
+                        MasterOrderId = closeOrder.Id,
                         CopyType = "MASTER_ORDER_DELETE",
                     };
-                    messages.Add(newOrderMsg);
+                    messages.Add(msg);
 
                     if (item.SlaveAccount == null)
-                    {
                         continue;
-                    }
 
                     closeOrder.OrderCloseAt = DateTime.UtcNow;
                     updatedSlaveOrders.Add(closeOrder);
                 }
-                if (messages.Count <= 0)
-                    continue;
 
-                var msgs = JsonSerializer.Serialize(messages);
-
-                _logger.Info("msgs", msgs);
-                if (item.SlaveAccount?.AccountNumber != null)
+                if (messages.Count > 0 && item.SlaveAccount?.AccountNumber != null)
                 {
+                    var msgs = JsonSerializer.Serialize(messages);
+                    _logger.Info("msgs", msgs);
+
                     await _wsServer.BroadcastToAccounts(
                         [$"{item.SlaveAccount.ServerName}:{item.SlaveAccount.AccountNumber}"],
                         msgs
@@ -434,25 +461,21 @@ public partial class TraderUsecase
                 }
             }
 
-            // handle post broadcast
+            // -------------------------------------------
+            // SAVE NEW + UPDATED SLAVE ORDERS
+            // -------------------------------------------
+            foreach (var item in newSlaveOrders)
             {
-                foreach (var item in newSlaveOrders)
-                {
-                    var (_, terra) = await CreateOrder(item);
-                    if (terra != null)
-                    {
-                        return terra;
-                    }
-                }
+                var (_, terra) = await CreateOrder(item);
+                if (terra != null)
+                    return terra;
+            }
 
-                foreach (var item in updatedSlaveOrders)
-                {
-                    var (_, terra) = await UpdateOrderById(item.Id, item);
-                    if (terra != null)
-                    {
-                        return terra;
-                    }
-                }
+            foreach (var item in updatedSlaveOrders)
+            {
+                var (_, terra) = await UpdateOrderById(item.Id, item);
+                if (terra != null)
+                    return terra;
             }
 
             return null;
