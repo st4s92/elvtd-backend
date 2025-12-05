@@ -193,10 +193,14 @@ public class OrderQuery
     public string? OrderType { get; set; }
     [JsonPropertyName("status")]
     public OrderStatus? Status { get; set; } = OrderStatus.None;
+}
+
+public class OrderGetPaginatedPayload : OrderQuery
+{
     [JsonPropertyName("per_page")]
 
-    public int? PerPage { get; set; }
-    [JsonPropertyName("page")]
+    public int PerPage { get; set; }
 
-    public int? Page { get; set; }
+    [JsonPropertyName("page")]
+    public int Page { get; set; }
 }

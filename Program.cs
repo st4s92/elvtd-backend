@@ -26,9 +26,10 @@ if (Environment.GetEnvironmentVariable("APP_ENV") == "dev")
 }
 
 app.UseMiddleware<NotFoundMiddleware>();
-app.MapUserRoutes();
-app.MapCtraderRoutes();
-app.MapTraderRoutes();
+var api = app.MapGroup("/api");
+api.MapUserRoutes();
+api.MapCtraderRoutes();
+api.MapTraderRoutes();
 
 Socket.Init(app);
 

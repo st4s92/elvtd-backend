@@ -27,6 +27,24 @@ public class UserUsecase
                 (param.RoleId == 0 || a.RoleId == param.RoleId)
         );
     }
+
+    public async Task<(User?, ITError?)> SignIn(LoginRequest payload)
+    {
+        try
+        {
+            var user = await _userRepository.Get(a => a.Email == payload.Email && a.Password == payload.Password);
+            if(user == null){
+                return (null, TError.NewNotFound("user not found"));
+            }
+
+            return (user, null);
+        }
+        catch (System.Exception ex)
+        {
+            return (null, TError.NewNotFound(ex.Message));
+        }
+    }
+    
     public async Task<(User?, ITError?)> GetUser(User param)
     {
         try

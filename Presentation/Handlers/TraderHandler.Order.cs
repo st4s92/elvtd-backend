@@ -37,7 +37,7 @@ public partial class TraderHandler
         return Response.Json(res);
     }
 
-    public async Task<IResult> GetPaginatedOrders(OrderQuery query)
+    public async Task<IResult> GetPaginatedOrders(OrderGetPaginatedPayload query)
     {
         var orderFilter = new Order
         {
@@ -49,12 +49,18 @@ public partial class TraderHandler
             Status = query.Status ?? 0,
         };
 
-        var (res, terr) = await _usecase.GetOrders(orderFilter);
+        var (res, total ,terr) = await _usecase.GetPaginatedOrders(orderFilter, query.Page, query.PerPage);
         if (terr != null)
         {
             return Response.Json(terr);
         }
-        return Response.Json(res);
+
+        var resp = new GetPaginatedResponse<Order>
+        {
+            Data = res,
+            Total = total
+        };
+        return Response.Json(resp);
     }
 
     public async Task<IResult> UpdateOrder(long id, Order payload)

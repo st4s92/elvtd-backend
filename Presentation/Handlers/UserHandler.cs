@@ -13,6 +13,49 @@ public class UserHandler
         _usecase = usecase;
     }
 
+   public async Task<IResult> SignIn(LoginRequest payload)
+    {
+        if (string.IsNullOrEmpty(payload.Email))
+        {
+            return Response.Json(TError.NewClient("User Email should be filled"));
+        }
+        if (string.IsNullOrEmpty(payload.Password))
+        {
+            return Response.Json(TError.NewClient("Password should be filled"));
+        }
+        var (res, terr) = await _usecase.SignIn(payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(res);
+    }
+
+    public async Task<IResult> GetPaginatedUsers(UserGetPaginatedPayload query)
+    {
+        var userFilter = new User
+        {
+            Id = query.Id ?? 0,
+            Email = query.Email ?? "",
+            Name = query.Name ?? "",
+            RoleId = query.RoleId ?? 0,
+            Password = query.Password ?? ""
+        };
+
+        var (res, total, terr) = await _usecase.GetPaginatedUsers(userFilter, query.Page, query.PageSize);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+
+        var resp = new GetPaginatedResponse<User>
+        {
+            Data = res,
+            Total = total
+        };
+        return Response.Json(resp);
+    }
+
     public async Task<IResult> AddUser(UserPayload userPayload)
     {
         var user = new User
@@ -74,30 +117,5 @@ public class UserHandler
             return Response.Json(terr);
         }
         return Response.Json(res);
-    }
-
-    public async Task<IResult> GetPaginatedUsers(UserGetPaginatedPayload query)
-    {
-        var userFilter = new User
-        {
-            Id = query.Id ?? 0,
-            Email = query.Email ?? "",
-            Name = query.Name ?? "",
-            RoleId = query.RoleId ?? 0,
-            Password = query.Password ?? ""
-        };
-
-        var (res, total, terr) = await _usecase.GetPaginatedUsers(userFilter, query.Page, query.PageSize);
-        if (terr != null)
-        {
-            return Response.Json(terr);
-        }
-
-        var resp = new GetPaginatedResponse<User>
-        {
-            Data = res,
-            Total = total
-        };
-        return Response.Json(resp);
     }
 }

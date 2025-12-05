@@ -6,14 +6,14 @@ namespace Backend.Presentation.Routes;
 
 public static class CtraderRoutes
 {
-    public static void MapCtraderRoutes(this WebApplication app)
+    public static void MapCtraderRoutes(this RouteGroupBuilder group)
     {
-        app.MapGet("/ctrader/auth", (CtraderHandler handler) =>
+        group.MapGet("/ctrader/auth", (CtraderHandler handler) =>
         {
             return handler.GetAuthPage();
         }).WithName("GetCtraderAuthUrl");
 
-        app.MapGet("/ctrader/auth/callback", async ([FromServices] CtraderHandler handler, [FromQuery] string code) =>
+        group.MapGet("/ctrader/auth/callback", async ([FromServices] CtraderHandler handler, [FromQuery] string code) =>
         {
             Console.WriteLine($"code1: {code}");
             return await handler.ProcessAuthCallback(code);

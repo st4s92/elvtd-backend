@@ -76,24 +76,31 @@ public partial class TraderUsecase
 
     private async Task<bool> IsMasterSlaveCrossing(MasterSlave masterSlave)
     {
-        var data = _masterSlaveRepository.Get(a =>
-            a.MasterId == masterSlave.SlaveId &&
-            (masterSlave.Id <= 0 || a.Id != masterSlave.Id )
-        );
-        if(data != null)
+        try
         {
-            return true;
-        }
+            var data = await _masterSlaveRepository.Get(a =>
+                a.MasterId == masterSlave.SlaveId &&
+                (masterSlave.Id <= 0 || a.Id != masterSlave.Id)
+            );
+            if (data != null)
+            {
+                return true;
+            }
 
-        data = _masterSlaveRepository.Get(a =>
-            a.SlaveId == masterSlave.MasterId &&
-            (masterSlave.Id <= 0 || a.Id != masterSlave.Id )
-        );
-        if(data != null)
+            data = await _masterSlaveRepository.Get(a =>
+                a.SlaveId == masterSlave.MasterId &&
+                (masterSlave.Id <= 0 || a.Id != masterSlave.Id)
+            );
+            if (data != null)
+            {
+                return true;
+            }
+            return false;
+        }
+        catch
         {
             return true;
         }
-        return false;
     }
 
     public async Task<(MasterSlave?, ITError?)> AddMasterSlave(MasterSlave masterSlave)
@@ -136,11 +143,11 @@ public partial class TraderUsecase
     }
 
     public async Task<(MasterSlave?, ITError?)> UpdateMasterSlaveById(long id, MasterSlave param)
-    {   
+    {
         try
         {
-            var (existing, terr) = await GetMasterSlave(new MasterSlave {Id = id});
-            if(terr != null)
+            var (existing, terr) = await GetMasterSlave(new MasterSlave { Id = id });
+            if (terr != null)
                 return (null, terr);
 
             param.Id = id;
@@ -149,9 +156,9 @@ public partial class TraderUsecase
             {
                 return (null, TError.NewClient("failed. check whether master id is not registered as slave before and vice versa for slave id"));
             }
-            
+
             var data = await _masterSlaveRepository.Save(param, a => a.Id == id);
-            if(data == null)
+            if (data == null)
                 return (null, TError.NewServer("cannot save masterSlave"));
 
             return (data, null);

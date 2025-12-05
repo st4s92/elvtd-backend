@@ -19,6 +19,7 @@ public class User : IAuditableEntity
     [Column("role_id")]
     public long RoleId { get; set; }
 
+    [JsonIgnore]
     [Column("password"), MaxLength(300)]
     public string Password { get; set; } = "";
 
@@ -39,7 +40,12 @@ public class User : IAuditableEntity
 }
 
 
-public record LoginRequest(string Email, string Password);
+public class LoginRequest{
+    [JsonPropertyName("email")]
+    public string Email {get; set;} = "";
+    [JsonPropertyName("password")]
+    public string Password {get; set;} = "";
+};
 
 
 public class UserPayload
