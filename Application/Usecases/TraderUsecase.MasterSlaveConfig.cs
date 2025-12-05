@@ -65,7 +65,7 @@ public partial class TraderUsecase
     {
         var existingMasterSlaveConfig = new MasterSlaveConfig
         {
-            MasterSlaveId = masterSlavePair.Id,
+            MasterSlaveId = masterSlavePair.MasterSlaveId,
             Multiplier = masterSlavePair.Multiplier,
         };
 
