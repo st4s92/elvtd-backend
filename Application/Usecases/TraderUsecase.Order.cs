@@ -400,7 +400,7 @@ public partial class TraderUsecase
                         OrderTicket = 0,
                         OrderSymbol = slavePair,
                         OrderType = order.OrderType,
-                        OrderLot = Math.Round((decimal)multiplier, 2),
+                        OrderLot = Math.Round(order.OrderLot * multiplier, 2),
                         OrderPrice = 0,
                         Status = OrderStatus.Pending,
                         OrderOpenAt = DateTime.UtcNow

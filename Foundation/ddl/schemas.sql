@@ -107,6 +107,7 @@ CREATE TABLE `orders` (
   `order_comment` varchar(255) DEFAULT NULL,
   `status` int NOT NULL DEFAULT '200',
   `copy_message` varchar(255) DEFAULT NULL,
+  `order_copied_at` datetime DEFAULT NULL,
   `order_open_at` datetime DEFAULT NULL,
   `order_close_at` datetime DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
