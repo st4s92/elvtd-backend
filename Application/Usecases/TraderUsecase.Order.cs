@@ -297,7 +297,6 @@ public partial class TraderUsecase
             {
                 return terr;
             }
-            _logger.Info("masterSlaves", masterSlaves);
 
             if (masterSlaves.Count <= 0)
             {
@@ -314,7 +313,7 @@ public partial class TraderUsecase
 
             var newOrders = await _orderRepository.GetMany(a =>
                 a.OrderOpenAt >= threshold && a.OrderOpenAt <= now &&
-                a.OrderCloseAt == null &&
+                a.OrderCloseAt == null && a.OrderCopiedAt == null &&
                 a.AccountId == masterAccount.Id
             );
 
@@ -477,6 +476,14 @@ public partial class TraderUsecase
                 var (_, terra) = await UpdateOrderById(item.Id, item);
                 if (terra != null)
                     return terra;
+            }
+
+
+             // mark all master orders as copied
+            foreach (var order in newOrders)
+            {
+                order.OrderCopiedAt = DateTime.UtcNow;
+                await _orderRepository.Save(order);
             }
 
             return null;

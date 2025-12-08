@@ -72,6 +72,9 @@ public class Order : IAuditableEntity
     [Column("order_open_at")]
     public DateTime? OrderOpenAt { get; set; }
 
+    [Column("order_copied_at")]
+    public DateTime? OrderCopiedAt { get; set; }
+
     [Column("order_close_at")]
     public DateTime? OrderCloseAt { get; set; }
 
