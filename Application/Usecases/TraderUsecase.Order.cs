@@ -418,7 +418,7 @@ public partial class TraderUsecase
                         a.MasterOrder != null &&
                         a.MasterOrder.OrderCloseAt != null &&
                         a.MasterOrder.OrderCloseAt > closedThreshold &&
-                        a.Status == OrderStatus.Success &&
+                        (a.Status == OrderStatus.Success || a.Status == OrderStatus.Pending) &&
                         a.AccountId == item.SlaveId
                 );
 
