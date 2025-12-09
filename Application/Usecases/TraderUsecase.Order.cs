@@ -59,7 +59,7 @@ public partial class TraderUsecase
     {
         try
         {
-            var (data, total) = await _orderRepository.GetPaginated(FilterOrder(param), page, pageSize);
+            var (data, total) = await _orderRepository.GetPaginated(FilterOrder(param), page, pageSize, q => q.OrderByDescending(o => o.CreatedAt));
             if (data == null)
                 return ([], 0, null);
             return (data, total, null);
@@ -161,7 +161,7 @@ public partial class TraderUsecase
             {
                 (existingOrder, terr) = await GetOrder(new Order
                 {
-                    MasterOrderId = payload.Order.MasterOrderId, // use master order id? it should be order id, it just using same payload
+                    MasterOrderId = payload.Order.MasterOrderId,
                     AccountId = account.Id,
                 });
                 if (terr != null)
@@ -206,7 +206,7 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<ITError?> CreateBridgeMasterOrder(BridgeListOrderPayload payload)
+    public async Task<ITError?> CreateBridgeMasterOrder(BridgeListCreateOrderPayload payload)
     {
         await using var tx = await _orderRepository.BeginTransactionAsync();
         try
@@ -243,13 +243,11 @@ public partial class TraderUsecase
                     MasterOrderId = null,
                     CopyMessage = null,
                     OrderTicket = item.OrderTicket,
-                    CloseTicket = item.CloseTicket,
                     OrderSymbol = item.OrderSymbol,
                     OrderType = item.OrderType,
                     OrderLot = item.OrderLot,
                     OrderPrice = item.OrderPrice,
-                    ActualPrice = item.ActualPrice ?? item.OrderPrice,
-                    OrderComment = item.OrderComment,
+                    ActualPrice = item.OrderPrice,
                     Status = OrderStatus.Success,
                     OrderOpenAt = item.OrderOpenAt
                 };

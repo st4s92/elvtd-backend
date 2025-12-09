@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
@@ -206,4 +207,47 @@ public class OrderGetPaginatedPayload : OrderQuery
 
     [JsonPropertyName("page")]
     public int Page { get; set; }
+}
+
+// simplyfiy create new order item
+public enum OrderType
+{
+    [Description("DEAL_TYPE_BUY")]
+    Buy,
+
+    [Description("DEAL_TYPE_SELL")]
+    Sell
+}
+
+public class BridgeCreateOrderItem
+{
+    [JsonPropertyName("order_ticket")]
+    public long OrderTicket { get; set; }
+
+    [JsonPropertyName("order_symbol")]
+    public string OrderSymbol { get; set; } = "";
+
+    [JsonPropertyName("order_type")]
+    public string OrderType { get; set; } = "";
+
+    [JsonPropertyName("order_lot")]
+    public decimal OrderLot { get; set; }
+
+    [JsonPropertyName("order_price")]
+    public decimal OrderPrice { get; set; }
+    
+    [JsonPropertyName("order_open_at")]
+    public DateTime? OrderOpenAt { get; set; }
+}
+
+public class BridgeListCreateOrderPayload
+{
+    [JsonPropertyName("server_name")]
+    public string ServerName { get; set; } = "";
+
+    [JsonPropertyName("account_id")]
+    public long AccountId { get; set; }
+
+    [JsonPropertyName("orders")]
+    public List<BridgeCreateOrderItem> Orders { get; set; } = new();
 }

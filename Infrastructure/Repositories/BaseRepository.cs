@@ -34,10 +34,14 @@ namespace Backend.Infrastructure.Repositories
         public async Task<(List<T> items, long total)> GetPaginated(
             Expression<Func<T, bool>> predicate,
             int page,
-            int pageSize
+            int pageSize,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null
         )
         {
             var query = _db.AsNoTracking().Where(predicate);
+
+            if (orderBy != null)
+                query = orderBy(query);
 
             var total = await query.CountAsync();
 

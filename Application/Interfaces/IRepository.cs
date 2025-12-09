@@ -17,7 +17,8 @@ namespace Backend.Application.Interfaces
         Task<(List<T> items, long total)> GetPaginated(
             Expression<Func<T, bool>> predicate,
             int page,
-            int pageSize
+            int pageSize,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy
         );
 
         Task<T> Save(

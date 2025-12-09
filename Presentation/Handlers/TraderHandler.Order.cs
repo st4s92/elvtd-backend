@@ -84,7 +84,7 @@ public partial class TraderHandler
         return Response.Json("ok");
     }
 
-    public async Task<IResult> HandleBridgeMasterOrder(BridgeListOrderPayload payload)
+    public async Task<IResult> HandleBridgeMasterOrder(BridgeListCreateOrderPayload payload)
     {
         if (payload == null)
         {

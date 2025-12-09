@@ -50,7 +50,7 @@ public partial class TraderUsecase
     {
         try
         {
-            var (data, total) = await _masterSlaveConfigRepository.GetPaginated(FilterMasterSlaveConfig(param), page, pageSize);
+            var (data, total) = await _masterSlaveConfigRepository.GetPaginated(FilterMasterSlaveConfig(param), page, pageSize, q => q.OrderByDescending(o => o.CreatedAt));
             if (data == null)
                 return ([], 0, null);
             return (data, total, null);

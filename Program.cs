@@ -16,7 +16,18 @@ Rest.Init(builder);
 
 builder.Services.AddSingleton<WebSocketServer>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowAnyOrigin();
+    });
+});
 var app = builder.Build();
+app.UseCors("AllowFrontend");
 
 // Enable Swagger only in Development
 if (Environment.GetEnvironmentVariable("APP_ENV") == "dev")

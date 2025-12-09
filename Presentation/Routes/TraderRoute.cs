@@ -23,7 +23,7 @@ public static class TraderRoutes
             return await handler.GetPaginatedOrders(query);
         }).WithName("GetTraderPaginatedOrders").WithTags("Orders");
 
-        group.MapPost("/trader/bridge/master-order", async ([FromBody] BridgeListOrderPayload payload, TraderHandler handler) =>
+        group.MapPost("/trader/bridge/master-order", async ([FromBody] BridgeListCreateOrderPayload payload, TraderHandler handler) =>
         {
             return await handler.HandleBridgeMasterOrder(payload);
         }).WithName("BridgeMasterAddOrder").WithTags("Orders");

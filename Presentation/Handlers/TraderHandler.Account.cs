@@ -83,7 +83,7 @@ public partial class TraderHandler
             UserId = query.UserId ?? 0
         };
 
-        var (res, total, terr) = await _usecase.GetPaginatedAccounts(accountFilter, query.Page, query.PageSize);
+        var (res, total, terr) = await _usecase.GetPaginatedAccounts(accountFilter, query.Page, query.PerPage);
         if (terr != null)
         {
             return Response.Json(terr);

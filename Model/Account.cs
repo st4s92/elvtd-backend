@@ -79,8 +79,8 @@ public class AccountGetPayload : AccountPayload
 
 public class AccountGetPaginatedPayload : AccountGetPayload
 {
-    [JsonPropertyName("page_size")]
-    public int PageSize { get; set; }
+    [JsonPropertyName("per_page")]
+    public int PerPage { get; set; }
 
     [JsonPropertyName("page")]
     public int Page { get; set; }
