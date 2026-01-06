@@ -3,11 +3,11 @@
 -- ==============================================
 -- elvtd_core.users definition
 CREATE TABLE `users` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
   `password` varchar(300) NOT NULL,
-  `role_id` int NOT NULL,
+  `role_id` bigint NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
@@ -20,13 +20,13 @@ CREATE TABLE `users` (
 -- ==============================================
 -- elvtd_core.accounts definition
 CREATE TABLE `accounts` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `platform_name` varchar(100) NOT NULL,
-  `platform_path` varchar(255) DEFAULT NULL,
-  `account_number` int NOT NULL,
+  `account_number` bigint NOT NULL,
+  `account_password` varchar(100) NOT NULL,
   `broker_name` varchar(100) NOT NULL,
   `server_name` varchar(100) NOT NULL,
-  `user_id` int NOT NULL,
+  `user_id` bigint NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
@@ -40,10 +40,10 @@ CREATE TABLE `accounts` (
 -- ==============================================
 -- elvtd_core.master_slave definition
 CREATE TABLE `master_slave` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
-  `master_id` int NOT NULL,
-  `slave_id` int NOT NULL,
+  `master_id` bigint NOT NULL,
+  `slave_id` bigint NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
@@ -60,8 +60,8 @@ CREATE TABLE `master_slave` (
 -- elvtd_core.master_slave_config definition
 
 CREATE TABLE `master_slave_config` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `master_slave_id` int NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `master_slave_id` bigint NOT NULL,
   `multiplier` decimal(10,4) NOT NULL DEFAULT '1.0000',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -76,8 +76,8 @@ CREATE TABLE `master_slave_config` (
 -- ==============================================
 -- elvtd_core.master_slave_pair definition
 CREATE TABLE `master_slave_pair` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `master_slave_id` int NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `master_slave_id` bigint NOT NULL,
   `master_pair` varchar(10) NOT NULL,
   `slave_pair` varchar(10) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -93,11 +93,11 @@ CREATE TABLE `master_slave_pair` (
 -- ==============================================
 -- elvtd_core.orders definition
 CREATE TABLE `orders` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `account_id` int NOT NULL,
-  `master_order_id` int DEFAULT NULL,
-  `order_ticket` int NOT NULL,
-  `close_ticket` int DEFAULT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `account_id` bigint NOT NULL,
+  `master_order_id` bigint DEFAULT NULL,
+  `order_ticket` bigint NOT NULL,
+  `close_ticket` bigint DEFAULT NULL,
   `order_symbol` varchar(20) NOT NULL,
   `order_type` varchar(20) NOT NULL,
   `order_lot` decimal(13,3) NOT NULL,
@@ -120,3 +120,47 @@ CREATE TABLE `orders` (
   CONSTRAINT `fk_orders_master_order` FOREIGN KEY (`master_order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- ==============================================
+-- SERVERS TABLE
+-- ==============================================
+CREATE TABLE `servers` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `server_name` VARCHAR(100) NOT NULL,
+  `server_ip` VARCHAR(100) NOT NULL,
+  `status` INT NOT NULL DEFAULT 100,
+  `server_os` VARCHAR(300) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_server_ip` (`server_ip`)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;
+
+-- ==============================================
+-- SERVER_ACCOUNT TABLE
+-- ==============================================
+CREATE TABLE `server_account` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `server_id` BIGINT NOT NULL,
+  `account_id` BIGINT NOT NULL,
+  `installation_path` VARCHAR(300) NOT NULL,
+  `status` INT NOT NULL DEFAULT 100,
+  `message` VARCHAR(100) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_server_account` (`server_id`, `account_id`),
+  KEY `idx_server_id` (`server_id`),
+  KEY `idx_account_id` (`account_id`),
+  CONSTRAINT `fk_server_account_server`
+    FOREIGN KEY (`server_id`) REFERENCES `servers` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_server_account_account`
+    FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_0900_ai_ci;

@@ -13,7 +13,6 @@ public partial class TraderUsecase
             a =>
                 (param.Id == 0 || a.Id == param.Id) &&
                 (string.IsNullOrEmpty(param.PlatformName) || a.PlatformName == param.PlatformName) &&
-                (string.IsNullOrEmpty(param.PlatformPath) || (a.PlatformPath != null && a.PlatformPath.Contains(param.PlatformPath))) &&
                 (param.AccountNumber == 0 || a.AccountNumber == param.AccountNumber) &&
                 (string.IsNullOrEmpty(param.BrokerName) || a.BrokerName.Contains(param.BrokerName)) &&
                 (string.IsNullOrEmpty(param.ServerName) || a.ServerName.Contains(param.ServerName)) &&
@@ -88,9 +87,45 @@ public partial class TraderUsecase
 
         try
         {
+            var maxAccountPerServer = int.Parse(Environment.GetEnvironmentVariable("MAX_SERVER_ACCOUNTS") ?? "10");
+
+            var server = await _serverRepository.GetFirstAvailableServer(maxAccountPerServer);
+            if (server == null)
+                return (null, TError.NewServer("no available server"));
+
+            Console.WriteLine("available server:");
+            Console.WriteLine(server);
+
             var data = await _accountRepository.Save(account);
             if (data == null)
                 return (null, TError.NewServer("cannot create new account"));
+
+            var serverAccount = new ServerAccount
+            {
+                ServerId = server.Id,
+                AccountId = data.Id
+            };
+            serverAccount = await _serverAccountRepository.Save(serverAccount);
+            if (serverAccount == null)
+                return (null, TError.NewServer("cannot create new server account"));
+
+            // message to server
+            var job = new TradePlatformCreateJob
+            {
+                Id = data.Id,
+                PlatformName = data.PlatformName,
+                AccountNumber = data.AccountNumber,
+                AccountPassword = data.AccountPassword,
+                BrokerName = data.BrokerName,
+                ServerName = data.ServerName,
+                UserId = data.UserId,
+                Role = "SLAVE",
+                Status = 100
+            };
+            Console.WriteLine("try to publish event");
+
+            await _jobPublisher.PublishCreateJob(job);
+
             return (data, null);
         }
         catch (Exception ex)
@@ -100,16 +135,39 @@ public partial class TraderUsecase
     }
 
     public async Task<(Account?, ITError?)> UpdateAccountById(long id, Account param)
-    {   
+    {
         try
         {
-            var (_, terr) = await GetAccount(new Account {Id = id});
-            if(terr != null)
+            var (_, terr) = await GetAccount(new Account { Id = id });
+            if (terr != null)
                 return (null, terr);
-            
+
             var data = await _accountRepository.Save(param, a => a.Id == id);
-            if(data == null)
+            if (data == null)
                 return (null, TError.NewServer("cannot save account"));
+
+            return (data, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, TError.NewServer(ex.Message));
+        }
+    }
+
+    public async Task<(ServerAccount?, ITError?)> UpdateAccountServerData(ServerAccountPlatformUpdateRequest param)
+    {
+        try
+        {
+            var (serverAccount, terr) = await GetServerAccount(new ServerAccount { AccountId = param.AccountId });
+            if (terr != null)
+                return (null, terr);
+
+            serverAccount!.InstallationPath = param.InstallationPath;
+            serverAccount!.Status = param.Status;
+
+            var data = await _serverAccountRepository.Save(serverAccount, a => a.AccountId == param.AccountId);
+            if (data == null)
+                return (null, TError.NewServer("cannot save server account"));
 
             return (data, null);
         }

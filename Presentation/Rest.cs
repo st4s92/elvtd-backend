@@ -1,8 +1,10 @@
 using Backend.Application.Interfaces;
 using Backend.Application.Usecases;
 using Backend.Helper;
+using Backend.Infrastructure.Messaging;
 using Backend.Infrastructure.Repositories;
 using Backend.Presentation.Handlers;
+using Backend.Presentation.Messaging;
 using Backend.Presentation.Middleware;
 using Backend.Presentation.Routes;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +26,12 @@ public static class Rest
         builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
         builder.Services.AddHttpClient();
+        builder.Services.AddSingleton<RabbitMqConnection>();
+        
         builder.Services.AddScoped(typeof(AppLogger<>));
+        builder.Services.AddSingleton<IJobPublisher, RabbitMqJobPublisher>();
+        builder.Services.AddScoped<IServerAccountRepository, ServerAccountRepository>();
+        builder.Services.AddScoped<IServerRepository, ServerRepository>();
         builder.Services.AddScoped<IMasterSlaveRepository, MasterSlaveRepository>();
         builder.Services.AddScoped<IMasterSlaveConfigRepository, MasterSlaveConfigRepository>();
         builder.Services.AddScoped<IMasterSlavePairRepository, MasterSlavePairRepository>();
@@ -39,5 +46,9 @@ public static class Rest
         builder.Services.AddScoped<UserHandler>();
         builder.Services.AddScoped<CtraderHandler>();
         builder.Services.AddScoped<TraderHandler>();
+        builder.Services.AddScoped<ServerHeartbeatHandler>();
+        builder.Services.AddHostedService<ServerHeartbeatConsumer>();
+        builder.Services.AddScoped<ServerPlatformCreatedHandler>();
+        builder.Services.AddHostedService<ServerPlatformCreatedConsumer>();
     }
 }

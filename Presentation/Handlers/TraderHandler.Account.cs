@@ -12,10 +12,10 @@ public partial class TraderHandler
         var account = new Account
         {
             PlatformName = accountPayload.PlatformName ?? "",
-            PlatformPath = accountPayload.PlatformPath ?? "",
             AccountNumber = accountPayload.AccountNumber ?? 0,
             BrokerName = accountPayload.BrokerName ?? "",
             ServerName = accountPayload.ServerName ?? "",
+            AccountPassword = accountPayload.AccountPassword ?? "",
             UserId = accountPayload.UserId ?? 0
         };
 
@@ -27,7 +27,7 @@ public partial class TraderHandler
         {
             return Response.Json(TError.NewClient("User Id should be filled"));
         }
-        if (account.PlatformName == "" || account.PlatformPath == "")
+        if (account.PlatformName == "")
         {
             return Response.Json(TError.NewClient("Platform info should be filled"));
         }
@@ -55,7 +55,6 @@ public partial class TraderHandler
         {
             Id = query.Id ?? 0,
             PlatformName = query.PlatformName ?? "",
-            PlatformPath = query.PlatformPath ?? "",
             AccountNumber = query.AccountNumber ?? 0,
             BrokerName = query.BrokerName ?? "",
             ServerName = query.ServerName ?? "",
@@ -76,7 +75,6 @@ public partial class TraderHandler
         {
             Id = query.Id ?? 0,
             PlatformName = query.PlatformName ?? "",
-            PlatformPath = query.PlatformPath ?? "",
             AccountNumber = query.AccountNumber ?? 0,
             BrokerName = query.BrokerName ?? "",
             ServerName = query.ServerName ?? "",

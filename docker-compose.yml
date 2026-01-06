@@ -16,6 +16,7 @@ services:
       - DB_USER=${DOC_DB_USER}
       - DB_PASSWORD=${DOC_DB_PASSWORD}
       - COPY_TOLERANCE_SECOND=${COPY_TOLERANCE_SECOND}
+      - MAX_SERVER_ACCOUNTS=${MAX_SERVER_ACCOUNTS}
     depends_on:
       - database
 
@@ -31,8 +32,36 @@ services:
       - MYSQL_PASSWORD=${DOC_DB_PASSWORD}
       - MYSQL_DATABASE=${DOC_DB_NAME}
       - MYSQL_ROOT_PASSWORD=${DOC_DB_PASSWORD}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
     volumes:
       - database_mysql:/var/lib/mysql
 
+  message:
+    image: rabbitmq:3.13-management
+    container_name: elvtd_rabbitmq
+    restart: unless-stopped
+
+    ports:
+      - "5672:5672"     # AMQP (client Go)
+      - "15672:15672"   # Management UI
+
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_VHOST: /
+
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   database_mysql:
+  rabbitmq_data:

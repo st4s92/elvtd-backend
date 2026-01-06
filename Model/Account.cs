@@ -14,11 +14,11 @@ public class Account : IAuditableEntity
     [Column("platform_name"), MaxLength(100)]
     public string PlatformName { get; set; } = "";
 
-    [Column("platform_path"), MaxLength(300)]
-    public string? PlatformPath { get; set; } = "";
-
     [Column("account_number")]
     public long AccountNumber { get; set; }
+
+    [Column("account_password")]
+    public string AccountPassword { get; set; } = "";
 
     [Column("broker_name"), MaxLength(100)]
     public string BrokerName { get; set; } = "";
@@ -48,6 +48,8 @@ public class Account : IAuditableEntity
     public ICollection<Order> Orders { get; set; } = new List<Order>();
     public ICollection<MasterSlave> MasterRelations { get; set; } = new List<MasterSlave>();
     public ICollection<MasterSlave> SlaveRelations { get; set; } = new List<MasterSlave>();
+
+    public ServerAccount? ServerAccount { get; set; }
 }
 
 public class AccountPayload
@@ -55,11 +57,11 @@ public class AccountPayload
     [JsonPropertyName("platform_name")]
     public string? PlatformName { get; set; } = "";
 
-    [JsonPropertyName("platform_path")]
-    public string? PlatformPath { get; set; } = "";
-
     [JsonPropertyName("account_number")]
     public long? AccountNumber { get; set; }
+
+    [JsonPropertyName("account_password")]
+    public string? AccountPassword { get; set; }
 
     [JsonPropertyName("broker_name")]
     public string? BrokerName { get; set; } = "";
@@ -84,4 +86,48 @@ public class AccountGetPaginatedPayload : AccountGetPayload
 
     [JsonPropertyName("page")]
     public int Page { get; set; }
+}
+
+public class TradePlatformCreateJob
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+    [JsonPropertyName("platform_name")]
+    public string PlatformName { get; set; } = "";
+    [JsonPropertyName("account_number")]
+    public long AccountNumber { get; set; }
+    [JsonPropertyName("account_password")]
+    public string AccountPassword { get; set; } = "";
+    [JsonPropertyName("broker_name")]
+    public string BrokerName { get; set; } = "";
+    [JsonPropertyName("server_name")]
+    public string ServerName { get; set; } = "";
+    [JsonPropertyName("user_id")]
+    public long UserId { get; set; }
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = "SLAVE";
+    [JsonPropertyName("status")]
+    public int Status { get; set; } = 100;
+}
+
+public class TradePlatformCreatedEvent
+{
+    [JsonPropertyName("id")]
+    public int AccountId { get; set; }
+
+    [JsonPropertyName("status")]
+    public int Status { get; set; }
+
+    [JsonPropertyName("installation_path")]
+    public string InstallationPath { get; set; } = "";
+
+    [JsonPropertyName("server_ip")]
+    public string ServerIp { get; set; } = "";
+}
+
+public class ServerAccountPlatformUpdateRequest
+{
+    public long AccountId {get; set; }
+    public ConnectionStatus Status {get; set; }
+    public string InstallationPath {get; set; } = "";
 }

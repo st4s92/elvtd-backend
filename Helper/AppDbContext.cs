@@ -14,6 +14,8 @@ public class AppDbContext : DbContext
     public DbSet<MasterSlave> MasterSlaves => Set<MasterSlave>();
     public DbSet<MasterSlavePair> MasterSlavePairs => Set<MasterSlavePair>();
     public DbSet<MasterSlaveConfig> MasterSlaveConfigs => Set<MasterSlaveConfig>();
+    public DbSet<Server> Server => Set<Server>();
+    public DbSet<ServerAccount> ServerAccount => Set<ServerAccount>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
@@ -37,6 +39,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MasterSlave>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<MasterSlavePair>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<MasterSlaveConfig>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<ServerAccount>().HasQueryFilter(e => e.DeletedAt == null);
 
         // === Relationships ===
         // Account → User
@@ -44,6 +47,12 @@ public class AppDbContext : DbContext
             .HasOne(a => a.User)
             .WithMany(u => u.Accounts)
             .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Account>()
+            .HasOne(a => a.ServerAccount)
+            .WithOne(sa => sa.Account)
+            .HasForeignKey<ServerAccount>(sa => sa.AccountId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Orders → Accounts
@@ -85,6 +94,12 @@ public class AppDbContext : DbContext
             .HasOne(pair => pair.MasterSlave)
             .WithMany(ms => ms.Pairs)  // ✅ link to collection in MasterSlave
             .HasForeignKey(pair => pair.MasterSlaveId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServerAccount>()
+            .HasOne(a => a.Server)
+            .WithMany(s => s.ServerAccounts)
+            .HasForeignKey(sa => sa.ServerId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 
