@@ -42,7 +42,7 @@ public class UserHandler
             Password = query.Password ?? ""
         };
 
-        var (res, total, terr) = await _usecase.GetPaginatedUsers(userFilter, query.Page, query.PageSize);
+        var (res, total, terr) = await _usecase.GetPaginatedUsers(userFilter, query.Page, query.PerPage);
         if (terr != null)
         {
             return Response.Json(terr);

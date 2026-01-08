@@ -117,5 +117,14 @@ public static class TraderRoutes
             return await handler.GetPaginatedMasterSlaveConfigs(query);
         }).WithName("GetTraderPaginatedMasterSlaveConfigs").WithTags("Master Slave Config");
         
+        group.MapGet("/trader/servers/paginated", async ([AsParameters] ServerGetPaginatedPayload query, TraderHandler handler) =>
+        {
+            return await handler.GetPaginatedServers(query);
+        }).WithName("GetTraderPaginatedServers").WithTags("Server");
+
+        group.MapPost("/trader/servers", async ([FromBody] ServerCreatePayload payload, TraderHandler handler) =>
+        {
+            return await handler.AddServer(payload);
+        }).WithName("AddServer").WithTags("Server");
     }
 }
