@@ -4,6 +4,7 @@ obj/
 out/
 [Bb]uild/
 [Ll]ogs/
+dist/
 
 # User-specific / IDE files
 .vscode/
