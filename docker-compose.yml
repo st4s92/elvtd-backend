@@ -20,6 +20,15 @@ services:
     depends_on:
       - database
 
+  frontend:
+    image: nginx:alpine
+    container_name: elvtd_frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
   database:
     platform: linux/x86_64
     image: mysql:8.0.28
