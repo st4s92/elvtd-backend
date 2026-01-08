@@ -13,7 +13,6 @@ public partial class TraderUsecase
                 (param.Id == 0 || a.Id == param.Id) &&
                 (string.IsNullOrEmpty(param.ServerIp) || a.ServerName == param.ServerIp) &&
                 (string.IsNullOrEmpty(param.ServerName) || (a.ServerName != null && a.ServerName.Contains(param.ServerName))) &&
-                (param.Status == 0 || a.Status == param.Status) &&
                 (string.IsNullOrEmpty(param.ServerOs) || (a.ServerOs != null && a.ServerOs.Contains(param.ServerOs)))
         );
     }

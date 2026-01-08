@@ -6,6 +6,7 @@ namespace Backend.Model;
 
 public enum ConnectionStatus
 {
+    All = 0,
     None = 100,
     Success = 200,
     UnknownFail = 300
