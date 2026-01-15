@@ -55,6 +55,16 @@ public static class TraderRoutes
         }).WithName("GetTraderPaginatedAccounts").WithTags("Account");
 
         // master slave
+        group.MapPatch("/trader/master-slave/full-config", async (
+                [FromBody] MasterSlaveFullConfigPayload payload,
+                TraderHandler handler
+            ) =>
+            {
+                return await handler.EditMasterSlaveFullonfig(payload);
+            })
+            .WithName("EditMasterSlaveFullConfig")
+            .WithTags("Master Slave Full Config");
+
         group.MapGet("/trader/master-slave/{id:int}", async (int id, TraderHandler handler) =>
         {
             return await handler.GetMasterSlave(id);
@@ -116,7 +126,7 @@ public static class TraderRoutes
         {
             return await handler.GetPaginatedMasterSlaveConfigs(query);
         }).WithName("GetTraderPaginatedMasterSlaveConfigs").WithTags("Master Slave Config");
-        
+
         group.MapGet("/trader/servers/paginated", async ([AsParameters] ServerGetPaginatedPayload query, TraderHandler handler) =>
         {
             return await handler.GetPaginatedServers(query);

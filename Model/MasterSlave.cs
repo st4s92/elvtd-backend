@@ -66,3 +66,47 @@ public class MasterSlaveGetPaginatedPayload : MasterSlaveGetPayload
     [JsonPropertyName("page")]
     public int Page { get; set; }
 }
+
+// ===== edit account master slave config
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CopyTradeRole
+{
+    MASTER,
+    SLAVE
+}
+
+public class MasterSlaveSymbolPairPayload
+{
+    [JsonPropertyName("masterSymbol")]
+    public string MasterSymbol { get; set; } = "";
+
+    [JsonPropertyName("slaveSymbol")]
+    public string SlaveSymbol { get; set; } = "";
+}
+
+public class MasterSlaveFullConfigPayload
+{
+    [JsonPropertyName("connection_name")]
+    [Required, MaxLength(100)]
+    public string ConnectionName { get; set; } = "";
+
+    [JsonPropertyName("role")]
+    [Required]
+    public CopyTradeRole Role { get; set; }
+
+    [JsonPropertyName("accountId")]
+    [Required]
+    public long AccountId { get; set; }
+
+    [JsonPropertyName("destination_id")]
+    [Required]
+    public long DestinationId { get; set; }
+
+    [JsonPropertyName("multiplier")]
+    [Range(0.1, 10)]
+    public decimal Multiplier { get; set; } = 1.0m;
+
+    [JsonPropertyName("symbol_pairs")]
+    public List<MasterSlaveSymbolPairPayload> SymbolPairs { get; set; }
+        = new();
+}

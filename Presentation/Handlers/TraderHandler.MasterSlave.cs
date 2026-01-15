@@ -104,4 +104,43 @@ public partial class TraderHandler
         }
         return Response.Json("ok");
     }
+
+    public async Task<IResult> EditMasterSlaveFullonfig(MasterSlaveFullConfigPayload payload)
+    {
+        if (payload == null)
+        {
+            return Response.Json(TError.NewClient("Invalid payload"));
+        }
+
+        if (string.IsNullOrEmpty(payload.ConnectionName))
+        {
+            return Response.Json(TError.NewClient("Connection name must be filled"));
+        }
+
+        if (payload.AccountId == 0 || payload.DestinationId == 0)
+        {
+            return Response.Json(TError.NewClient("AccountId and DestinationId must be filled"));
+        }
+
+        if (payload.Multiplier < 0.1m || payload.Multiplier > 10m)
+        {
+            return Response.Json(TError.NewClient("Multiplier must be between 0.1 and 10"));
+        }
+
+        var (res, terr) = await _usecase.EditMasterSlaveFullonfig(payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+
+        return Response.Json(new
+        {
+            id = res.Id,
+            name = res.Name,
+            master_id = res.MasterId,
+            slave_id = res.SlaveId
+        });
+    }
+
+
 }
