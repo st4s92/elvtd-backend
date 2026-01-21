@@ -22,7 +22,10 @@ services:
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
     depends_on:
-      - database
+      message:
+        condition: service_healthy
+      database:
+        condition: service_started
 
   frontend:
     image: nginx:alpine
