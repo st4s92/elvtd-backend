@@ -63,7 +63,7 @@ services:
 
     environment:
       RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_PASS: KJEFjXOwEUGHdX99
       RABBITMQ_DEFAULT_VHOST: /
 
     volumes:
