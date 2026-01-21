@@ -21,6 +21,11 @@ docker compose build
 echo -e "${YELLOW}♻️  Restarting containers...${NC}"
 docker compose up -d
 
+if docker ps --format '{{.Names}}' | grep -q '^elvtd_frontend$'; then
+  echo -e "${YELLOW}🔁 Reloading frontend (nginx)...${NC}"
+  docker compose restart frontend
+fi
+
 echo -e "${YELLOW}🧹 Cleaning unused images...${NC}"
 docker image prune -f
 
