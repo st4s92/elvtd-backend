@@ -48,10 +48,6 @@ services:
       - MYSQL_PASSWORD=${DOC_DB_PASSWORD}
       - MYSQL_DATABASE=${DOC_DB_NAME}
       - MYSQL_ROOT_PASSWORD=${DOC_DB_PASSWORD}
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASS=${RABBITMQ_PASS}
     volumes:
       - database_mysql:/var/lib/mysql
 
@@ -65,8 +61,8 @@ services:
       - "15672:15672"   # Management UI
 
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: KJEFjXOwEUGHdX99
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
       RABBITMQ_DEFAULT_VHOST: /
 
     volumes:
