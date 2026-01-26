@@ -29,7 +29,8 @@ public class ServerPlatformCreatedHandler
         var data = new ServerAccountPlatformUpdateRequest{
             AccountId = request.AccountId,
             InstallationPath = request.InstallationPath,
-            Status = (ConnectionStatus) request.Status
+            Status = (ConnectionStatus) request.Status,
+            Message = request.Message,
         };
 
         await _traderUsecase.UpdateAccountServerData(data);

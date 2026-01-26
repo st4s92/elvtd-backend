@@ -164,6 +164,7 @@ public partial class TraderUsecase
 
             serverAccount!.InstallationPath = param.InstallationPath;
             serverAccount!.Status = param.Status;
+            serverAccount!.Message = param.Message;
 
             var data = await _serverAccountRepository.Save(serverAccount, a => a.AccountId == param.AccountId);
             if (data == null)

@@ -123,11 +123,15 @@ public class TradePlatformCreatedEvent
 
     [JsonPropertyName("server_ip")]
     public string ServerIp { get; set; } = "";
+
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = "";
 }
 
 public class ServerAccountPlatformUpdateRequest
 {
     public long AccountId {get; set; }
+    public string Message {get; set; } = "";
     public ConnectionStatus Status {get; set; }
     public string InstallationPath {get; set; } = "";
 }
