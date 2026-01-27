@@ -138,6 +138,7 @@ public partial class TraderUsecase
     {
         try
         {
+            _logger.Info("accountID", accountID);
             var (masAcc, terr) = await GetServerAccount(new ServerAccount { AccountId = accountID });
             if (terr != null)
                 return terr;
@@ -167,6 +168,9 @@ public partial class TraderUsecase
                 Role = "SLAVE",
                 Status = (int)masAcc.Status,
             };
+            Console.WriteLine("try to publish event");
+            _logger.Info("job", job);
+
             await _jobPublisher.PublishCreateJob(job);
 
             return null;
