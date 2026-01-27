@@ -167,10 +167,7 @@ public partial class TraderUsecase
                 Role = "SLAVE",
                 Status = (int)masAcc.Status,
             };
-            Console.WriteLine("try to publish event");
-            _logger.Info("job", job);
-
-            //await _jobPublisher.PublishCreateJob(job);
+            await _jobPublisher.PublishCreateJob(job);
 
             return null;
         }
