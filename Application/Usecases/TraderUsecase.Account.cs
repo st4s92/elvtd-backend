@@ -167,6 +167,7 @@ public partial class TraderUsecase
                 UserId = acc!.UserId,
                 Role = "SLAVE",
                 Status = (int)masAcc.Status,
+                Message = masAcc.Message,
             };
             Console.WriteLine("try to publish event");
             _logger.Info("job", job);

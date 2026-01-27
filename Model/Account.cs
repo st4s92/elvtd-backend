@@ -108,6 +108,8 @@ public class TradePlatformCreateJob
     public string Role { get; set; } = "SLAVE";
     [JsonPropertyName("status")]
     public int Status { get; set; } = 100;
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = "";
 }
 
 public class TradePlatformCreatedEvent
