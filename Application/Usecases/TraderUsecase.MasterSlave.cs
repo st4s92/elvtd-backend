@@ -222,7 +222,7 @@ public partial class TraderUsecase
         // 2️⃣ master_slave_config
         var config = new MasterSlaveConfig
         {
-            MasterSlaveId = msRes.Id,
+            MasterSlaveId = msRes!.Id,
             Multiplier = payload.Multiplier
         };
 

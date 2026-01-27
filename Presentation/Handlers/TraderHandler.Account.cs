@@ -115,4 +115,20 @@ public partial class TraderHandler
         }
         return Response.Json("ok");
     }
+
+    public async Task<IResult> TriggerInstallByAccountId(long id)
+    {
+        if (id == 0)
+        {
+            var terrs = TError.NewClient("Id should be filled");
+            return Response.Json(terrs);
+        }
+
+        var terr = await _usecase.TriggerInstallByAccountId(id);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
 }

@@ -44,6 +44,11 @@ public static class TraderRoutes
             return await handler.AddAccount(payload);
         }).WithName("AddTraderAccount").WithTags("Account");
 
+        group.MapPost("trader/account/{id:int}/install", async (int id, TraderHandler handler) =>
+        {
+            return await handler.TriggerInstallByAccountId(id);
+        }).WithName("TriggerInstallByAccountId").WithTags("Account");
+
         group.MapGet("/trader/account", async ([AsParameters] AccountGetPayload query, TraderHandler handler) =>
         {
             return await handler.GetAccounts(query);

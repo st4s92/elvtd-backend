@@ -120,5 +120,20 @@ namespace Backend.Infrastructure.Repositories
                 await _transaction.RollbackAsync();
         }
 
+        public async Task<bool> Update(
+            Expression<Func<T, bool>> predicate,
+            Action<T> updateAction
+        )
+        {
+            var entity = await _db.FirstOrDefaultAsync(predicate);
+            if (entity == null)
+                return false;
+
+            updateAction(entity);
+            entity.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

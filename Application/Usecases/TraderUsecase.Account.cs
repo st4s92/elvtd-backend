@@ -134,6 +134,52 @@ public partial class TraderUsecase
         }
     }
 
+    public async Task<ITError?> TriggerInstallByAccountId(long accountID)
+    {
+        try
+        {
+            var (masAcc, terr) = await GetServerAccount(new ServerAccount { AccountId = accountID });
+            if (terr != null)
+                return terr;
+            
+            if(masAcc!.Status == ConnectionStatus.Success)
+            {
+                return null;
+            }
+
+            Account? acc;
+            (acc, terr) = await GetAccount(new Account { Id = accountID});
+            if (terr != null)
+                return terr;
+
+            masAcc.Status = ConnectionStatus.None;
+            masAcc = await _serverAccountRepository.Save(masAcc, x => x.AccountId == masAcc.AccountId);
+
+            var job = new TradePlatformCreateJob
+            {
+                Id = accountID,
+                PlatformName = acc!.PlatformName,
+                AccountNumber = acc!.AccountNumber,
+                AccountPassword = acc!.AccountPassword,
+                BrokerName = acc!.BrokerName,
+                ServerName = acc!.ServerName,
+                UserId = acc!.UserId,
+                Role = "SLAVE",
+                Status = (int)masAcc.Status,
+            };
+            Console.WriteLine("try to publish event");
+            _logger.Info("job", job);
+
+            //await _jobPublisher.PublishCreateJob(job);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+
     public async Task<(Account?, ITError?)> UpdateAccountById(long id, Account param)
     {
         try

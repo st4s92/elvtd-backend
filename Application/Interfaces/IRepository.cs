@@ -31,5 +31,7 @@ namespace Backend.Application.Interfaces
         );
 
         Task<bool> Delete(Expression<Func<T, bool>> predicate);
+
+        Task<bool> Update(Expression<Func<T, bool>> predicate, Action<T> updateAction);
     }
 }
