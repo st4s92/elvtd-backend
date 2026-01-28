@@ -35,10 +35,14 @@ namespace Backend.Infrastructure.Repositories
             Expression<Func<T, bool>> predicate,
             int page,
             int pageSize,
-            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+            Func<IQueryable<T>, IQueryable<T>>? include = null
         )
         {
             var query = _db.AsNoTracking().Where(predicate);
+
+            if (include != null)
+                query = include(query);
 
             if (orderBy != null)
                 query = orderBy(query);

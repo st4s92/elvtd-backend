@@ -18,7 +18,8 @@ namespace Backend.Application.Interfaces
             Expression<Func<T, bool>> predicate,
             int page,
             int pageSize,
-            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy,
+            Func<IQueryable<T>, IQueryable<T>>? include = null
         );
 
         Task<T> Save(

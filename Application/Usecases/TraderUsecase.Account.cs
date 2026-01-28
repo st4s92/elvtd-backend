@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using Backend.Helper;
 using Backend.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Application.Usecases;
 
@@ -53,7 +54,7 @@ public partial class TraderUsecase
     {
         try
         {
-            var (data, total) = await _accountRepository.GetPaginated(FilterAccount(param), page, pageSize, q => q.OrderByDescending(o => o.CreatedAt));
+            var (data, total) = await _accountRepository.GetPaginated(FilterAccount(param), page, pageSize, q => q.OrderByDescending(o => o.CreatedAt), q => q.Include(a => a.ServerAccount));
             if (data == null)
                 return ([], 0, null);
             return (data, total, null);
@@ -142,14 +143,14 @@ public partial class TraderUsecase
             var (masAcc, terr) = await GetServerAccount(new ServerAccount { AccountId = accountID });
             if (terr != null)
                 return terr;
-            
-            if(masAcc!.Status == ConnectionStatus.Success)
+
+            if (masAcc!.Status == ConnectionStatus.Success)
             {
                 return null;
             }
 
             Account? acc;
-            (acc, terr) = await GetAccount(new Account { Id = accountID});
+            (acc, terr) = await GetAccount(new Account { Id = accountID });
             if (terr != null)
                 return terr;
 
@@ -186,11 +187,21 @@ public partial class TraderUsecase
     {
         try
         {
-            var (_, terr) = await GetAccount(new Account { Id = id });
-            if (terr != null)
+            var (existing, terr) = await GetAccount(new Account { Id = id });
+            if (terr != null || existing == null)
                 return (null, terr);
 
-            var data = await _accountRepository.Save(param, a => a.Id == id);
+            existing.PlatformName = param.PlatformName;
+            existing.AccountNumber = param.AccountNumber;
+            existing.BrokerName = param.BrokerName;
+            existing.ServerName = param.ServerName;
+
+            if (!string.IsNullOrWhiteSpace(param.AccountPassword))
+            {
+                existing.AccountPassword = param.AccountPassword;
+            }
+
+            var data = await _accountRepository.Save(existing, a => a.Id == id);
             if (data == null)
                 return (null, TError.NewServer("cannot save account"));
 
@@ -199,6 +210,48 @@ public partial class TraderUsecase
         catch (Exception ex)
         {
             return (null, TError.NewServer(ex.Message));
+        }
+    }
+
+    public async Task<ITError?> DeleteAccountByID(long id)
+    {
+        try
+        {
+            var (existing, terr) = await GetAccount(new Account { Id = id });
+            if (terr != null)
+                return terr;
+
+            _ = await _accountRepository.Update(
+                x => x.Id == id,
+                x =>
+                {
+                    x.DeletedAt = DateTime.Now;
+                }
+            );
+
+            // message to server
+            var job = new TradePlatformCreateJob
+            {
+                Id = existing!.Id,
+                PlatformName = existing.PlatformName,
+                AccountNumber = existing.AccountNumber,
+                AccountPassword = existing.AccountPassword,
+                BrokerName = existing.BrokerName,
+                ServerName = existing.ServerName,
+                UserId = existing.UserId,
+                Role = "SLAVE",
+                Status = 100
+            };
+            Console.WriteLine("try to publish delete account event");
+
+            _logger.Info("job", job);
+            await _jobPublisher.PublishDeleteJob(job);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
         }
     }
 
@@ -213,6 +266,7 @@ public partial class TraderUsecase
             serverAccount!.InstallationPath = param.InstallationPath;
             serverAccount!.Status = param.Status;
             serverAccount!.Message = param.Message;
+            serverAccount!.PlatformPid = param.Pid;
 
             var data = await _serverAccountRepository.Save(serverAccount, a => a.AccountId == param.AccountId);
             if (data == null)

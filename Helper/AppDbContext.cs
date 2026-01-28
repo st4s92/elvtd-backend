@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MasterSlavePair>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<MasterSlaveConfig>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<ServerAccount>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<Server>().HasQueryFilter(e => e.DeletedAt == null);
 
         // === Relationships ===
         // Account → User

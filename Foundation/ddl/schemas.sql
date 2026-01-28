@@ -146,6 +146,7 @@ CREATE TABLE `server_account` (
   `server_id` BIGINT NOT NULL,
   `account_id` BIGINT NOT NULL,
   `installation_path` VARCHAR(300) NOT NULL,
+  `platform_pid` INT NULL,
   `status` INT NOT NULL DEFAULT 100,
   `message` VARCHAR(100) NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

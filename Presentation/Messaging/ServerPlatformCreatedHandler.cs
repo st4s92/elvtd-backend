@@ -31,6 +31,7 @@ public class ServerPlatformCreatedHandler
             InstallationPath = request.InstallationPath,
             Status = (ConnectionStatus) request.Status,
             Message = request.Message,
+            Pid = request.Pid,
         };
 
         await _traderUsecase.UpdateAccountServerData(data);

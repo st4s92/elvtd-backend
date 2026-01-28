@@ -110,6 +110,8 @@ public class TradePlatformCreateJob
     public int Status { get; set; } = 100;
     [JsonPropertyName("message")]
     public string Message { get; set; } = "";
+    [JsonPropertyName("pid")]
+    public int Pid { get; set; }
 }
 
 public class TradePlatformCreatedEvent
@@ -128,6 +130,8 @@ public class TradePlatformCreatedEvent
 
     [JsonPropertyName("message")]
     public string Message { get; set; } = "";
+    [JsonPropertyName("pid")]
+    public int Pid { get; set; }
 }
 
 public class ServerAccountPlatformUpdateRequest
@@ -136,4 +140,5 @@ public class ServerAccountPlatformUpdateRequest
     public string Message {get; set; } = "";
     public ConnectionStatus Status {get; set; }
     public string InstallationPath {get; set; } = "";
+    public int Pid {get; set; }
 }

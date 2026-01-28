@@ -5,4 +5,5 @@ namespace Backend.Application.Interfaces;
 
 public interface IMasterSlavePairRepository : IRepository<MasterSlavePair>
 {
+    Task DeleteByMasterSlaveId(long masterSlaveId);
 }

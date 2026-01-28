@@ -142,5 +142,19 @@ public partial class TraderHandler
         });
     }
 
+    public async Task<IResult> GetMasterSlaveFullConfig(long id)
+    {
+        if (id == 0)
+        {
+            var terrs = TError.NewClient("Id should be filled");
+            return Response.Json(terrs);
+        }
 
+        var (data, terr) = await _usecase.GetMasterSlaveFullConfig(id);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(data);
+    }
 }

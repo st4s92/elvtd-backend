@@ -19,9 +19,9 @@ public partial class TraderHandler
             UserId = accountPayload.UserId ?? 0
         };
 
-        if (account.AccountNumber == 0 || account.ServerName == "")
+        if (accountPayload.AccountNumber == 0 || accountPayload.ServerName == "" || accountPayload.AccountPassword == "")
         {
-            return Response.Json(TError.NewClient("Account number and Server Name should be filled"));
+            return Response.Json(TError.NewClient("Account number, Server Name and Password should be filled"));
         }
         if (account.UserId == 0)
         {
@@ -95,7 +95,7 @@ public partial class TraderHandler
         return Response.Json(resp);
     }
 
-    public async Task<IResult> UpdateAccount(long id, Account payload)
+    public async Task<IResult> UpdateAccount(long id, AccountPayload payload)
     {
         if (id == 0)
         {
@@ -107,8 +107,41 @@ public partial class TraderHandler
             var terrs = TError.NewClient("Invalid payload");
             return Response.Json(terrs);
         }
+        if (payload.AccountNumber == 0 || payload.ServerName == "" || payload.AccountPassword == "")
+        {
+            return Response.Json(TError.NewClient("Account number, Server Name and Password should be filled"));
+        }
+        if (payload.PlatformName == "")
+        {
+            return Response.Json(TError.NewClient("Platform info should be filled"));
+        }
 
-        var (_, terr) = await _usecase.UpdateAccountById(id, payload);
+        var account = new Account
+        {
+            PlatformName = payload.PlatformName ?? "",
+            AccountNumber = payload.AccountNumber ?? 0,
+            BrokerName = payload.BrokerName ?? "",
+            ServerName = payload.ServerName ?? "",
+            AccountPassword = payload.AccountPassword ?? "",
+        };
+
+        var (_, terr) = await _usecase.UpdateAccountById(id, account);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
+
+    public async Task<IResult> DeleteAccount(long id)
+    {
+        if (id == 0)
+        {
+            var terrs = TError.NewClient("Id should be filled");
+            return Response.Json(terrs);
+        }
+
+        var terr = await _usecase.DeleteAccountByID(id);
         if (terr != null)
         {
             return Response.Json(terr);

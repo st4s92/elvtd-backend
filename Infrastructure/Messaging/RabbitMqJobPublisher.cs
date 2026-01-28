@@ -31,4 +31,21 @@ public class RabbitMqJobPublisher : IJobPublisher
 
         return Task.CompletedTask;
     }
+
+    public Task PublishDeleteJob(TradePlatformCreateJob job)
+    {
+        var body = JsonSerializer.SerializeToUtf8Bytes(job);
+        Console.WriteLine(Encoding.UTF8.GetString(body.ToArray()));
+
+        _channel.QueueDeclare("platform.delete", true, false, false, null);
+
+        _channel.BasicPublish(
+            exchange: "",
+            routingKey: "platform.delete",
+            basicProperties: null,
+            body: body
+        );
+
+        return Task.CompletedTask;
+    }
 }

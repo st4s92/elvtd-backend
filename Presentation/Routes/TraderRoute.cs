@@ -44,6 +44,11 @@ public static class TraderRoutes
             return await handler.AddAccount(payload);
         }).WithName("AddTraderAccount").WithTags("Account");
 
+        group.MapPatch("/trader/account/{id:int}", async (int id, [FromBody] AccountPayload payload, TraderHandler handler) =>
+        {
+            return await handler.UpdateAccount(id, payload);
+        }).WithName("UpdateTraderAccount").WithTags("Account");
+
         group.MapPost("trader/account/{id:int}/install", async (int id, TraderHandler handler) =>
         {
             return await handler.TriggerInstallByAccountId(id);
@@ -59,7 +64,22 @@ public static class TraderRoutes
             return await handler.GetPaginatedAccounts(query);
         }).WithName("GetTraderPaginatedAccounts").WithTags("Account");
 
+        group.MapDelete("/trader/account/{id:int}", async (int id, TraderHandler handler) =>
+        {
+            return await handler.DeleteAccount(id);
+        }).WithName("DeleteTraderAccount").WithTags("Account");
+
         // master slave
+        group.MapGet("/trader/master-slave/full-config/{id:int}", async (
+                int id,
+                TraderHandler handler
+            ) =>
+            {
+                return await handler.GetMasterSlaveFullConfig(id);
+            })
+            .WithName("GetMasterSlaveFullConfig")
+            .WithTags("Master Slave Full Config");
+
         group.MapPatch("/trader/master-slave/full-config", async (
                 [FromBody] MasterSlaveFullConfigPayload payload,
                 TraderHandler handler

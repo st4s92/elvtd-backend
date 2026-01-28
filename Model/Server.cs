@@ -88,6 +88,9 @@ public class ServerAccount : IAuditableEntity
 
     [Column("installation_path"), MaxLength(300)]
     public string InstallationPath { get; set; } = "";
+
+    [Column("platform_pid"), MaxLength(300)]
+    public int? PlatformPid { get; set; }
     [Column("status")]
     public ConnectionStatus Status { get; set; } = ConnectionStatus.None;
     [Column("message"), MaxLength(100)]
