@@ -92,16 +92,17 @@ public partial class TraderHandler
             return Response.Json(terrs);
         }
 
-        var terr = await _usecase.CreateBridgeMasterOrder(payload);
+        var (msg, terr) = await _usecase.CreateBridgeMasterOrder(payload);
         if (terr != null)
         {
             return Response.Json(terr);
         }
-        return Response.Json("ok");
+        return Response.Json(msg);
     }
 
     public async Task<IResult> HandleBridgeSlaveOrderConfirmation(BridgeOrderPayload payload)
     {
+        _logger.Info("CEK PAYLOAD CONFIRM", payload);
         if (payload == null)
         {
             var terrs = TError.NewClient("Invalid payload");

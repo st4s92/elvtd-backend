@@ -53,7 +53,7 @@ public class Order : IAuditableEntity
     public decimal OrderLot { get; set; }
 
     [Column("order_price", TypeName = "decimal(13,6)")]
-    public decimal OrderPrice { get; set; }
+    public decimal? OrderPrice { get; set; }
 
     [Column("close_price", TypeName = "decimal(13,6)")]
     public decimal? ClosePrice { get; set; }
@@ -181,6 +181,8 @@ public class BridgeOrderBroadcastPayload
     public long MasterOrderId { get; set; }
     [JsonPropertyName("copy_type")]
     public string CopyType { get; set; } = "";
+    [JsonPropertyName("created_at")]
+    public DateTime CreatedAt { get; set; }
 }
 
 public class OrderQuery
@@ -234,7 +236,7 @@ public class BridgeCreateOrderItem
     public decimal OrderLot { get; set; }
 
     [JsonPropertyName("order_price")]
-    public decimal OrderPrice { get; set; }
+    public decimal? OrderPrice { get; set; }
     
     [JsonPropertyName("order_open_at")]
     public DateTime? OrderOpenAt { get; set; }

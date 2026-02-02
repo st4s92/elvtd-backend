@@ -157,7 +157,7 @@ public partial class TraderUsecase
 
             Order? existingOrder = null;
             ITError? terr = null;
-            if (payload.Order.OrderClosePrice <= 0)
+            if (payload.Order.OrderType == "DEAL_TYPE_BUY" || payload.Order.OrderType == "DEAL_TYPE_SELL")
             {
                 (existingOrder, terr) = await GetOrder(new Order
                 {
@@ -177,7 +177,7 @@ public partial class TraderUsecase
                 existingOrder.OrderLot = payload.Order.OrderLot;
                 existingOrder.Status = OrderStatus.Success;
             }
-            else
+            else if (payload.Order.OrderType == "DEAL_TYPE_DELETE")
             {
                 (existingOrder, terr) = await GetOrder(new Order
                 {
@@ -194,6 +194,9 @@ public partial class TraderUsecase
                 existingOrder.Status = OrderStatus.Complete;
             }
 
+            if (existingOrder == null)
+                return TError.NewNotFound("order not found");
+
             var (_, terrs) = await UpdateOrderById(existingOrder.Id, existingOrder);
             if (terrs != null)
                 return terrs;
@@ -206,7 +209,7 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<ITError?> CreateBridgeMasterOrder(BridgeListCreateOrderPayload payload)
+    public async Task<(string, ITError?)> CreateBridgeMasterOrder(BridgeListCreateOrderPayload payload)
     {
         await using var tx = await _orderRepository.BeginTransactionAsync();
         try
@@ -217,7 +220,7 @@ public partial class TraderUsecase
                 AccountNumber = payload.AccountId
             });
             if (accErr != null)
-                return accErr;
+                return ("", accErr);
 
             var existingOrders = await _orderRepository.GetMany(a => a.OrderCloseAt == null && a.AccountId == account!.Id);
 
@@ -254,7 +257,7 @@ public partial class TraderUsecase
 
                 var (newOdr, terr) = await CreateOrder(order);
                 if (terr != null)
-                    return terr;
+                    return ("", terr);
             }
 
             var closeOrderAt = DateTime.UtcNow;
@@ -264,21 +267,31 @@ public partial class TraderUsecase
 
                 var (_, terr) = await UpdateOrderById(item.Id, item);
                 if (terr != null)
-                    return terr;
+                    return ("", terr);
+            }
+
+            string message = "";
+            if (newOrders.Count <= 0)
+            {
+                message = String.Concat(message, " ", "no new orders was made");
+            }
+            if (deletedOrders.Count <= 0)
+            {
+                message = String.Concat(message, " ", "no orders was deleted");
             }
 
             await _orderRepository.CommitAsync();
 
             var terrz = await CopyBridgeMasterOrder(account!);
             if (terrz != null)
-                return terrz;
+                return ("", terrz);
 
-            return null;
+            return (message, null);
         }
         catch (Exception ex)
         {
             await _orderRepository.RollbackAsync();
-            return TError.NewServer(ex.Message);
+            return ("", TError.NewServer(ex.Message));
         }
     }
 
@@ -383,7 +396,8 @@ public partial class TraderUsecase
                         OrderLot = order.OrderLot * multiplier,
                         OrderTicket = order.OrderTicket,
                         MasterOrderId = order.Id,
-                        CopyType = "MASTER_ORDER_UPDATE"
+                        CopyType = "MASTER_ORDER_UPDATE",
+                        CreatedAt = DateTime.UtcNow,
                     };
 
                     messages.Add(newOrderMsg);
@@ -401,7 +415,7 @@ public partial class TraderUsecase
                         OrderLot = Math.Round(order.OrderLot * multiplier, 2),
                         OrderPrice = 0,
                         Status = OrderStatus.Pending,
-                        OrderOpenAt = DateTime.UtcNow
+                        OrderOpenAt = DateTime.UtcNow,
                     };
                     newSlaveOrders.Add(slaveOrder);
                 }
@@ -437,6 +451,7 @@ public partial class TraderUsecase
                         OrderTicket = closeOrder.OrderTicket,
                         MasterOrderId = closeOrder.Id,
                         CopyType = "MASTER_ORDER_DELETE",
+                        CreatedAt = DateTime.UtcNow,
                     };
                     messages.Add(msg);
 
@@ -449,12 +464,12 @@ public partial class TraderUsecase
 
                 if (messages.Count > 0 && item.SlaveAccount?.AccountNumber != null)
                 {
-                    var msgs = JsonSerializer.Serialize(messages);
-                    _logger.Info("msgs", msgs);
+                    _logger.Info("publish-mt5-batch", messages);
 
-                    await _wsServer.BroadcastToAccounts(
-                        [$"{item.SlaveAccount.ServerName}:{item.SlaveAccount.AccountNumber}"],
-                        msgs
+                    await _jobPublisher.PublishMt5PacketBatch(
+                        item.SlaveAccount.ServerName,
+                        item.SlaveAccount.AccountNumber,
+                        messages
                     );
                 }
             }
@@ -476,12 +491,18 @@ public partial class TraderUsecase
                     return terra;
             }
 
-
-             // mark all master orders as copied
+            // mark all master orders as copied
             foreach (var order in newOrders)
             {
                 order.OrderCopiedAt = DateTime.UtcNow;
-                await _orderRepository.Save(order);
+
+                await _orderRepository.Update(
+                    o => o.Id == order.Id,
+                    o =>
+                    {
+                        o.OrderCopiedAt = DateTime.UtcNow;
+                    }
+                );
             }
 
             return null;

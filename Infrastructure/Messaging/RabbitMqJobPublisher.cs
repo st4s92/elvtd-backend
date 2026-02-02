@@ -13,6 +13,13 @@ public class RabbitMqJobPublisher : IJobPublisher
     public RabbitMqJobPublisher(RabbitMqConnection rabbit)
     {
         _channel = rabbit.Channel;
+        _channel.ExchangeDeclare(
+            exchange: "mt5.exchange",
+            type: ExchangeType.Topic,
+            durable: true,
+            autoDelete: false,
+            arguments: null
+        );
     }
 
     public Task PublishCreateJob(TradePlatformCreateJob job)
@@ -48,4 +55,71 @@ public class RabbitMqJobPublisher : IJobPublisher
 
         return Task.CompletedTask;
     }
+
+    public Task PublishMt5Packet(
+        string server,
+        long account,
+        string type,
+        object payload
+    )
+    {
+        var exchange = "mt5.exchange";
+        if (string.IsNullOrEmpty(exchange))
+            throw new Exception("MT5_EXCHANGE not set");
+
+        var routingKey = $"mt5.receive.packet.{server.Replace(" ", "_")}.{account}";
+
+        var envelope = new
+        {
+            type = type,
+            data = payload
+        };
+
+        Console.WriteLine($"exchange: {exchange}");
+        Console.WriteLine($"routingKey: {routingKey}");
+        Console.WriteLine($"payload: {JsonSerializer.Serialize(envelope)}");
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(envelope);
+
+        _channel.BasicPublish(
+            exchange: exchange,
+            routingKey: routingKey,
+            basicProperties: null,
+            body: body
+        );
+
+        return Task.CompletedTask;
+    }
+
+    public Task PublishMt5PacketBatch(
+        string server,
+        long account,
+        IEnumerable<object> payloads
+    )
+    {
+        var exchange = "mt5.exchange";
+        if (string.IsNullOrEmpty(exchange))
+            throw new Exception("MT5_EXCHANGE not set");
+
+        var routingKey = $"mt5.receive.packet.{server.Replace(" ", "_")}.{account}";
+
+        var bodyJson = JsonSerializer.Serialize(payloads);
+
+        Console.WriteLine($"exchange: {exchange}");
+        Console.WriteLine($"routingKey: {routingKey}");
+        Console.WriteLine($"batch-count: {payloads.Count()}");
+        Console.WriteLine($"payload: {bodyJson}");
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(payloads);
+
+        _channel.BasicPublish(
+            exchange: exchange,
+            routingKey: routingKey,
+            basicProperties: null,
+            body: body
+        );
+
+        return Task.CompletedTask;
+    }
+
 }

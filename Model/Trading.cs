@@ -26,3 +26,9 @@ public class CtraderAppTokenResponse
     [JsonPropertyName("refreshToken")]
     public string refreshToken { get; set; } = "";
 }
+
+public class BridgeEnvelope<T>
+{
+    public string Type { get; set; } = "";
+    public T Data { get; set; } = default!;
+}

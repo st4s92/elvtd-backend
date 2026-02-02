@@ -101,7 +101,7 @@ CREATE TABLE `orders` (
   `order_symbol` varchar(20) NOT NULL,
   `order_type` varchar(20) NOT NULL,
   `order_lot` decimal(13,3) NOT NULL,
-  `order_price` decimal(13,6) NOT NULL,
+  `order_price` decimal(13,6) NULL,
   `close_price` decimal(13,6) DEFAULT NULL,
   `actual_price` decimal(13,6) DEFAULT NULL,
   `order_comment` varchar(255) DEFAULT NULL,

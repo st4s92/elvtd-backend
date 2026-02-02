@@ -135,7 +135,7 @@ public partial class TraderHandler
 
         return Response.Json(new
         {
-            id = res.Id,
+            id = res!.Id,
             name = res.Name,
             master_id = res.MasterId,
             slave_id = res.SlaveId
