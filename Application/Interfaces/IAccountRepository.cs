@@ -9,4 +9,10 @@ public interface IAccountRepository : IRepository<Account>
         string serverIp,
         ConnectionStatus status
     );
+    Task<(List<Account> data, long total)> GetPaginatedAccounts(
+        Account param,
+        string? type,
+        int page,
+        int pageSize
+    );
 }

@@ -78,20 +78,39 @@ public partial class TraderHandler
             AccountNumber = query.AccountNumber ?? 0,
             BrokerName = query.BrokerName ?? "",
             ServerName = query.ServerName ?? "",
-            UserId = query.UserId ?? 0
+            UserId = query.UserId ?? 0,
         };
 
-        var (res, total, terr) = await _usecase.GetPaginatedAccounts(accountFilter, query.Page, query.PerPage);
+        var (res, total, terr) = await _usecase.GetPaginatedAccounts(accountFilter, query.Type ?? "", query.Page, query.PerPage);
         if (terr != null)
         {
             return Response.Json(terr);
         }
 
-        var resp = new GetPaginatedResponse<Account>
+        var data = res.Select(a => new AccountGetPaginatedObject
         {
-            Data = res,
+            Id = a.Id,
+            PlatformName = a.PlatformName,
+            AccountNumber = a.AccountNumber,
+            BrokerName = a.BrokerName,
+            ServerName = a.ServerName,
+            UserId = a.UserId,
+
+            Type = a.MasterRelations.Any() ? "MASTER"
+             : a.SlaveRelations.Any() ? "SLAVE"
+             : "NONE",
+
+            ServerStatus = a.ServerAccount?.Status.ToString(),
+            ServerStatusMessage = a.ServerAccount?.Message,
+            CreatedAt = a.CreatedAt,
+        }).ToList();
+
+        var resp = new GetPaginatedResponse<AccountGetPaginatedObject>
+        {
+            Data = data,
             Total = total
         };
+
         return Response.Json(resp);
     }
 

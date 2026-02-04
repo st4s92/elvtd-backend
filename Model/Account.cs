@@ -71,6 +71,9 @@ public class AccountPayload
 
     [JsonPropertyName("user_id")]
     public long? UserId { get; set; }
+
+    [JsonPropertyName("type")]
+    public string? Type { get; set; } = "";
 }
 
 public class AccountGetPayload : AccountPayload
@@ -86,6 +89,31 @@ public class AccountGetPaginatedPayload : AccountGetPayload
 
     [JsonPropertyName("page")]
     public int Page { get; set; }
+}
+
+public class AccountGetPaginatedObject
+{
+    [JsonPropertyName("id")]
+    public long Id { get; set; }
+    [JsonPropertyName("platform_name")]
+    public string PlatformName { get; set; } = "";
+    [JsonPropertyName("account_number")]
+    public long AccountNumber { get; set; }
+    [JsonPropertyName("broker_name")]
+    public string BrokerName { get; set; } = "";
+    [JsonPropertyName("server_name")]
+    public string ServerName { get; set; } = "";
+    [JsonPropertyName("user_id")]
+    public long UserId { get; set; }
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "NONE";
+    [JsonPropertyName("server_status")]
+    public string? ServerStatus { get; set; }
+    [JsonPropertyName("server_status_message")]
+    public string? ServerStatusMessage { get; set; }
+
+    [JsonPropertyName("created_at")]
+    public DateTime CreatedAt { get; set; }
 }
 
 public class TradePlatformCreateJob

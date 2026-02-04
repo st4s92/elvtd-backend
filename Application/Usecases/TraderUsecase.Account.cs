@@ -50,11 +50,16 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<(List<Account>, long total, ITError?)> GetPaginatedAccounts(Account param, int page, int pageSize)
+    public async Task<(List<Account>, long total, ITError?)> GetPaginatedAccounts(Account param, string tipe, int page, int pageSize)
     {
         try
         {
-            var (data, total) = await _accountRepository.GetPaginated(FilterAccount(param), page, pageSize, q => q.OrderByDescending(o => o.CreatedAt), q => q.Include(a => a.ServerAccount));
+            var (data, total) = await _accountRepository.GetPaginatedAccounts(
+                param,
+                tipe?.ToUpper(),
+                page,
+                pageSize
+            );
             if (data == null)
                 return ([], 0, null);
             return (data, total, null);
@@ -169,6 +174,7 @@ public partial class TraderUsecase
                 Role = "SLAVE",
                 Status = (int)masAcc.Status,
                 Message = masAcc.Message,
+                Pid = masAcc.PlatformPid ?? 0,
             };
             Console.WriteLine("try to publish event");
             _logger.Info("job", job);
