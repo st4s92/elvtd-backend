@@ -8,10 +8,7 @@ public partial class TraderHandler
     private readonly TraderUsecase _usecase;
     private readonly AppLogger<TraderHandler> _logger;
 
-    public TraderHandler(
-        TraderUsecase usecase,
-        AppLogger<TraderHandler> logger
-    )
+    public TraderHandler(TraderUsecase usecase, AppLogger<TraderHandler> logger)
     {
         _usecase = usecase;
         _logger = logger;

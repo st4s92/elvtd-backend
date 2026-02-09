@@ -17,6 +17,8 @@ public class AppDbContext : DbContext
     public DbSet<Server> Server => Set<Server>();
     public DbSet<ServerAccount> ServerAccount => Set<ServerAccount>();
 
+    public DbSet<ActiveOrder> ActiveOrders => Set<ActiveOrder>();
+
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {

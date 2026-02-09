@@ -12,14 +12,23 @@ public partial class TraderUsecase
     {
         return (
             a =>
-                (param.Id == 0 || a.Id == param.Id) &&
-                (string.IsNullOrEmpty(param.PlatformName) || a.PlatformName == param.PlatformName) &&
-                (param.AccountNumber == 0 || a.AccountNumber == param.AccountNumber) &&
-                (string.IsNullOrEmpty(param.BrokerName) || a.BrokerName.Contains(param.BrokerName)) &&
-                (string.IsNullOrEmpty(param.ServerName) || a.ServerName.Contains(param.ServerName)) &&
-                (param.UserId == 0 || a.UserId == param.UserId)
+                (param.Id == 0 || a.Id == param.Id)
+                && (
+                    string.IsNullOrEmpty(param.PlatformName) || a.PlatformName == param.PlatformName
+                )
+                && (param.AccountNumber == 0 || a.AccountNumber == param.AccountNumber)
+                && (
+                    string.IsNullOrEmpty(param.BrokerName)
+                    || a.BrokerName.Contains(param.BrokerName)
+                )
+                && (
+                    string.IsNullOrEmpty(param.ServerName)
+                    || a.ServerName.Contains(param.ServerName)
+                )
+                && (param.UserId == 0 || a.UserId == param.UserId)
         );
     }
+
     public async Task<(Account?, ITError?)> GetAccount(Account param)
     {
         try
@@ -50,7 +59,12 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<(List<Account>, long total, ITError?)> GetPaginatedAccounts(Account param, string tipe, int page, int pageSize)
+    public async Task<(List<Account>, long total, ITError?)> GetPaginatedAccounts(
+        Account param,
+        string tipe,
+        int page,
+        int pageSize
+    )
     {
         try
         {
@@ -75,7 +89,7 @@ public partial class TraderUsecase
         var existingAccount = new Account
         {
             AccountNumber = account.AccountNumber,
-            ServerName = account.ServerName
+            ServerName = account.ServerName,
         };
 
         var (_, terr) = await GetAccount(existingAccount);
@@ -88,12 +102,17 @@ public partial class TraderUsecase
         }
         else
         {
-            return (null, TError.NewClient("account with the server name and account number already exist"));
+            return (
+                null,
+                TError.NewClient("account with the server name and account number already exist")
+            );
         }
 
         try
         {
-            var maxAccountPerServer = int.Parse(Environment.GetEnvironmentVariable("MAX_SERVER_ACCOUNTS") ?? "10");
+            var maxAccountPerServer = int.Parse(
+                Environment.GetEnvironmentVariable("MAX_SERVER_ACCOUNTS") ?? "10"
+            );
 
             var server = await _serverRepository.GetFirstAvailableServer(maxAccountPerServer);
             if (server == null)
@@ -106,11 +125,7 @@ public partial class TraderUsecase
             if (data == null)
                 return (null, TError.NewServer("cannot create new account"));
 
-            var serverAccount = new ServerAccount
-            {
-                ServerId = server.Id,
-                AccountId = data.Id
-            };
+            var serverAccount = new ServerAccount { ServerId = server.Id, AccountId = data.Id };
             serverAccount = await _serverAccountRepository.Save(serverAccount);
             if (serverAccount == null)
                 return (null, TError.NewServer("cannot create new server account"));
@@ -126,7 +141,7 @@ public partial class TraderUsecase
                 ServerName = data.ServerName,
                 UserId = data.UserId,
                 Role = "SLAVE",
-                Status = 100
+                Status = 100,
             };
             Console.WriteLine("try to publish event");
 
@@ -145,7 +160,9 @@ public partial class TraderUsecase
         try
         {
             _logger.Info("accountID", accountID);
-            var (masAcc, terr) = await GetServerAccount(new ServerAccount { AccountId = accountID });
+            var (masAcc, terr) = await GetServerAccount(
+                new ServerAccount { AccountId = accountID }
+            );
             if (terr != null)
                 return terr;
 
@@ -160,7 +177,10 @@ public partial class TraderUsecase
                 return terr;
 
             masAcc.Status = ConnectionStatus.None;
-            masAcc = await _serverAccountRepository.Save(masAcc, x => x.AccountId == masAcc.AccountId);
+            masAcc = await _serverAccountRepository.Save(
+                masAcc,
+                x => x.AccountId == masAcc.AccountId
+            );
 
             var job = new TradePlatformCreateJob
             {
@@ -246,7 +266,7 @@ public partial class TraderUsecase
                 ServerName = existing.ServerName,
                 UserId = existing.UserId,
                 Role = "SLAVE",
-                Status = 100
+                Status = 100,
             };
             Console.WriteLine("try to publish delete account event");
 
@@ -261,11 +281,15 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<(ServerAccount?, ITError?)> UpdateAccountServerData(ServerAccountPlatformUpdateRequest param)
+    public async Task<(ServerAccount?, ITError?)> UpdateAccountServerData(
+        ServerAccountPlatformUpdateRequest param
+    )
     {
         try
         {
-            var (serverAccount, terr) = await GetServerAccount(new ServerAccount { AccountId = param.AccountId });
+            var (serverAccount, terr) = await GetServerAccount(
+                new ServerAccount { AccountId = param.AccountId }
+            );
             if (terr != null)
                 return (null, terr);
 
@@ -274,7 +298,10 @@ public partial class TraderUsecase
             serverAccount!.Message = param.Message;
             serverAccount!.PlatformPid = param.Pid;
 
-            var data = await _serverAccountRepository.Save(serverAccount, a => a.AccountId == param.AccountId);
+            var data = await _serverAccountRepository.Save(
+                serverAccount,
+                a => a.AccountId == param.AccountId
+            );
             if (data == null)
                 return (null, TError.NewServer("cannot save server account"));
 

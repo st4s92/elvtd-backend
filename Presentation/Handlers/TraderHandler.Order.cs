@@ -23,10 +23,10 @@ public partial class TraderHandler
         {
             Id = query.Id ?? 0,
             AccountId = query.AccountId ?? 0,
-            MasterOrderId = query.MasterOrderId ?? 0,
+            MasterOrderId = query.MasterOrderId,
             OrderSymbol = query.OrderSymbol ?? "",
             OrderType = query.OrderType ?? "",
-            Status = query.Status ?? 0
+            Status = query.Status ?? 0,
         };
 
         var (res, terr) = await _usecase.GetOrders(orderFilter);
@@ -43,23 +43,23 @@ public partial class TraderHandler
         {
             Id = query.Id ?? 0,
             AccountId = query.AccountId ?? 0,
-            MasterOrderId = query.MasterOrderId ?? 0,
+            MasterOrderId = query.MasterOrderId,
             OrderSymbol = query.OrderSymbol ?? "",
             OrderType = query.OrderType ?? "",
             Status = query.Status ?? 0,
         };
 
-        var (res, total ,terr) = await _usecase.GetPaginatedOrders(orderFilter, query.Page, query.PerPage);
+        var (res, total, terr) = await _usecase.GetPaginatedOrders(
+            orderFilter,
+            query.Page,
+            query.PerPage
+        );
         if (terr != null)
         {
             return Response.Json(terr);
         }
 
-        var resp = new GetPaginatedResponse<Order>
-        {
-            Data = res,
-            Total = total
-        };
+        var resp = new GetPaginatedResponse<Order> { Data = res, Total = total };
         return Response.Json(resp);
     }
 
@@ -115,5 +115,20 @@ public partial class TraderHandler
             return Response.Json(terr);
         }
         return Response.Json("ok");
+    }
+
+    public async Task<IResult> HandlePlatformActivePositionSync(
+        PlatformActivePositionSyncPayload payload
+    )
+    {
+        if (payload == null)
+        {
+            // platform consumer → no-op
+            return Response.Json(payload);
+        }
+
+        var result = await _usecase.SyncActiveOrdersFromPlatform(payload);
+
+        return Response.Json(result);
     }
 }

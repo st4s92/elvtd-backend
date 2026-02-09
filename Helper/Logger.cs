@@ -16,8 +16,13 @@ namespace Backend.Helper
             _jsonOptions = new JsonSerializerOptions
             {
                 WriteIndented = true, // prettier logs
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                DefaultIgnoreCondition = System
+                    .Text
+                    .Json
+                    .Serialization
+                    .JsonIgnoreCondition
+                    .WhenWritingNull,
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
             };
         }
 
@@ -52,9 +57,7 @@ namespace Backend.Helper
         // === ERROR / FAIL LOG ===
         public void Fail(string message, Exception? ex = null, object? obj = null)
         {
-            string json = obj != null
-                ? JsonSerializer.Serialize(obj, _jsonOptions)
-                : "";
+            string json = obj != null ? JsonSerializer.Serialize(obj, _jsonOptions) : "";
 
             if (ex != null)
             {

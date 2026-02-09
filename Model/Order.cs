@@ -8,12 +8,12 @@ namespace Backend.Model;
 public enum OrderStatus
 {
     None = 100,
-    Pending = 200,
+    Progress = 200,
     Failed = 300,
     Closed = 400,
     Canceled = 500,
     Success = 600,
-    Complete = 700
+    Complete = 700,
 }
 
 [Table("orders")]
@@ -58,11 +58,8 @@ public class Order : IAuditableEntity
     [Column("close_price", TypeName = "decimal(13,6)")]
     public decimal? ClosePrice { get; set; }
 
-    [Column("actual_price", TypeName = "decimal(13,6)")]
-    public decimal? ActualPrice { get; set; }
-
-    [Column("order_comment"), MaxLength(255)]
-    public string? OrderComment { get; set; }
+    [Column("order_magic")]
+    public long? OrderMagic { get; set; }
 
     [Column("status")]
     public OrderStatus Status { get; set; }
@@ -78,6 +75,9 @@ public class Order : IAuditableEntity
 
     [Column("order_close_at")]
     public DateTime? OrderCloseAt { get; set; }
+
+    [Column("order_profit", TypeName = "decimal(13,2)")]
+    public decimal? OrderProfit { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
@@ -120,13 +120,14 @@ public class BridgeOrderPayload
     public long AccountId { get; set; }
 
     [JsonPropertyName("order")]
-    public BridgeOrderItem Order{ get; set; } = new();
+    public BridgeOrderItem Order { get; set; } = new();
 }
 
 public class BridgeOrderItem
 {
     [JsonPropertyName("master_order_id")]
     public long MasterOrderId { get; set; }
+
     [JsonPropertyName("order_ticket")]
     public long OrderTicket { get; set; }
 
@@ -148,11 +149,8 @@ public class BridgeOrderItem
     [JsonPropertyName("order_close_price")]
     public decimal OrderClosePrice { get; set; }
 
-    [JsonPropertyName("actual_price")]
-    public decimal? ActualPrice { get; set; }
-
     [JsonPropertyName("order_comment")]
-    public string OrderComment { get; set; } = "";
+    public string OrderMagic { get; set; } = "";
 
     [JsonPropertyName("order_status")]
     public string OrderStatus { get; set; } = "";
@@ -177,10 +175,13 @@ public class BridgeOrderBroadcastPayload
 
     [JsonPropertyName("order_ticket")]
     public long OrderTicket { get; set; }
+
     [JsonPropertyName("master_order_id")]
     public long MasterOrderId { get; set; }
+
     [JsonPropertyName("copy_type")]
     public string CopyType { get; set; } = "";
+
     [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 }
@@ -189,14 +190,19 @@ public class OrderQuery
 {
     [JsonPropertyName("id")]
     public long? Id { get; set; }
+
     [JsonPropertyName("account_id")]
     public long? AccountId { get; set; }
+
     [JsonPropertyName("master_order_id")]
     public long? MasterOrderId { get; set; }
+
     [JsonPropertyName("order_symbol")]
     public string? OrderSymbol { get; set; }
+
     [JsonPropertyName("order_type")]
     public string? OrderType { get; set; }
+
     [JsonPropertyName("status")]
     public OrderStatus? Status { get; set; } = OrderStatus.None;
 }
@@ -204,7 +210,6 @@ public class OrderQuery
 public class OrderGetPaginatedPayload : OrderQuery
 {
     [JsonPropertyName("per_page")]
-
     public int PerPage { get; set; }
 
     [JsonPropertyName("page")]
@@ -218,7 +223,7 @@ public enum OrderType
     Buy,
 
     [Description("DEAL_TYPE_SELL")]
-    Sell
+    Sell,
 }
 
 public class BridgeCreateOrderItem
@@ -237,7 +242,7 @@ public class BridgeCreateOrderItem
 
     [JsonPropertyName("order_price")]
     public decimal? OrderPrice { get; set; }
-    
+
     [JsonPropertyName("order_open_at")]
     public DateTime? OrderOpenAt { get; set; }
 }

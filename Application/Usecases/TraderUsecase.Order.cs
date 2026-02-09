@@ -11,20 +11,19 @@ public partial class TraderUsecase
 {
     private static Expression<Func<Order, bool>> FilterOrder(Order param)
     {
-        return (
-            a =>
-                (param.Id == 0 || a.Id == param.Id) &&
-                (param.AccountId == 0 || a.AccountId == param.AccountId) &&
-                (param.MasterOrderId == 0 || param.MasterOrderId == null || a.MasterOrderId == param.MasterOrderId) &&
-                (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket) &&
-                (param.CloseTicket == 0 || param.CloseTicket == null || a.CloseTicket == param.CloseTicket) &&
-                (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol) &&
-                (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType) &&
-                (param.OrderLot == 0 || a.OrderLot == param.OrderLot) &&
-                (string.IsNullOrEmpty(param.OrderComment) || (a.OrderComment != null && a.OrderComment.Contains(param.OrderComment))) &&
-                (param.Status == 0 || a.Status == param.Status)
-        );
+        return a =>
+            (param.Id == 0 || a.Id == param.Id)
+            && (param.AccountId == 0 || a.AccountId == param.AccountId)
+            && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
+            && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
+            && (!param.CloseTicket.HasValue || a.CloseTicket == param.CloseTicket.Value)
+            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
+            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
+            && (param.OrderLot == 0 || a.OrderLot == param.OrderLot)
+            && (!param.OrderMagic.HasValue || a.OrderMagic == param.OrderMagic.Value)
+            && (param.Status == 0 || a.Status == param.Status);
     }
+
     public async Task<(Order?, ITError?)> GetOrder(Order param)
     {
         try
@@ -55,11 +54,20 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<(List<Order>, long total, ITError?)> GetPaginatedOrders(Order param, int page, int pageSize)
+    public async Task<(List<Order>, long total, ITError?)> GetPaginatedOrders(
+        Order param,
+        int page,
+        int pageSize
+    )
     {
         try
         {
-            var (data, total) = await _orderRepository.GetPaginated(FilterOrder(param), page, pageSize, q => q.OrderByDescending(o => o.CreatedAt));
+            var (data, total) = await _orderRepository.GetPaginated(
+                FilterOrder(param),
+                page,
+                pageSize,
+                q => q.OrderByDescending(o => o.CreatedAt)
+            );
             if (data == null)
                 return ([], 0, null);
             return (data, total, null);
@@ -75,7 +83,7 @@ public partial class TraderUsecase
         var existingOrder = new Order
         {
             AccountId = order.AccountId,
-            OrderTicket = order.OrderTicket
+            OrderTicket = order.OrderTicket,
         };
 
         var (_, terr) = await GetOrder(existingOrder);
@@ -88,7 +96,10 @@ public partial class TraderUsecase
         }
         else
         {
-            return (null, TError.NewClient("order with the server name and order number already exist"));
+            return (
+                null,
+                TError.NewClient("order with the server name and order number already exist")
+            );
         }
 
         try
@@ -108,6 +119,7 @@ public partial class TraderUsecase
     {
         try
         {
+            Console.WriteLine(id);
             var (_, terr) = await GetOrder(new Order { Id = id });
             if (terr != null)
                 return (null, terr);
@@ -144,11 +156,9 @@ public partial class TraderUsecase
     {
         try
         {
-            var (account, accErr) = await GetAccount(new Account
-            {
-                ServerName = payload.ServerName,
-                AccountNumber = payload.AccountId
-            });
+            var (account, accErr) = await GetAccount(
+                new Account { ServerName = payload.ServerName, AccountNumber = payload.AccountId }
+            );
             if (accErr != null)
                 return accErr;
 
@@ -157,32 +167,38 @@ public partial class TraderUsecase
 
             Order? existingOrder = null;
             ITError? terr = null;
-            if (payload.Order.OrderType == "DEAL_TYPE_BUY" || payload.Order.OrderType == "DEAL_TYPE_SELL")
+            if (
+                payload.Order.OrderType == "DEAL_TYPE_BUY"
+                || payload.Order.OrderType == "DEAL_TYPE_SELL"
+            )
             {
-                (existingOrder, terr) = await GetOrder(new Order
-                {
-                    MasterOrderId = payload.Order.MasterOrderId,
-                    AccountId = account.Id,
-                });
+                (existingOrder, terr) = await GetOrder(
+                    new Order
+                    {
+                        MasterOrderId = payload.Order.MasterOrderId,
+                        AccountId = account.Id,
+                    }
+                );
                 if (terr != null)
                     return terr;
 
                 if (existingOrder == null)
                     return TError.NewNotFound("order not found");
 
-
                 existingOrder.OrderOpenAt = DateTime.UtcNow;
                 existingOrder.OrderTicket = payload.Order.OrderTicket;
-                existingOrder.ActualPrice = payload.Order.ActualPrice;
+                existingOrder.OrderPrice = payload.Order.OrderPrice;
                 existingOrder.OrderLot = payload.Order.OrderLot;
                 existingOrder.Status = OrderStatus.Success;
             }
             else if (payload.Order.OrderType == "DEAL_TYPE_DELETE")
             {
-                (existingOrder, terr) = await GetOrder(new Order
-                {
-                    Id = payload.Order.MasterOrderId, // use master order id? it should be order id, it just using same payload
-                });
+                (existingOrder, terr) = await GetOrder(
+                    new Order
+                    {
+                        Id = payload.Order.MasterOrderId, // use master order id? it should be order id, it just using same payload
+                    }
+                );
                 if (terr != null)
                     return terr;
 
@@ -209,32 +225,39 @@ public partial class TraderUsecase
         }
     }
 
-    public async Task<(string, ITError?)> CreateBridgeMasterOrder(BridgeListCreateOrderPayload payload)
+    public async Task<(string, ITError?)> CreateBridgeMasterOrder(
+        BridgeListCreateOrderPayload payload
+    )
     {
         await using var tx = await _orderRepository.BeginTransactionAsync();
         try
         {
-            var (account, accErr) = await GetAccount(new Account
-            {
-                ServerName = payload.ServerName,
-                AccountNumber = payload.AccountId
-            });
+            var (account, accErr) = await GetAccount(
+                new Account { ServerName = payload.ServerName, AccountNumber = payload.AccountId }
+            );
             if (accErr != null)
                 return ("", accErr);
 
-            var existingOrders = await _orderRepository.GetMany(a => a.OrderCloseAt == null && a.AccountId == account!.Id);
+            var existingOrders = await _orderRepository.GetMany(a =>
+                a.OrderCloseAt == null && a.AccountId == account!.Id
+            );
 
-            var payloadOrderTickets = payload.Orders
-                .Select(o => o.OrderTicket)
-                .ToHashSet();
+            var payloadOrderTickets = payload.Orders.Select(o => o.OrderTicket).ToHashSet();
 
-            List<Order> deletedOrders = [.. existingOrders.Where(dbOrder => !payloadOrderTickets.Contains(dbOrder.OrderTicket))];
+            List<Order> deletedOrders =
+            [
+                .. existingOrders.Where(dbOrder =>
+                    !payloadOrderTickets.Contains(dbOrder.OrderTicket)
+                ),
+            ];
 
             var existingOrderTickets = existingOrders.Select(o => o.OrderTicket).ToHashSet();
-            var toleranceSeconds = int.Parse(Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0");
+            var toleranceSeconds = int.Parse(
+                Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0"
+            );
 
-            var newOrders = payload.Orders
-                .Where(po => !existingOrderTickets.Contains(po.OrderTicket))
+            var newOrders = payload
+                .Orders.Where(po => !existingOrderTickets.Contains(po.OrderTicket))
                 .Where(po => OrderTimeHelper.IsOrderFresh(po.OrderOpenAt, toleranceSeconds))
                 .ToList();
 
@@ -250,9 +273,8 @@ public partial class TraderUsecase
                     OrderType = item.OrderType,
                     OrderLot = item.OrderLot,
                     OrderPrice = item.OrderPrice,
-                    ActualPrice = item.OrderPrice,
                     Status = OrderStatus.Success,
-                    OrderOpenAt = item.OrderOpenAt
+                    OrderOpenAt = item.OrderOpenAt,
                 };
 
                 var (newOdr, terr) = await CreateOrder(order);
@@ -264,6 +286,7 @@ public partial class TraderUsecase
             foreach (var item in deletedOrders)
             {
                 item.OrderCloseAt = closeOrderAt;
+                item.Status = OrderStatus.Complete;
 
                 var (_, terr) = await UpdateOrderById(item.Id, item);
                 if (terr != null)
@@ -282,9 +305,7 @@ public partial class TraderUsecase
 
             await _orderRepository.CommitAsync();
 
-            var terrz = await CopyBridgeMasterOrder(account!);
-            if (terrz != null)
-                return ("", terrz);
+            await SyncSlaveActiveOrders(account!.Id);
 
             return (message, null);
         }
@@ -303,7 +324,9 @@ public partial class TraderUsecase
             // 1. GET ALL MASTER-SLAVE RELATIONS FIRST (NO DUPLICATE QUERIES)
             // -------------------------------
 
-            var (masterSlaves, terr) = await GetMasterSlaves(new MasterSlave { MasterId = masterAccount.Id });
+            var (masterSlaves, terr) = await GetMasterSlaves(
+                new MasterSlave { MasterId = masterAccount.Id }
+            );
             if (terr != null)
             {
                 return terr;
@@ -318,14 +341,18 @@ public partial class TraderUsecase
             // 2. GET ALL NEW MASTER ORDERS IN ONE QUERY
             // -------------------------------
 
-            var toleranceSeconds = int.Parse(Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0");
+            var toleranceSeconds = int.Parse(
+                Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0"
+            );
             var threshold = DateTime.UtcNow.AddSeconds(-toleranceSeconds);
             var now = DateTime.UtcNow;
 
             var newOrders = await _orderRepository.GetMany(a =>
-                a.OrderOpenAt >= threshold && a.OrderOpenAt <= now &&
-                a.OrderCloseAt == null && a.OrderCopiedAt == null &&
-                a.AccountId == masterAccount.Id
+                a.OrderOpenAt >= threshold
+                && a.OrderOpenAt <= now
+                && a.OrderCloseAt == null
+                && a.OrderCopiedAt == null
+                && a.AccountId == masterAccount.Id
             );
 
             // -------------------------------
@@ -336,18 +363,19 @@ public partial class TraderUsecase
             var allMasterSlaveIds = masterSlaves.Select(x => x.Id).ToList();
 
             // load ALL pairs for ALL slaves
-            var allPairs = await _masterSlavePairRepository.GetMany(x => allMasterSlaveIds.Contains(x.MasterSlaveId));
+            var allPairs = await _masterSlavePairRepository.GetMany(x =>
+                allMasterSlaveIds.Contains(x.MasterSlaveId)
+            );
 
             // load ALL configs
-            var allConfigs = await _masterSlaveConfigRepository.GetMany(x => allMasterSlaveIds.Contains(x.MasterSlaveId));
+            var allConfigs = await _masterSlaveConfigRepository.GetMany(x =>
+                allMasterSlaveIds.Contains(x.MasterSlaveId)
+            );
 
             // group pairs into a dictionary
             var allPairsMap = allPairs
                 .GroupBy(x => x.MasterSlaveId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.ToDictionary(x => x.MasterPair, x => x.SlavePair)
-                );
+                .ToDictionary(g => g.Key, g => g.ToDictionary(x => x.MasterPair, x => x.SlavePair));
 
             // config lookup dictionary
             var configMap = allConfigs.ToDictionary(x => x.MasterSlaveId, x => x);
@@ -384,7 +412,7 @@ public partial class TraderUsecase
                 {
                     // SAFE DICTIONARY ACCESS
                     if (!masterSlavePair.TryGetValue(order.OrderSymbol, out var slavePair))
-                        continue;  // skip if symbol not mapped
+                        continue; // skip if symbol not mapped
 
                     if (string.IsNullOrEmpty(slavePair))
                         continue;
@@ -414,7 +442,7 @@ public partial class TraderUsecase
                         OrderType = order.OrderType,
                         OrderLot = Math.Round(order.OrderLot * multiplier, 2),
                         OrderPrice = 0,
-                        Status = OrderStatus.Pending,
+                        Status = OrderStatus.Progress,
                         OrderOpenAt = DateTime.UtcNow,
                     };
                     newSlaveOrders.Add(slaveOrder);
@@ -424,14 +452,13 @@ public partial class TraderUsecase
                 // CLOSED ORDERS BROADCAST
                 // -------------------------------------------
 
-                var closedOrders = await _orderRepository.GetMany(
-                    a =>
-                        a.MasterOrder != null &&
-                        a.MasterOrder.OrderCloseAt != null &&
-                        a.MasterOrder.OrderCloseAt > closedThreshold &&
-                        a.OrderTicket != 0 &&
-                        (a.Status == OrderStatus.Success || a.Status == OrderStatus.Pending) &&
-                        a.AccountId == item.SlaveId
+                var closedOrders = await _orderRepository.GetMany(a =>
+                    a.MasterOrder != null
+                    && a.MasterOrder.OrderCloseAt != null
+                    && a.MasterOrder.OrderCloseAt > closedThreshold
+                    && a.OrderTicket != 0
+                    && (a.Status == OrderStatus.Success || a.Status == OrderStatus.Progress)
+                    && a.AccountId == item.SlaveId
                 );
 
                 closedOrders ??= [];
@@ -510,6 +537,307 @@ public partial class TraderUsecase
         catch (Exception ex)
         {
             return TError.NewServer(ex.Message);
+        }
+    }
+
+    public async Task<ITError?> SyncSlaveActiveOrders(long masterAccountId)
+    {
+        try
+        {
+            // 1. ambil semua order master yang masih aktif
+            var masterOrders = await _orderRepository.GetMany(o =>
+                o.AccountId == masterAccountId
+                && o.OrderCloseAt == null
+                && o.Status == OrderStatus.Success
+            );
+
+            // map cepat
+            var masterOrderIds = masterOrders.Select(o => o.Id).ToHashSet();
+
+            // 2. ambil semua slave yang terhubung ke master
+            var slaveRelations = await _masterSlaveRepository.GetMany(ms =>
+                ms.MasterId == masterAccountId
+            );
+
+            if (slaveRelations.Count == 0)
+                return null; // no slave, nothing to do
+
+            // mapping slave relation
+            var slaveIds = slaveRelations.Select(x => x.SlaveId).Distinct().ToList();
+
+            var slaves = await _accountRepository.GetMany(a => slaveIds.Contains(a.Id));
+
+            var slaveMap = slaves.ToDictionary(x => x.Id);
+
+            var masterSlaveIds = slaveRelations.Select(x => x.Id).ToList();
+
+            // load ALL pairs
+            var allPairs = await _masterSlavePairRepository.GetMany(x =>
+                masterSlaveIds.Contains(x.MasterSlaveId)
+            );
+
+            // load ALL configs
+            var allConfigs = await _masterSlaveConfigRepository.GetMany(x =>
+                masterSlaveIds.Contains(x.MasterSlaveId)
+            );
+
+            // mapping pair: MasterSlaveId -> (masterPair -> slavePair)
+            var pairMap = allPairs
+                .GroupBy(x => x.MasterSlaveId)
+                .ToDictionary(g => g.Key, g => g.ToDictionary(x => x.MasterPair, x => x.SlavePair));
+
+            // mapping config
+            var configMap = allConfigs.ToDictionary(x => x.MasterSlaveId);
+
+            var toleranceSeconds = int.Parse(
+                Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0"
+            );
+
+            // preload ALL active orders for all slave accounts
+            var allSlaveActiveOrders = await _activeOrderRepository.GetMany(a =>
+                slaveIds.Contains(a.AccountId)
+            );
+
+            // group by AccountId
+            var activeOrdersByAccountId = allSlaveActiveOrders
+                .GroupBy(a => a.AccountId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // iterasi slave relation
+            foreach (var relation in slaveRelations)
+            {
+                var slaveAccountId = relation.SlaveId;
+
+                if (!slaveMap.TryGetValue(relation.SlaveId, out var slaveAccount))
+                {
+                    _logger.Warning($"SlaveAccount not found for SlaveId={relation.SlaveId}");
+                    continue; // jangan bikin ActiveOrder tanpa account
+                }
+
+                // 3. ambil active order slave existing
+                activeOrdersByAccountId.TryGetValue(slaveAccountId, out var slaveActiveOrders);
+
+                slaveActiveOrders ??= new List<ActiveOrder>();
+
+                var slaveActiveByMasterId = slaveActiveOrders
+                    .GroupBy(a => a.MasterOrderId)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                // 4. CREATE missing active orders
+                foreach (var masterOrder in masterOrders)
+                {
+                    if (slaveActiveByMasterId.ContainsKey(masterOrder.Id))
+                        continue;
+
+                    if (
+                        DateTime.UtcNow - masterOrder.OrderOpenAt
+                        > TimeSpan.FromSeconds(toleranceSeconds)
+                    )
+                    {
+                        _logger.Info($"Skip stale master order {masterOrder.Id}");
+                        continue;
+                    }
+
+                    // ambil pair mapping untuk relation ini
+                    if (!pairMap.TryGetValue(relation.Id, out var relationPairs))
+                        continue;
+
+                    // ambil slave pair
+                    if (!relationPairs.TryGetValue(masterOrder.OrderSymbol, out var slavePair))
+                        continue;
+
+                    if (string.IsNullOrEmpty(slavePair))
+                        continue;
+
+                    // ambil multiplier
+                    decimal multiplier = 1;
+                    if (configMap.TryGetValue(relation.Id, out var cfg))
+                    {
+                        multiplier = cfg.Multiplier == 0 ? 1 : cfg.Multiplier;
+                    }
+
+                    // hitung lot
+                    var finalLot = Math.Round(masterOrder.OrderLot * multiplier, 2);
+
+                    // CREATE ActiveOrder (intent)
+                    var activeOrder = new ActiveOrder
+                    {
+                        AccountId = slaveAccountId,
+                        MasterOrderId = masterOrder.Id,
+
+                        AccountNumber = slaveAccount.AccountNumber,
+                        ServerName = slaveAccount.ServerName,
+
+                        OrderTicket = 0,
+                        OrderMagic = GenerateMagicNumber(slaveAccountId),
+
+                        OrderType = masterOrder.OrderType,
+                        OrderLot = finalLot,
+                        OrderProfit = 0,
+
+                        OrderSymbol = slavePair,
+                        Status = OrderStatus.Progress,
+                    };
+
+                    await _activeOrderRepository.Add(activeOrder);
+                }
+
+                // 5. DELETE orphan active orders (master already closed)
+                var orphanActiveOrders = slaveActiveOrders
+                    .Where(a => !masterOrderIds.Contains(a.MasterOrderId))
+                    .ToList();
+
+                foreach (var orphan in orphanActiveOrders)
+                {
+                    await FinalizeActiveOrderToOrder(orphan);
+                    await _activeOrderRepository.DeleteById(orphan.Id);
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+
+    private async Task FinalizeActiveOrderToOrder(ActiveOrder activeOrder)
+    {
+        var order = new Order
+        {
+            AccountId = activeOrder.AccountId,
+            MasterOrderId = activeOrder.MasterOrderId,
+            OrderTicket = activeOrder.OrderTicket,
+            OrderSymbol = activeOrder.OrderSymbol,
+            OrderType = activeOrder.OrderType,
+            OrderLot = activeOrder.OrderLot,
+            OrderPrice = activeOrder.OrderPrice,
+            OrderProfit = activeOrder.OrderProfit ?? 0,
+            OrderMagic = activeOrder.OrderMagic,
+            Status = OrderStatus.Closed,
+            OrderCloseAt = DateTime.UtcNow,
+        };
+
+        await _orderRepository.Save(order);
+    }
+
+    private static int _magicCounter = 0;
+    private static readonly object _magicLock = new();
+
+    public int GenerateMagicNumber(long slaveAccountId)
+    {
+        var sss = (int)(slaveAccountId % 1000); // 0–999
+        var ttt = (int)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() % 1000); // 0–999
+
+        int c;
+        lock (_magicLock)
+        {
+            c = _magicCounter++ % 10; // 0–9
+        }
+
+        return sss * 1_000_000 + ttt * 10 + c; // max 999,999,999
+    }
+
+    public async Task<PlatformActivePositionSyncPayload> SyncActiveOrdersFromPlatform(
+        PlatformActivePositionSyncPayload payload
+    )
+    {
+        try
+        {
+            // ------------------------------------
+            // 1. Resolve account
+            // ------------------------------------
+            var (account, terr) = await GetAccount(
+                new Account
+                {
+                    AccountNumber = payload.AccountNumber,
+                    ServerName = payload.ServerName,
+                }
+            );
+
+            if (terr != null || account == null)
+            {
+                _logger.Warning(
+                    "Account not found for MT5 sync",
+                    new { payload.AccountNumber, payload.ServerName }
+                );
+
+                // FAIL-SAFE: do nothing on MT5
+                return payload;
+            }
+
+            // ------------------------------------
+            // 2. UPDATE ACCOUNT RUNTIME STATE
+            // ------------------------------------
+            account.Balance = payload.Balance;
+            account.Equity = payload.Equity;
+            account.Status = ConnectionStatus.Success;
+
+            await _accountRepository.Save(account, a => a.Id == account.Id);
+
+            // ------------------------------------
+            // 3. Load active orders from DB
+            // ------------------------------------
+            var dbActiveOrders = await _activeOrderRepository.GetMany(a =>
+                a.AccountId == account.Id
+            );
+
+            var dbByMagic = dbActiveOrders.ToDictionary(a => a.OrderMagic);
+
+            // ------------------------------------
+            // 4. Update EXISTING active orders
+            // ------------------------------------
+            foreach (var mtPos in payload.PositionList)
+            {
+                if (!dbByMagic.TryGetValue(mtPos.OrderMagic, out var dbOrder))
+                    continue;
+
+                dbOrder.OrderTicket = mtPos.OrderTicket;
+                dbOrder.OrderProfit = mtPos.OrderProfit;
+                dbOrder.OrderPrice = mtPos.OrderPrice;
+                dbOrder.Status = OrderStatus.Success;
+
+                await _activeOrderRepository.Update(dbOrder);
+            }
+
+            // ------------------------------------
+            // 5. Detect NEW orders (created by master)
+            // ------------------------------------
+            var mtMagicSet = payload.PositionList.Select(x => x.OrderMagic).ToHashSet();
+
+            // ------------------------------------
+            // 6. Build DELTA response
+            // ------------------------------------
+            return new PlatformActivePositionSyncPayload
+            {
+                AccountNumber = payload.AccountNumber,
+                ServerName = payload.ServerName,
+                Balance = payload.Balance,
+                Equity = payload.Equity,
+
+                PositionList = dbActiveOrders
+                    .Select(o => new PlatformPositionDto
+                    {
+                        OrderTicket = 0,
+                        OrderMagic = o.OrderMagic,
+                        OrderType = o.OrderType,
+                        OrderLot = o.OrderLot,
+                        OrderPrice = 0,
+                        OrderProfit = 0,
+                        OrderSymbol = o.OrderSymbol,
+                        Status = o.Status,
+                    })
+                    .ToList(),
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.Fail("SyncActiveOrdersFromMt5 failed", ex);
+
+            // FAIL-SAFE:
+            // echo MT5 snapshot back unchanged
+            return payload;
         }
     }
 }

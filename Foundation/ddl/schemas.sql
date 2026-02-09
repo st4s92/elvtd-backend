@@ -19,6 +19,7 @@ CREATE TABLE `users` (
 -- 2️⃣ ACCOUNTS TABLE
 -- ==============================================
 -- elvtd_core.accounts definition
+
 CREATE TABLE `accounts` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `platform_name` varchar(100) NOT NULL,
@@ -27,13 +28,16 @@ CREATE TABLE `accounts` (
   `broker_name` varchar(100) NOT NULL,
   `server_name` varchar(100) NOT NULL,
   `user_id` bigint NOT NULL,
+  `equity` decimal(13,2) NOT NULL DEFAULT '0.00',
+  `balance` decimal(13,2) NOT NULL DEFAULT '0.00',
+  `status` int NOT NULL DEFAULT '100',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   CONSTRAINT `fk_accounts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ==============================================
 -- 3️⃣ MASTER-SLAVE RELATIONSHIP TABLE
@@ -92,6 +96,8 @@ CREATE TABLE `master_slave_pair` (
 -- 6️⃣ ORDERS TABLE (Unified Master + Slave)
 -- ==============================================
 -- elvtd_core.orders definition
+-- elvtd_core.orders definition
+
 CREATE TABLE `orders` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `account_id` bigint NOT NULL,
@@ -101,15 +107,15 @@ CREATE TABLE `orders` (
   `order_symbol` varchar(20) NOT NULL,
   `order_type` varchar(20) NOT NULL,
   `order_lot` decimal(13,3) NOT NULL,
-  `order_price` decimal(13,6) NULL,
+  `order_price` decimal(13,6) DEFAULT NULL,
+  `order_magic` int DEFAULT NULL,
   `close_price` decimal(13,6) DEFAULT NULL,
-  `actual_price` decimal(13,6) DEFAULT NULL,
-  `order_comment` varchar(255) DEFAULT NULL,
   `status` int NOT NULL DEFAULT '200',
   `copy_message` varchar(255) DEFAULT NULL,
   `order_copied_at` datetime DEFAULT NULL,
   `order_open_at` datetime DEFAULT NULL,
   `order_close_at` datetime DEFAULT NULL,
+  `order_profit` decimal(13,2) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
@@ -165,3 +171,28 @@ CREATE TABLE `server_account` (
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_0900_ai_ci;
+
+-- elvtd_core.active_orders definition
+
+CREATE TABLE `active_orders` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `account_id` bigint NOT NULL,
+  `account_number` bigint NOT NULL,
+  `server_name` varchar(100) DEFAULT NULL,
+  `master_order_id` bigint NOT NULL,
+  `order_ticket` int DEFAULT '0',
+  `order_symbol` varchar(20) NOT NULL,
+  `order_magic` bigint DEFAULT NULL,
+  `order_type` varchar(20) NOT NULL,
+  `order_lot` decimal(13,3) NOT NULL,
+  `order_price` decimal(13,6) NOT NULL,
+  `order_profit` decimal(13,2) DEFAULT NULL,
+  `status` int DEFAULT '200',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_account_magic` (`account_id`,`order_magic`),
+  KEY `idx_account` (`account_id`),
+  KEY `idx_master_order` (`master_order_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+

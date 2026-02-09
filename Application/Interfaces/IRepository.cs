@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Backend.Application.Interfaces
 {
-    public interface IRepository<T> where T : class
+    public interface IRepository<T>
+        where T : class
     {
         // transaction
         Task<IDbContextTransaction> BeginTransactionAsync();
@@ -22,14 +23,9 @@ namespace Backend.Application.Interfaces
             Func<IQueryable<T>, IQueryable<T>>? include = null
         );
 
-        Task<T> Save(
-            T entity,
-            Expression<Func<T, bool>> existsPredicate
-        );
+        Task<T> Save(T entity, Expression<Func<T, bool>> existsPredicate);
 
-        Task<T> Save(
-            T entity
-        );
+        Task<T> Save(T entity);
 
         Task<bool> Delete(Expression<Func<T, bool>> predicate);
 
