@@ -196,3 +196,65 @@ CREATE TABLE `active_orders` (
   KEY `idx_master_order` (`master_order_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `account_logs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `account_id` bigint NOT NULL,
+
+  `balance` decimal(13,2) NOT NULL,
+  `equity` decimal(13,2) NOT NULL,
+
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+
+  PRIMARY KEY (`id`),
+  KEY `idx_account_logs_account_id` (`account_id`),
+
+  CONSTRAINT `fk_account_logs_account`
+    FOREIGN KEY (`account_id`)
+    REFERENCES `accounts` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+)
+ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `order_logs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `account_id` bigint NOT NULL,
+
+  `order_ticket` bigint NOT NULL,
+  `order_symbol` varchar(20) NOT NULL,
+  `order_type` varchar(20) NOT NULL,
+
+  `order_lot` decimal(13,3) NOT NULL,
+  `order_price` decimal(13,6) DEFAULT NULL,
+
+  `sl_price` decimal(13,6) DEFAULT NULL,
+  `tp_price` decimal(13,6) DEFAULT NULL,
+
+  `last_price` decimal(13,6) DEFAULT NULL,
+  `last_time` datetime DEFAULT NULL,
+
+  `order_profit` decimal(13,2) DEFAULT NULL,
+  `change` decimal(13,2) DEFAULT NULL,
+
+  `status` int NOT NULL DEFAULT '200',
+
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+
+  PRIMARY KEY (`id`),
+
+  UNIQUE KEY `uq_order_logs_account_ticket` (`account_id`, `order_ticket`),
+  KEY `idx_order_logs_account_id` (`account_id`),
+  KEY `idx_order_logs_status` (`status`),
+
+  CONSTRAINT `fk_order_logs_account`
+    FOREIGN KEY (`account_id`)
+    REFERENCES `accounts` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+)
+ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+

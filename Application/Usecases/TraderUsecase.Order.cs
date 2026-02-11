@@ -840,4 +840,126 @@ public partial class TraderUsecase
             return payload;
         }
     }
+
+    public async Task<ITError?> SyncAccountState(SyncAccountStatePayload dto)
+    {
+        try
+        {
+            // ------------------------------------
+            // 1. Resolve account
+            // ------------------------------------
+            var (account, terr) = await GetAccount(
+                new Account { AccountNumber = dto.AccountNumber, ServerName = dto.ServerName }
+            );
+
+            if (terr != null || account == null)
+            {
+                _logger.Warning(
+                    "Account not found for MT5 sync",
+                    new { dto.AccountNumber, dto.ServerName }
+                );
+
+                return TError.NewNotFound("account not found");
+            }
+
+            // =========================
+            // 2. LOG ACCOUNT SNAPSHOT
+            // =========================
+            var accountLog = new AccountLog
+            {
+                AccountId = account.Id,
+                Balance = dto.Balance,
+                Equity = dto.Equity,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+
+            await _accountLogRepository.Save(accountLog);
+
+            // =========================
+            // 3. ACCOUNT UPDATE LATEST DATA
+            // =========================
+            account.Balance = dto.Balance;
+            account.Equity = dto.Equity;
+            account.Status = ConnectionStatus.Success;
+
+            await _accountRepository.Save(account, a => a.Id == account.Id);
+
+            // =========================
+            // 4. PRELOAD EXISTING ORDERS
+            // =========================
+            var tickets = dto.Positions.Select(p => p.OrderTicket).Distinct().ToList();
+
+            var existingLogs = await _orderLogRepository.GetMany(o =>
+                o.AccountId == account.Id && tickets.Contains(o.OrderTicket)
+            );
+
+            var existingMap = existingLogs.ToDictionary(o => o.OrderTicket);
+
+            // =========================
+            // 5. UPSERT ORDER LOGS
+            // =========================
+            foreach (var p in dto.Positions)
+            {
+                var status = (OrderStatus)p.Status;
+
+                if (!existingMap.TryGetValue(p.OrderTicket, out var log))
+                {
+                    // -------- CREATE --------
+                    log = new OrderLog
+                    {
+                        AccountId = account.Id,
+
+                        OrderSymbol = p.OrderSymbol,
+                        OrderTicket = p.OrderTicket,
+                        OrderType = p.OrderType,
+                        OrderLot = p.OrderLot,
+
+                        OrderPrice = p.OrderPrice,
+                        SlPrice = p.SlPrice,
+                        TpPrice = p.TpPrice,
+
+                        LastPrice = p.LastPrice,
+                        LastTime = p.LastTime,
+
+                        OrderProfit = p.OrderProfit,
+                        Change = p.Change,
+
+                        Status = status,
+
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                    };
+
+                    await _orderLogRepository.Save(log);
+                }
+                else
+                {
+                    // -------- UPDATE --------
+                    log.OrderLot = p.OrderLot;
+                    log.OrderPrice = p.OrderPrice;
+
+                    log.SlPrice = p.SlPrice;
+                    log.TpPrice = p.TpPrice;
+
+                    log.LastPrice = p.LastPrice;
+                    log.LastTime = p.LastTime;
+
+                    log.OrderProfit = p.OrderProfit;
+                    log.Change = p.Change;
+
+                    log.Status = status;
+                    log.UpdatedAt = DateTime.UtcNow;
+
+                    await _orderLogRepository.Save(log, x => x.Id == log.Id);
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
 }

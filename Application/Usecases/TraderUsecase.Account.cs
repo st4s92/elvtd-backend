@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Text.Json;
 using Backend.Helper;
+using Backend.Infrastructure.Repositories;
 using Backend.Model;
 using Microsoft.EntityFrameworkCore;
 
@@ -166,10 +167,19 @@ public partial class TraderUsecase
             if (terr != null)
                 return terr;
 
-            if (masAcc!.Status == ConnectionStatus.Success)
+            var message = masAcc!.Message;
+            if (message == "FIRST_BOOT_FAILED")
             {
-                return null;
+                message = "";
             }
+            await _serverAccountRepository.Update(
+                sa => sa.Id == masAcc!.Id,
+                sa =>
+                {
+                    sa.Status = ConnectionStatus.None;
+                    sa.Message = message;
+                }
+            );
 
             Account? acc;
             (acc, terr) = await GetAccount(new Account { Id = accountID });

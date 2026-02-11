@@ -155,6 +155,17 @@ public static class TraderRoutes
             .WithName("DeleteTraderAccount")
             .WithTags("Account");
 
+        group
+            .MapPost(
+                "/trader/bridge/account-sync",
+                async ([FromBody] SyncAccountStatePayload payload, TraderHandler handler) =>
+                {
+                    return await handler.HandleBridgeSyncAccountState(payload);
+                }
+            )
+            .WithName("HandleBridgeSyncAccountState")
+            .WithTags("Account");
+
         // master slave
         group
             .MapGet(

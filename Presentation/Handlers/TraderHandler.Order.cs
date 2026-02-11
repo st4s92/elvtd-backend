@@ -131,4 +131,17 @@ public partial class TraderHandler
 
         return Response.Json(result);
     }
+
+    public async Task<IResult> HandleBridgeSyncAccountState(SyncAccountStatePayload payload)
+    {
+        _logger.Info("payload", payload);
+        if (payload == null)
+        {
+            return Response.Json(payload);
+        }
+
+        var result = await _usecase.SyncAccountState(payload);
+
+        return Response.Json(result);
+    }
 }

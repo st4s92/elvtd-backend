@@ -42,7 +42,7 @@ api.MapUserRoutes();
 api.MapCtraderRoutes();
 api.MapTraderRoutes();
 
-Socket.Init(app);
+// Socket.Init(app);
 
 app.Run();
 

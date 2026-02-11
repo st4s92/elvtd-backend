@@ -16,6 +16,8 @@ public partial class TraderUsecase
     private readonly IServerAccountRepository _serverAccountRepository;
     private readonly AppLogger<TraderUsecase> _logger;
     private readonly IActiveOrderRepository _activeOrderRepository;
+    private readonly IOrderLogRepository _orderLogRepository;
+    private readonly IAccountLogRepository _accountLogRepository;
     private readonly WebSocketServer _wsServer;
     private readonly IJobPublisher _jobPublisher;
     public TraderUsecase(
@@ -28,6 +30,8 @@ public partial class TraderUsecase
         IServerRepository serverRepository,
         IServerAccountRepository serverAccountRepository,
         IActiveOrderRepository activeOrderRepository,
+        IAccountLogRepository accountLogRepository,
+        IOrderLogRepository orderLogRepository,
         AppLogger<TraderUsecase> logger,
         WebSocketServer wsServer,
         IJobPublisher jobPublisher
@@ -42,6 +46,8 @@ public partial class TraderUsecase
         _masterSlavePairRepository = masterSlavePairRepository;
         _masterSlaveConfigRepository = masterSlaveConfigRepository;
         _activeOrderRepository = activeOrderRepository;
+        _accountLogRepository = accountLogRepository;
+        _orderLogRepository = orderLogRepository;
         _logger = logger;
         _wsServer = wsServer;
         _jobPublisher = jobPublisher;

@@ -1,3 +1,4 @@
+using System.Text;
 using Backend.Application.Interfaces;
 using Backend.Application.Usecases;
 using Backend.Helper;
@@ -8,7 +9,6 @@ using Backend.Presentation.Messaging;
 using Backend.Presentation.Middleware;
 using Backend.Presentation.Routes;
 using Microsoft.EntityFrameworkCore;
-using System.Text;
 
 namespace Backend.Presentation;
 
@@ -22,12 +22,15 @@ public static class Rest
         var user = Environment.GetEnvironmentVariable("DB_USER");
         var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-        var connectionString = $"Host={host};Port={port};Database={db};Username={user};Password={pass}";
-        builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+        var connectionString =
+            $"Host={host};Port={port};Database={db};Username={user};Password={pass}";
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
+        );
 
         builder.Services.AddHttpClient();
         builder.Services.AddSingleton<RabbitMqConnection>();
-        
+
         builder.Services.AddScoped(typeof(AppLogger<>));
         builder.Services.AddSingleton<IJobPublisher, RabbitMqJobPublisher>();
         builder.Services.AddScoped<IServerAccountRepository, ServerAccountRepository>();
@@ -41,6 +44,8 @@ public static class Rest
         builder.Services.AddScoped<ITradingRepository, TradingRepository>();
         builder.Services.AddScoped<ICtraderRepository, CtraderRepository>();
         builder.Services.AddScoped<IAccountRepository, AccountRepository>();
+        builder.Services.AddScoped<IAccountLogRepository, AccountLogRepository>();
+        builder.Services.AddScoped<IOrderLogRepository, OrderLogRepository>();
         builder.Services.AddScoped<CtraderUsecase>();
         builder.Services.AddScoped<TraderUsecase>();
         builder.Services.AddScoped<UserUsecase>();

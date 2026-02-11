@@ -1,7 +1,7 @@
 namespace Backend.Helper;
 
-using Microsoft.EntityFrameworkCore;
 using Backend.Model;
+using Microsoft.EntityFrameworkCore;
 
 public class AppDbContext : DbContext
 {
@@ -20,17 +20,13 @@ public class AppDbContext : DbContext
     public DbSet<ActiveOrder> ActiveOrders => Set<ActiveOrder>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options)
-        : base(options)
-    {
-    }
+        : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Order>()
-            .Property(o => o.Status)
-            .HasConversion<int>(); // ensure stored as int
+        modelBuilder.Entity<Order>().Property(o => o.Status).HasConversion<int>(); // ensure stored as int
 
         // === Global soft delete filters ===
         modelBuilder.Entity<User>().HasQueryFilter(e => e.DeletedAt == null);
@@ -43,63 +39,74 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MasterSlaveConfig>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<ServerAccount>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<Server>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<OrderLog>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<AccountLog>().HasQueryFilter(e => e.DeletedAt == null);
 
         // === Relationships ===
         // Account → User
-        modelBuilder.Entity<Account>()
+        modelBuilder
+            .Entity<Account>()
             .HasOne(a => a.User)
             .WithMany(u => u.Accounts)
             .HasForeignKey(a => a.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Account>()
+        modelBuilder
+            .Entity<Account>()
             .HasOne(a => a.ServerAccount)
             .WithOne(sa => sa.Account)
             .HasForeignKey<ServerAccount>(sa => sa.AccountId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Orders → Accounts
-        modelBuilder.Entity<Order>()
+        modelBuilder
+            .Entity<Order>()
             .HasOne(a => a.Account)
             .WithMany(u => u.Orders)
             .HasForeignKey(o => o.AccountId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Orders self-reference for master-slave link
-        modelBuilder.Entity<Order>()
+        modelBuilder
+            .Entity<Order>()
             .HasOne(a => a.MasterOrder)
             .WithMany()
             .HasForeignKey(o => o.MasterOrderId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // ✅ Explicitly define Account ↔ MasterSlave relationships
-        modelBuilder.Entity<MasterSlave>()
+        modelBuilder
+            .Entity<MasterSlave>()
             .HasOne(ms => ms.MasterAccount)
             .WithMany(a => a.MasterRelations)
             .HasForeignKey(ms => ms.MasterId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        modelBuilder.Entity<MasterSlave>()
+        modelBuilder
+            .Entity<MasterSlave>()
             .HasOne(ms => ms.SlaveAccount)
             .WithMany(a => a.SlaveRelations)
             .HasForeignKey(ms => ms.SlaveId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // MasterSlave → MasterSlaveConfig (1:N)
-        modelBuilder.Entity<MasterSlaveConfig>()
+        modelBuilder
+            .Entity<MasterSlaveConfig>()
             .HasOne(cfg => cfg.MasterSlave)
-            .WithMany(ms => ms.Configs)  // ✅ link to collection in MasterSlave
+            .WithMany(ms => ms.Configs) // ✅ link to collection in MasterSlave
             .HasForeignKey(cfg => cfg.MasterSlaveId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // MasterSlave → MasterSlavePair (1:N)
-        modelBuilder.Entity<MasterSlavePair>()
+        modelBuilder
+            .Entity<MasterSlavePair>()
             .HasOne(pair => pair.MasterSlave)
-            .WithMany(ms => ms.Pairs)  // ✅ link to collection in MasterSlave
+            .WithMany(ms => ms.Pairs) // ✅ link to collection in MasterSlave
             .HasForeignKey(pair => pair.MasterSlaveId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<ServerAccount>()
+        modelBuilder
+            .Entity<ServerAccount>()
             .HasOne(a => a.Server)
             .WithMany(s => s.ServerAccounts)
             .HasForeignKey(sa => sa.ServerId)
@@ -135,13 +142,16 @@ public class AppDbContext : DbContext
         return base.SaveChanges();
     }
 
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default
+    )
     {
         ApplyAuditableRules();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     // optional convenience override
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        => SaveChangesAsync(true, cancellationToken);
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        SaveChangesAsync(true, cancellationToken);
 }

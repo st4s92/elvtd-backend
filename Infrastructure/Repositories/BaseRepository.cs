@@ -1,13 +1,14 @@
+using System.Linq.Expressions;
 using Backend.Application.Interfaces;
 using Backend.Helper;
 using Backend.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using System.Linq.Expressions;
 
 namespace Backend.Infrastructure.Repositories
 {
-    public class BaseRepository<T> : IRepository<T> where T : class, IAuditableEntity
+    public class BaseRepository<T> : IRepository<T>
+        where T : class, IAuditableEntity
     {
         private readonly AppDbContext _context;
         private readonly DbSet<T> _db;
@@ -49,19 +50,13 @@ namespace Backend.Infrastructure.Repositories
 
             var total = await query.CountAsync();
 
-            var items = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
             return (items, total);
         }
 
         // SAVE (CREATE OR UPDATE)
-        public async Task<T> Save(
-            T entity,
-            Expression<Func<T, bool>> existsPredicate
-        )
+        public async Task<T> Save(T entity, Expression<Func<T, bool>> existsPredicate)
         {
             var existing = await _db.FirstOrDefaultAsync(existsPredicate);
 
@@ -82,11 +77,10 @@ namespace Backend.Infrastructure.Repositories
             return entity;
         }
 
-        public async Task<T> Save(
-            T entity
-        )
+        public async Task<T> Save(T entity)
         {
-            _db.Add(entity); await _context.SaveChangesAsync();
+            _db.Add(entity);
+            await _context.SaveChangesAsync();
             return entity;
         }
 
@@ -124,10 +118,7 @@ namespace Backend.Infrastructure.Repositories
                 await _transaction.RollbackAsync();
         }
 
-        public async Task<bool> Update(
-            Expression<Func<T, bool>> predicate,
-            Action<T> updateAction
-        )
+        public async Task<bool> Update(Expression<Func<T, bool>> predicate, Action<T> updateAction)
         {
             var entity = await _db.FirstOrDefaultAsync(predicate);
             if (entity == null)
