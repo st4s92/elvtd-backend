@@ -199,7 +199,7 @@ public partial class TraderUsecase
                 BrokerName = acc!.BrokerName,
                 ServerName = acc!.ServerName,
                 UserId = acc!.UserId,
-                Role = "SLAVE",
+                Role = acc!.Role,
                 Status = (int)masAcc.Status,
                 Message = masAcc.Message,
                 Pid = masAcc.PlatformPid ?? 0,
