@@ -62,7 +62,6 @@ public partial class TraderUsecase
 
     public async Task<(List<Account>, long total, ITError?)> GetPaginatedAccounts(
         Account param,
-        string tipe,
         int page,
         int pageSize
     )
@@ -71,7 +70,6 @@ public partial class TraderUsecase
         {
             var (data, total) = await _accountRepository.GetPaginatedAccounts(
                 param,
-                tipe?.ToUpper(),
                 page,
                 pageSize
             );
@@ -141,7 +139,7 @@ public partial class TraderUsecase
                 BrokerName = data.BrokerName,
                 ServerName = data.ServerName,
                 UserId = data.UserId,
-                Role = "SLAVE",
+                Role = data.Role,
                 Status = 100,
             };
             Console.WriteLine("try to publish event");

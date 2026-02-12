@@ -51,7 +51,6 @@ public class MasterSlavePayload
     public long? SlaveId { get; set; }
 }
 
-
 public class MasterSlaveGetPayload : MasterSlavePayload
 {
     [JsonPropertyName("id")]
@@ -72,7 +71,7 @@ public class MasterSlaveGetPaginatedPayload : MasterSlaveGetPayload
 public enum CopyTradeRole
 {
     MASTER,
-    SLAVE
+    SLAVE,
 }
 
 public class MasterSlaveSymbolPairPayload
@@ -107,6 +106,5 @@ public class MasterSlaveFullConfigPayload
     public decimal Multiplier { get; set; } = 1.0m;
 
     [JsonPropertyName("symbol_pairs")]
-    public List<MasterSlaveSymbolPairPayload> SymbolPairs { get; set; }
-        = new();
+    public List<MasterSlaveSymbolPairPayload> SymbolPairs { get; set; } = new();
 }

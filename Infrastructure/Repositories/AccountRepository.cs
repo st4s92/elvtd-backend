@@ -10,7 +10,8 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
     private readonly AppDbContext _context;
     private readonly AppLogger<AccountRepository> _logger;
 
-    public AccountRepository(AppDbContext context, AppLogger<AccountRepository> logger) : base(context)
+    public AccountRepository(AppDbContext context, AppLogger<AccountRepository> logger)
+        : base(context)
     {
         _context = context;
         _logger = logger;
@@ -21,11 +22,9 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
         ConnectionStatus status
     )
     {
-        return await _context.ServerAccount
-            .Where(x =>
-                x.Server != null &&
-                x.Server.ServerIp == serverIp &&
-                x.Status == status
+        return await _context
+            .ServerAccount.Where(x =>
+                x.Server != null && x.Server.ServerIp == serverIp && x.Status == status
             )
             .Select(x => x.Account)
             .Distinct()
@@ -34,14 +33,11 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
 
     public async Task<(List<Account> data, long total)> GetPaginatedAccounts(
         Account param,
-        string? type,
         int page,
         int pageSize
     )
     {
-        var query = _context.Accounts
-            .Where(a => a.DeletedAt == null)
-            .AsQueryable();
+        var query = _context.Accounts.Where(a => a.DeletedAt == null).AsQueryable();
 
         // ===== FILTER BASIC =====
         if (param.Id != 0)
@@ -62,28 +58,13 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
         if (param.UserId != 0)
             query = query.Where(a => a.UserId == param.UserId);
 
-        if (!string.IsNullOrEmpty(type))
-        {
-            if (type == "MASTER")
-            {
-                query = query.Where(a =>
-                    _context.MasterSlaves.Any(ms =>
-                        ms.MasterId == a.Id && ms.DeletedAt == null));
-            }
-            else if (type == "SLAVE")
-            {
-                query = query.Where(a =>
-                    _context.MasterSlaves.Any(ms =>
-                        ms.SlaveId == a.Id && ms.DeletedAt == null));
-            }
-        }
+        if (!string.IsNullOrEmpty(param.Role))
+            query = query.Where(a => a.Role == param.Role);
 
         var total = await query.CountAsync();
 
         var data = await query
             .Include(a => a.ServerAccount)
-            .Include(a => a.MasterRelations)
-            .Include(a => a.SlaveRelations)
             .OrderByDescending(a => a.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

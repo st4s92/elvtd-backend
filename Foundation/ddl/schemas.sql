@@ -31,6 +31,7 @@ CREATE TABLE `accounts` (
   `equity` decimal(13,2) NOT NULL DEFAULT '0.00',
   `balance` decimal(13,2) NOT NULL DEFAULT '0.00',
   `status` int NOT NULL DEFAULT '100',
+  `role` varchar(10) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,

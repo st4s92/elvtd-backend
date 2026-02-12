@@ -16,12 +16,19 @@ public partial class TraderHandler
             BrokerName = accountPayload.BrokerName ?? "",
             ServerName = accountPayload.ServerName ?? "",
             AccountPassword = accountPayload.AccountPassword ?? "",
-            UserId = accountPayload.UserId ?? 0
+            UserId = accountPayload.UserId ?? 0,
+            Role = accountPayload.Role ?? "SLAVE",
         };
 
-        if (accountPayload.AccountNumber == 0 || accountPayload.ServerName == "" || accountPayload.AccountPassword == "")
+        if (
+            accountPayload.AccountNumber == 0
+            || accountPayload.ServerName == ""
+            || accountPayload.AccountPassword == ""
+        )
         {
-            return Response.Json(TError.NewClient("Account number, Server Name and Password should be filled"));
+            return Response.Json(
+                TError.NewClient("Account number, Server Name and Password should be filled")
+            );
         }
         if (account.UserId == 0)
         {
@@ -58,7 +65,7 @@ public partial class TraderHandler
             AccountNumber = query.AccountNumber ?? 0,
             BrokerName = query.BrokerName ?? "",
             ServerName = query.ServerName ?? "",
-            UserId = query.UserId ?? 0
+            UserId = query.UserId ?? 0,
         };
 
         var (res, terr) = await _usecase.GetAccounts(accountFilter);
@@ -79,36 +86,39 @@ public partial class TraderHandler
             BrokerName = query.BrokerName ?? "",
             ServerName = query.ServerName ?? "",
             UserId = query.UserId ?? 0,
+            Role = query.Role ?? "",
         };
 
-        var (res, total, terr) = await _usecase.GetPaginatedAccounts(accountFilter, query.Type ?? "", query.Page, query.PerPage);
+        var (res, total, terr) = await _usecase.GetPaginatedAccounts(
+            accountFilter,
+            query.Page,
+            query.PerPage
+        );
         if (terr != null)
         {
             return Response.Json(terr);
         }
 
         var data = res.Select(a => new AccountGetPaginatedObject
-        {
-            Id = a.Id,
-            PlatformName = a.PlatformName,
-            AccountNumber = a.AccountNumber,
-            BrokerName = a.BrokerName,
-            ServerName = a.ServerName,
-            UserId = a.UserId,
-
-            Type = a.MasterRelations.Any() ? "MASTER"
-             : a.SlaveRelations.Any() ? "SLAVE"
-             : "NONE",
-
-            ServerStatus = a.ServerAccount?.Status.ToString(),
-            ServerStatusMessage = a.ServerAccount?.Message,
-            CreatedAt = a.CreatedAt,
-        }).ToList();
+            {
+                Id = a.Id,
+                PlatformName = a.PlatformName,
+                AccountNumber = a.AccountNumber,
+                BrokerName = a.BrokerName,
+                ServerName = a.ServerName,
+                UserId = a.UserId,
+                Role = a.Role,
+                Status = a.Status,
+                ServerStatus = a.ServerAccount?.Status.ToString(),
+                ServerStatusMessage = a.ServerAccount?.Message,
+                CreatedAt = a.CreatedAt,
+            })
+            .ToList();
 
         var resp = new GetPaginatedResponse<AccountGetPaginatedObject>
         {
             Data = data,
-            Total = total
+            Total = total,
         };
 
         return Response.Json(resp);
@@ -128,7 +138,9 @@ public partial class TraderHandler
         }
         if (payload.AccountNumber == 0 || payload.ServerName == "" || payload.AccountPassword == "")
         {
-            return Response.Json(TError.NewClient("Account number, Server Name and Password should be filled"));
+            return Response.Json(
+                TError.NewClient("Account number, Server Name and Password should be filled")
+            );
         }
         if (payload.PlatformName == "")
         {

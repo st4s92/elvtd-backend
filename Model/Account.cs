@@ -38,6 +38,9 @@ public class Account : IAuditableEntity
     [Column("status")]
     public ConnectionStatus Status { get; set; } = ConnectionStatus.None;
 
+    [Column("role")]
+    public string Role { get; set; } = "";
+
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
@@ -83,6 +86,9 @@ public class AccountPayload
 
     [JsonPropertyName("type")]
     public string? Type { get; set; } = "";
+
+    [JsonPropertyName("role")]
+    public string? Role { get; set; } = "SLAVE";
 }
 
 public class AccountGetPayload : AccountPayload
@@ -128,6 +134,12 @@ public class AccountGetPaginatedObject
 
     [JsonPropertyName("server_status_message")]
     public string? ServerStatusMessage { get; set; }
+
+    [JsonPropertyName("status")]
+    public ConnectionStatus? Status { get; set; }
+
+    [JsonPropertyName("role")]
+    public string? Role { get; set; }
 
     [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
