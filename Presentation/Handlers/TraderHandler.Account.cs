@@ -66,6 +66,7 @@ public partial class TraderHandler
             BrokerName = query.BrokerName ?? "",
             ServerName = query.ServerName ?? "",
             UserId = query.UserId ?? 0,
+            Role = query.Role ?? "",
         };
 
         var (res, terr) = await _usecase.GetAccounts(accountFilter);
