@@ -258,3 +258,14 @@ public class BridgeListCreateOrderPayload
     [JsonPropertyName("orders")]
     public List<BridgeCreateOrderItem> Orders { get; set; } = new();
 }
+
+public class MasterOrderDeleteOrder
+{
+    [JsonPropertyName("account_id")]
+    public long AccountId { get; set; }
+
+    [JsonPropertyName("is_flush_order")]
+    public bool IsFlushOrder { get; set; }
+    [JsonPropertyName("order_ids")]
+    public List<long>? OrderIds { get; set; }
+}

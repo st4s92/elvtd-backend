@@ -962,4 +962,50 @@ public partial class TraderUsecase
             return TError.NewServer(ex.Message);
         }
     }
+
+    public async Task<(string, ITError?)> DeleteMasterOrders(long accountId, List<long> orderIds)
+    {
+        try
+        {
+            if (orderIds == null || orderIds.Count == 0)
+                return ("", TError.NewClient("orderIds cannot be empty"));
+
+            var (account, accErr) = await GetAccount(new Account { Id = accountId });
+            if (accErr != null || account == null)
+                return ("", accErr ?? TError.NewNotFound("account not found"));
+
+            // take open orders
+            var openOrders = await _orderRepository.GetMany(o =>
+                o.AccountId == accountId && o.OrderCloseAt == null
+            );
+
+            // exclude orders which deleted
+            var remainingOrders = openOrders.Where(o => !orderIds.Contains(o.Id)).ToList();
+
+            // build bridge payload
+            var bridgePayload = new BridgeListCreateOrderPayload
+            {
+                ServerName = account.ServerName,
+                AccountId = account.AccountNumber,
+                Orders = remainingOrders
+                    .Select(o => new BridgeCreateOrderItem
+                    {
+                        OrderTicket = o.OrderTicket,
+                        OrderSymbol = o.OrderSymbol,
+                        OrderType = o.OrderType,
+                        OrderLot = o.OrderLot,
+                        OrderPrice = o.OrderPrice,
+                        OrderOpenAt = o.OrderOpenAt,
+                    })
+                    .ToList(),
+            };
+
+            // reuse logic existing
+            return await CreateBridgeMasterOrder(bridgePayload);
+        }
+        catch (Exception ex)
+        {
+            return ("", TError.NewServer(ex.Message));
+        }
+    }
 }

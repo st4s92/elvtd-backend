@@ -1,7 +1,7 @@
-using Backend.Application.Usecases;
-using Backend.Application.Interfaces;
-using Backend.Model;
 using System.Text.Json;
+using Backend.Application.Interfaces;
+using Backend.Application.Usecases;
+using Backend.Model;
 
 namespace Backend.Presentation.Handlers;
 
@@ -23,13 +23,14 @@ public class ServerPlatformCreatedHandler
         Console.WriteLine($"🟡 Handler invoked created platform with request={req}");
 
         // minimal validation
-        if (request.AccountId==0)
+        if (request.AccountId == 0)
             return;
 
-        var data = new ServerAccountPlatformUpdateRequest{
+        var data = new ServerAccountPlatformUpdateRequest
+        {
             AccountId = request.AccountId,
             InstallationPath = request.InstallationPath,
-            Status = (ConnectionStatus) request.Status,
+            Status = (ConnectionStatus)request.Status,
             Message = request.Message,
             Pid = request.Pid,
         };

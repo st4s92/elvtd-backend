@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Backend.Application.Interfaces;
 using Backend.Helper;
 using Backend.Model;
@@ -15,5 +16,17 @@ public class OrderLogRepository : BaseRepository<OrderLog>, IOrderLogRepository
     {
         _context = context;
         _logger = logger;
+    }
+
+    public async Task<List<OrderLog>> GetTopOrderLogs(
+        Expression<Func<OrderLog, bool>> predicate,
+        int take
+    )
+    {
+        return await _context.OrderLogs
+            .Where(predicate)
+            .OrderByDescending(o => o.CreatedAt)
+            .Take(take)
+            .ToListAsync();
     }
 }

@@ -79,6 +79,9 @@ public class PlatformActivePositionSyncPayload
     [JsonPropertyName("server_name")]
     public string ServerName { get; set; } = null!;
 
+    [JsonPropertyName("is_flush_order")]
+    public int IsFlushOrder { get; set; } = 0;
+
     [JsonPropertyName("balance")]
     public decimal Balance { get; set; }
 
@@ -111,6 +114,9 @@ public class PlatformPositionDto
 
     [JsonPropertyName("order_symbol")]
     public string OrderSymbol { get; set; } = "";
+
+    [JsonPropertyName("order_open_at")]
+    public DateTime OrderOpenAt { get; set; }
 
     [JsonPropertyName("status")]
     public OrderStatus Status { get; set; } = OrderStatus.Progress;

@@ -47,8 +47,8 @@ public static class Rest
         builder.Services.AddScoped<IAccountLogRepository, AccountLogRepository>();
         builder.Services.AddScoped<IOrderLogRepository, OrderLogRepository>();
         builder.Services.AddScoped<CtraderUsecase>();
-        builder.Services.AddScoped<TraderUsecase>();
         builder.Services.AddScoped<UserUsecase>();
+        builder.Services.AddScoped<TraderUsecase>();
         builder.Services.AddScoped<UserHandler>();
         builder.Services.AddScoped<CtraderHandler>();
         builder.Services.AddScoped<TraderHandler>();

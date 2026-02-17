@@ -144,4 +144,39 @@ public partial class TraderHandler
 
         return Response.Json(result);
     }
+
+    public async Task<IResult> HandleMasterOrderDeleteOrder(MasterOrderDeleteOrder payload)
+    {
+        if (payload.AccountId == 0)
+        {
+            return Response.Json(TError.NewClient("AccountId should be filled"));
+        }
+
+        // ==========================
+        // CASE 1: FLUSH MASTER ORDER
+        // ==========================
+        if (payload.IsFlushOrder)
+        {
+            var terr = await _usecase.FlushMasterOrder(payload.AccountId);
+            if (terr != null)
+                return Response.Json(terr);
+
+            return Response.Json(new { message = "Flush master order triggered" });
+        }
+
+        // ==========================
+        // CASE 2: DELETE SPECIFIC ORDERS
+        // ==========================
+        if (payload.OrderIds == null || payload.OrderIds.Count == 0)
+        {
+            return Response.Json(TError.NewClient("OrderIds must be provided when not flushing"));
+        }
+
+        var (res, terr2) = await _usecase.DeleteMasterOrders(payload.AccountId, payload.OrderIds);
+
+        if (terr2 != null)
+            return Response.Json(terr2);
+
+        return Response.Json(new { message = res });
+    }
 }

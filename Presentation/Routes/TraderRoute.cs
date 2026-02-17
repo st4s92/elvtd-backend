@@ -42,6 +42,17 @@ public static class TraderRoutes
             .WithTags("Orders");
 
         group
+            .MapDelete(
+                "/trader/orders/master-order",
+                async ([FromBody] MasterOrderDeleteOrder payload, TraderHandler handler) =>
+                {
+                    return await handler.HandleMasterOrderDeleteOrder(payload);
+                }
+            )
+            .WithName("MasterOrderDeleteOrder")
+            .WithTags("Orders");
+
+        group
             .MapPost(
                 "/trader/bridge/master-order",
                 async ([FromBody] BridgeListCreateOrderPayload payload, TraderHandler handler) =>
@@ -90,6 +101,16 @@ public static class TraderRoutes
             .WithTags("Account");
 
         group
+            .MapGet(
+                "/trader/account/{id:long}/detail",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.GetAccountDetail(id);
+                }
+            ).WithName("GetTraderAccountDetail")
+            .WithTags("Account");
+
+        group
             .MapPost(
                 "/trader/account",
                 async ([FromBody] AccountPayload payload, TraderHandler handler) =>
@@ -131,6 +152,17 @@ public static class TraderRoutes
                 }
             )
             .WithName("GetTraderAccounts")
+            .WithTags("Account");
+
+        group
+            .MapPost(
+                "/trader/account/master-status-order",
+                async ([FromBody] BridgeListCreateOrderPayload payload, TraderHandler handler) =>
+                {
+                    return await handler.GetMasterOrderStatus(payload);
+                }
+            )
+            .WithName("GetMasterOrderStatus")
             .WithTags("Account");
 
         group

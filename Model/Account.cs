@@ -41,6 +41,9 @@ public class Account : IAuditableEntity
     [Column("role")]
     public string Role { get; set; } = "";
 
+    [Column("is_flush_order")]
+    public int IsFlushOrder { get; set; } = 0;
+
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
@@ -209,4 +212,16 @@ public class ServerAccountPlatformUpdateRequest
     public ConnectionStatus Status { get; set; }
     public string InstallationPath { get; set; } = "";
     public int Pid { get; set; }
+}
+
+public class AccountDetailDto
+{
+    public Account Account { get; set; } = null!;
+    public User? User { get; set; }
+    public ServerAccount? ServerAccount { get; set; }
+    public Server? Server { get; set; }
+    public List<Order> Orders { get; set; } = [];
+
+    public List<OrderLog> OrderLogs { get; set; } = [];
+    public List<AccountLog> AccountLogs { get; set; } = [];
 }

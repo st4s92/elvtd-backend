@@ -321,4 +321,148 @@ public partial class TraderUsecase
             return (null, TError.NewServer(ex.Message));
         }
     }
+
+    public async Task<(PlatformActivePositionSyncPayload?, ITError?)> GetMasterOrderStatus(
+        BridgeListCreateOrderPayload param
+    )
+    {
+        try
+        {
+            var account = await _accountRepository.Get(a =>
+                a.AccountNumber == param.AccountId
+                && a.ServerName == param.ServerName
+                && a.DeletedAt == null
+            );
+
+            if (account == null)
+                return (null, TError.NewNotFound("account not found"));
+
+            var activeOrders = await _orderRepository.GetMany(o =>
+                o.AccountId == account.Id && o.OrderCloseAt == null
+            );
+
+            var payload = new PlatformActivePositionSyncPayload
+            {
+                AccountNumber = account.AccountNumber,
+                ServerName = account.ServerName,
+                IsFlushOrder = account.IsFlushOrder,
+                Balance = account.Balance,
+                Equity = account.Equity,
+                PositionList = activeOrders
+                    .Select(o => new PlatformPositionDto
+                    {
+                        OrderTicket = o.OrderTicket,
+                        OrderSymbol = o.OrderSymbol,
+                        OrderType = o.OrderType,
+                        OrderLot = o.OrderLot,
+                        OrderPrice = o.OrderPrice ?? 0,
+                        OrderOpenAt = o.OrderOpenAt ?? DateTime.UtcNow,
+                    })
+                    .ToList(),
+            };
+
+            // reset to 0
+            if (account.IsFlushOrder == 1)
+            {
+                await _accountRepository.Update(
+                    a => a.Id == account.Id,
+                    a =>
+                    {
+                        a.IsFlushOrder = 0;
+                    }
+                );
+            }
+
+            return (payload, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, TError.NewServer(ex.Message));
+        }
+    }
+
+    public async Task<ITError?> FlushMasterOrder(long accountId)
+    {
+        try
+        {
+            var updated = await _accountRepository.Update(
+                a => a.Id == accountId && a.DeletedAt == null,
+                a =>
+                {
+                    a.IsFlushOrder = 1;
+                }
+            );
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+
+    public async Task<(AccountDetailDto?, ITError?)> GetAccountDetail(long accountId)
+    {
+        try
+        {
+            var account = await _accountRepository.Get(
+                a => a.Id == accountId && a.DeletedAt == null
+            );
+
+            if (account == null)
+                return (null, TError.NewNotFound("account not found"));
+
+
+            // ===== USER =====
+            var (user, terr) = await _userUsecase.GetUser(new User { Id = account.UserId });
+            if (user == null)
+                return (null, TError.NewNotFound("user not found"));
+
+            // ===== SERVER ACCOUNT =====
+            var serverAccount = await _serverAccountRepository.Get(
+                sa => sa.AccountId == account.Id && sa.DeletedAt == null
+            );
+
+            Server? server = null;
+            if (serverAccount != null)
+            {
+                server = await _serverRepository.Get(
+                    s => s.Id == serverAccount.ServerId && s.DeletedAt == null
+                );
+            }
+
+            // ===== ACTIVE ORDER LOGS (status 600) =====
+            var orderLogs = await _orderLogRepository.GetTopOrderLogs(
+                o => o.AccountId == account.Id
+                    && o.DeletedAt == null,
+                20
+            );
+
+            // ===== ACCOUNT LOGS (balance chart) =====
+            var accountLogs = await _accountLogRepository.GetTopAccountLogs(account.Id, 20);
+            _logger.Info("accountLogs", accountLogs);
+
+            // ===== ACTIVE ORDER LOGS (status 600) =====
+            var activeOrders = await _orderRepository.GetMany(
+                o => o.AccountId == account.Id
+                    && o.DeletedAt == null && o.OrderCloseAt == null && o.Status == OrderStatus.Success
+            );
+
+            var result = new AccountDetailDto
+            {
+                Account = account,
+                User = user,
+                ServerAccount = serverAccount,
+                Server = server,
+                OrderLogs = orderLogs.ToList(),
+                AccountLogs = accountLogs.ToList(),
+                Orders = activeOrders,
+            };
+
+            return (result, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, TError.NewServer("database error", ex.Message));
+        }
+    }
 }

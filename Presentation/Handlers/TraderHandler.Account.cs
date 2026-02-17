@@ -101,19 +101,19 @@ public partial class TraderHandler
         }
 
         var data = res.Select(a => new AccountGetPaginatedObject
-            {
-                Id = a.Id,
-                PlatformName = a.PlatformName,
-                AccountNumber = a.AccountNumber,
-                BrokerName = a.BrokerName,
-                ServerName = a.ServerName,
-                UserId = a.UserId,
-                Role = a.Role,
-                Status = a.Status,
-                ServerStatus = a.ServerAccount?.Status.ToString(),
-                ServerStatusMessage = a.ServerAccount?.Message,
-                CreatedAt = a.CreatedAt,
-            })
+        {
+            Id = a.Id,
+            PlatformName = a.PlatformName,
+            AccountNumber = a.AccountNumber,
+            BrokerName = a.BrokerName,
+            ServerName = a.ServerName,
+            UserId = a.UserId,
+            Role = a.Role,
+            Status = a.Status,
+            ServerStatus = a.ServerAccount?.Status.ToString(),
+            ServerStatusMessage = a.ServerAccount?.Message,
+            CreatedAt = a.CreatedAt,
+        })
             .ToList();
 
         var resp = new GetPaginatedResponse<AccountGetPaginatedObject>
@@ -196,4 +196,38 @@ public partial class TraderHandler
         }
         return Response.Json("ok");
     }
+
+    public async Task<IResult> GetMasterOrderStatus(BridgeListCreateOrderPayload payload)
+    {
+        if (payload.AccountId == 0 || payload.ServerName == "")
+        {
+            return Response.Json(TError.NewClient("Account number, Server Name should be filled"));
+        }
+
+        var (res, terr) = await _usecase.GetMasterOrderStatus(payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(res);
+    }
+
+    public async Task<IResult> GetAccountDetail(long id)
+    {
+        if (id == 0)
+        {
+            return Response.Json(
+                TError.NewClient("account id must be provided")
+            );
+        }
+
+        var (res, terr) = await _usecase.GetAccountDetail(id);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+
+        return Response.Json(res);
+    }
+
 }

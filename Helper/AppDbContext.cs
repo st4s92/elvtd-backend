@@ -10,6 +10,8 @@ public class AppDbContext : DbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<AppToken> AppTokens => Set<AppToken>();
     public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<AccountLog> AccountLogs => Set<AccountLog>();
+    public DbSet<OrderLog> OrderLogs => Set<OrderLog>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<MasterSlave> MasterSlaves => Set<MasterSlave>();
     public DbSet<MasterSlavePair> MasterSlavePairs => Set<MasterSlavePair>();
