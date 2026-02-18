@@ -39,4 +39,24 @@ public class MasterSlaveRepository : BaseRepository<MasterSlave>, IMasterSlaveRe
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task SoftDeleteOtherSlaveRelations(long slaveId, long? excludeId)
+    {
+        var query = _context.MasterSlaves
+            .Where(m =>
+                m.SlaveId == slaveId &&
+                m.DeletedAt == null
+            );
+
+        if (excludeId.HasValue)
+            query = query.Where(m => m.Id != excludeId.Value);
+
+        var relations = await query.ToListAsync();
+
+        foreach (var rel in relations)
+            rel.DeletedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+    }
+
 }

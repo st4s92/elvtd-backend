@@ -201,10 +201,10 @@ public static class TraderRoutes
         // master slave
         group
             .MapGet(
-                "/trader/master-slave/full-config/{id:int}",
-                async (int id, TraderHandler handler) =>
+                "/trader/master-slave/full-config/{slaveId:int}/slave/{masterId:int}/master",
+                async (int slaveId, int masterId, TraderHandler handler) =>
                 {
-                    return await handler.GetMasterSlaveFullConfig(id);
+                    return await handler.GetMasterSlaveFullConfig(slaveId, masterId);
                 }
             )
             .WithName("GetMasterSlaveFullConfig")

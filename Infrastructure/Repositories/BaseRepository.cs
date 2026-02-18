@@ -130,5 +130,20 @@ namespace Backend.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<int> UpdateMany(
+            Expression<Func<T, bool>> predicate,
+            Action<T> updateAction)
+        {
+            var entities = await _db.Where(predicate).ToListAsync();
+
+            foreach (var entity in entities)
+            {
+                updateAction(entity);
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            return await _context.SaveChangesAsync();
+        }
     }
 }

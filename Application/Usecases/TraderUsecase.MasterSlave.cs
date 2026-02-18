@@ -184,7 +184,7 @@ public partial class TraderUsecase
             if (payload.AccountId == payload.DestinationId)
                 return (null, TError.NewClient("Master and Slave cannot be the same account"));
 
-            // GET SOURCE ACCOUNT
+            // ===== GET SOURCE ACCOUNT =====
             var account = await _accountRepository.Get(a =>
                 a.Id == payload.AccountId &&
                 a.DeletedAt == null
@@ -196,10 +196,8 @@ public partial class TraderUsecase
             long masterId;
             long slaveId;
 
-            // DETERMINE ROLE FROM DB
             if (account.Role == "SLAVE")
             {
-                // berarti accountId ini slave
                 masterId = payload.DestinationId;
                 slaveId = account.Id;
             }
@@ -213,7 +211,7 @@ public partial class TraderUsecase
                 return (null, TError.NewClient("Invalid account role"));
             }
 
-            // VALIDATE DESTINATION
+            // ===== VALIDATE DESTINATION =====
             var destinationAccount = await _accountRepository.Get(a =>
                 a.Id == payload.DestinationId &&
                 a.DeletedAt == null
@@ -222,21 +220,31 @@ public partial class TraderUsecase
             if (destinationAccount == null)
                 return (null, TError.NewClient("Destination account not found"));
 
-            if (account.Role == "SLAVE" && destinationAccount.Role != "MASTER" ||
-            account.Role == "MASTER" && destinationAccount.Role != "SLAVE")
-                return (null, TError.NewClient("Should be master - slave connection, vice versa"));
+            if (
+                (account.Role == "SLAVE" && destinationAccount.Role != "MASTER") ||
+                (account.Role == "MASTER" && destinationAccount.Role != "SLAVE")
+            )
+                return (null, TError.NewClient("Should be master - slave connection"));
 
-            // SOFT DELETE OLD RELATIONS
-            MasterSlave masterSlave;
+            // ===== FIND EXISTING RELATION =====
             var existingRelation = await _masterSlaveRepository.Get(m =>
                 m.MasterId == masterId &&
                 m.SlaveId == slaveId &&
                 m.DeletedAt == null
             );
 
+            // ===== DELETE OTHER RELATIONS OF THIS SLAVE =====
+            await _masterSlaveRepository.UpdateMany(
+                m => m.SlaveId == slaveId &&
+                     m.DeletedAt == null &&
+                     (existingRelation == null || m.Id != existingRelation.Id),
+                m => m.DeletedAt = DateTime.UtcNow
+            );
+
+            MasterSlave masterSlave;
+
             if (existingRelation != null)
             {
-                // UPDATE ONLY
                 await _masterSlaveRepository.Update(
                     m => m.Id == existingRelation.Id,
                     m => m.Name = payload.ConnectionName
@@ -246,44 +254,70 @@ public partial class TraderUsecase
             }
             else
             {
-                // DELETE OLD RELATION
-                await _masterSlaveRepository.SoftDeleteByAccountId(
-                    account.Id,
-                    account.Role
-                );
-
                 masterSlave = new MasterSlave
                 {
                     Name = payload.ConnectionName,
                     MasterId = masterId,
                     SlaveId = slaveId
                 };
-                // CREATE
+
                 await _masterSlaveRepository.Save(masterSlave);
             }
 
-            // UPSERT CONFIG
-            await _masterSlaveConfigRepository.Save(new MasterSlaveConfig
-            {
-                MasterSlaveId = masterSlave.Id,
-                Multiplier = payload.Multiplier
-            });
+            // ===== UPSERT CONFIG =====
+            var existingConfig = await _masterSlaveConfigRepository.Get(
+                c => c.MasterSlaveId == masterSlave.Id &&
+                    c.DeletedAt == null
+            );
 
-            // INSERT SYMBOL PAIRS
-            if (payload.SymbolPairs != null)
+            if (existingConfig != null)
             {
-                foreach (var pair in payload.SymbolPairs)
+                await _masterSlaveConfigRepository.Update(
+                    c => c.Id == existingConfig.Id,
+                    c => c.Multiplier = payload.Multiplier
+                );
+            }
+            else
+            {
+                await _masterSlaveConfigRepository.Save(new MasterSlaveConfig
                 {
-                    if (string.IsNullOrWhiteSpace(pair.MasterSymbol) ||
-                        string.IsNullOrWhiteSpace(pair.SlaveSymbol))
-                        continue;
+                    MasterSlaveId = masterSlave.Id,
+                    Multiplier = payload.Multiplier
+                });
+            }
 
-                    await _masterSlavePairRepository.Save(new MasterSlavePair
-                    {
-                        MasterSlaveId = masterSlave.Id,
-                        MasterPair = pair.MasterSymbol.Trim().ToUpper(),
-                        SlavePair = pair.SlaveSymbol.Trim().ToUpper()
-                    });
+            // ===== RESET ALL PAIRS =====
+            await _masterSlavePairRepository.UpdateMany(
+                p => p.MasterSlaveId == masterSlave.Id &&
+                     p.DeletedAt == null,
+                p => p.DeletedAt = DateTime.UtcNow
+            );
+
+            // ===== INSERT NEW PAIRS =====
+            var uniquePairs = payload.SymbolPairs?
+                .Where(p =>
+                    !string.IsNullOrWhiteSpace(p.MasterSymbol) &&
+                    !string.IsNullOrWhiteSpace(p.SlaveSymbol))
+                .Select(p => new
+                {
+                    Master = p.MasterSymbol.Trim().ToUpper(),
+                    Slave = p.SlaveSymbol.Trim().ToUpper()
+                })
+                .Distinct()
+                .ToList();
+
+            if (uniquePairs != null)
+            {
+                foreach (var pair in uniquePairs)
+                {
+                    await _masterSlavePairRepository.Save(
+                        new MasterSlavePair
+                        {
+                            MasterSlaveId = masterSlave.Id,
+                            MasterPair = pair.Master,
+                            SlavePair = pair.Slave
+                        }
+                    );
                 }
             }
 
@@ -294,59 +328,58 @@ public partial class TraderUsecase
         catch (Exception ex)
         {
             await _masterSlaveRepository.RollbackAsync();
-            return (null, TError.NewServer("Edit master slave failed", ex.Message));
+            return (null, TError.NewServer("Edit master slave failed" + ex.Message));
         }
     }
 
 
-    public async Task<(MasterSlaveFullConfigPayload?, ITError?)> GetMasterSlaveFullConfig(long accountId)
+
+    public async Task<(MasterSlaveFullConfigPayload?, ITError?)>
+        GetMasterSlaveFullConfig(long slaveId, long masterId)
     {
         try
         {
-            // get account first
-            var account = await _accountRepository.Get(a =>
-                a.Id == accountId &&
-                a.DeletedAt == null
+            if (slaveId == 0 || masterId == 0)
+                return (null, TError.NewClient("Invalid slave/master id"));
+
+            // validate accounts exist
+            var slave = await _accountRepository.Get(a =>
+                a.Id == slaveId && a.DeletedAt == null
             );
 
-            if (account == null)
-                return (null, TError.NewNotFound("account not found"));
+            var master = await _accountRepository.Get(a =>
+                a.Id == masterId && a.DeletedAt == null
+            );
 
-            // make sure role
-            var role = account.Role;
+            if (slave == null)
+                return (null, TError.NewNotFound("Slave account not found"));
 
-            // query based on role
-            MasterSlave? masterSlave = null;
+            if (master == null)
+                return (null, TError.NewNotFound("Master account not found"));
 
-            if (role == "MASTER")
-            {
-                masterSlave = await _masterSlaveRepository.Get(ms =>
-                    ms.DeletedAt == null &&
-                    ms.MasterId == accountId
-                );
-            }
-            else if (role == "SLAVE")
-            {
-                masterSlave = await _masterSlaveRepository.Get(ms =>
-                    ms.DeletedAt == null &&
-                    ms.SlaveId == accountId
-                );
-            }
+            if (slave.Role != "SLAVE")
+                return (null, TError.NewClient("Provided slaveId is not SLAVE"));
+
+            if (master.Role != "MASTER")
+                return (null, TError.NewClient("Provided masterId is not MASTER"));
+
+            // get exact relation
+            var masterSlave = await _masterSlaveRepository.Get(ms =>
+                ms.DeletedAt == null &&
+                ms.MasterId == masterId &&
+                ms.SlaveId == slaveId
+            );
 
             if (masterSlave == null)
                 return (null, null);
 
-            var destinationId = role == "MASTER"
-                ? masterSlave.SlaveId
-                : masterSlave.MasterId;
-
-            // take config
+            // get config
             var config = await _masterSlaveConfigRepository.Get(c =>
                 c.DeletedAt == null &&
                 c.MasterSlaveId == masterSlave.Id
             );
 
-            // take pairs
+            // get symbol pairs
             var pairs = await _masterSlavePairRepository.GetMany(p =>
                 p.DeletedAt == null &&
                 p.MasterSlaveId == masterSlave.Id
@@ -355,8 +388,8 @@ public partial class TraderUsecase
             var dto = new MasterSlaveFullConfigPayload
             {
                 ConnectionName = masterSlave.Name,
-                AccountId = accountId,
-                DestinationId = destinationId,
+                AccountId = slaveId,
+                DestinationId = masterId,
                 Multiplier = config?.Multiplier ?? 1.0m,
                 SymbolPairs = pairs.Select(p => new MasterSlaveSymbolPairPayload
                 {
@@ -372,5 +405,6 @@ public partial class TraderUsecase
             return (null, TError.NewServer(ex.Message));
         }
     }
+
 
 }

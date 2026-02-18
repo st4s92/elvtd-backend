@@ -102,7 +102,6 @@ public partial class TraderHandler
 
     public async Task<IResult> HandleBridgeSlaveOrderConfirmation(BridgeOrderPayload payload)
     {
-        _logger.Info("CEK PAYLOAD CONFIRM", payload);
         if (payload == null)
         {
             var terrs = TError.NewClient("Invalid payload");
@@ -134,7 +133,6 @@ public partial class TraderHandler
 
     public async Task<IResult> HandleBridgeSyncAccountState(SyncAccountStatePayload payload)
     {
-        _logger.Info("payload", payload);
         if (payload == null)
         {
             return Response.Json(payload);

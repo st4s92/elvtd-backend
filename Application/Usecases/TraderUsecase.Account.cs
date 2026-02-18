@@ -159,7 +159,6 @@ public partial class TraderUsecase
     {
         try
         {
-            _logger.Info("accountID", accountID);
             var (masAcc, terr) = await GetServerAccount(
                 new ServerAccount { AccountId = accountID }
             );
@@ -206,7 +205,6 @@ public partial class TraderUsecase
                 Pid = masAcc.PlatformPid ?? 0,
             };
             Console.WriteLine("try to publish event");
-            _logger.Info("job", job);
 
             await _jobPublisher.PublishCreateJob(job);
 
@@ -279,7 +277,6 @@ public partial class TraderUsecase
             };
             Console.WriteLine("try to publish delete account event");
 
-            _logger.Info("job", job);
             await _jobPublisher.PublishDeleteJob(job);
 
             return null;
@@ -439,7 +436,6 @@ public partial class TraderUsecase
 
             // ===== ACCOUNT LOGS (balance chart) =====
             var accountLogs = await _accountLogRepository.GetTopAccountLogs(account.Id, 20);
-            _logger.Info("accountLogs", accountLogs);
 
             // ===== ACTIVE ORDER LOGS (status 600) =====
             var activeOrders = await _orderRepository.GetMany(
