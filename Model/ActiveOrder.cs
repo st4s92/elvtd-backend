@@ -121,3 +121,14 @@ public class PlatformPositionDto
     [JsonPropertyName("status")]
     public OrderStatus Status { get; set; } = OrderStatus.Progress;
 }
+
+public class ActiveOrderDto
+{
+    public long AccountId { get; set; }
+    public long OrderTicket { get; set; }
+    public string OrderSymbol { get; set; } = "";
+    public string OrderType { get; set; } = "";
+    public decimal OrderLot { get; set; }
+    public decimal? OrderPrice { get; set; }
+    public decimal? OrderProfit { get; set; }
+}

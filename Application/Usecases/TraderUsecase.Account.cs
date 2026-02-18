@@ -438,10 +438,46 @@ public partial class TraderUsecase
             var accountLogs = await _accountLogRepository.GetTopAccountLogs(account.Id, 20);
 
             // ===== ACTIVE ORDER LOGS (status 600) =====
-            var activeOrders = await _orderRepository.GetMany(
-                o => o.AccountId == account.Id
-                    && o.DeletedAt == null && o.OrderCloseAt == null && o.Status == OrderStatus.Success
-            );
+            List<ActiveOrderDto> activeOrders = new();
+
+            if (account.Role == "MASTER")
+            {
+                var masterOrders = await _orderRepository.GetMany(
+                    o => o.AccountId == account.Id
+                        && o.DeletedAt == null
+                        && o.OrderCloseAt == null
+                        && o.Status == OrderStatus.Success
+                );
+
+                activeOrders = masterOrders.Select(o => new ActiveOrderDto
+                {
+                    AccountId = o.AccountId,
+                    OrderTicket = o.OrderTicket,
+                    OrderSymbol = o.OrderSymbol,
+                    OrderType = o.OrderType,
+                    OrderLot = o.OrderLot,
+                    OrderPrice = o.OrderPrice,
+                    OrderProfit = o.OrderProfit
+                }).ToList();
+            }
+            else if (account.Role == "SLAVE")
+            {
+                var slaveOrders = await _activeOrderRepository.GetMany(
+                    o => o.AccountId == account.Id
+                        && o.Status == OrderStatus.Success
+                );
+
+                activeOrders = slaveOrders.Select(o => new ActiveOrderDto
+                {
+                    AccountId = o.AccountId,
+                    OrderTicket = o.OrderTicket,
+                    OrderSymbol = o.OrderSymbol,
+                    OrderType = o.OrderType,
+                    OrderLot = o.OrderLot,
+                    OrderPrice = o.OrderPrice,
+                    OrderProfit = o.OrderProfit
+                }).ToList();
+            }
 
             var result = new AccountDetailDto
             {

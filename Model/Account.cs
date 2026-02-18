@@ -220,7 +220,7 @@ public class AccountDetailDto
     public User? User { get; set; }
     public ServerAccount? ServerAccount { get; set; }
     public Server? Server { get; set; }
-    public List<Order> Orders { get; set; } = [];
+    public List<ActiveOrderDto> Orders { get; set; } = [];
 
     public List<OrderLog> OrderLogs { get; set; } = [];
     public List<AccountLog> AccountLogs { get; set; } = [];
