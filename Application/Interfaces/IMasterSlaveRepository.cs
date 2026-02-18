@@ -5,4 +5,5 @@ namespace Backend.Application.Interfaces;
 
 public interface IMasterSlaveRepository : IRepository<MasterSlave>
 {
+    Task SoftDeleteByAccountId(long accountId, string role);
 }

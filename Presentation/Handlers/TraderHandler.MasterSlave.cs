@@ -127,7 +127,7 @@ public partial class TraderHandler
             return Response.Json(TError.NewClient("Multiplier must be between 0.1 and 10"));
         }
 
-        var (res, terr) = await _usecase.EditMasterSlaveFullonfig(payload);
+        var (res, terr) = await _usecase.EditMasterSlaveFullConfig(payload);
         if (terr != null)
         {
             return Response.Json(terr);

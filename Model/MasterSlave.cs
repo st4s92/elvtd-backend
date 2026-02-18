@@ -89,10 +89,6 @@ public class MasterSlaveFullConfigPayload
     [Required, MaxLength(100)]
     public string ConnectionName { get; set; } = "";
 
-    [JsonPropertyName("role")]
-    [Required]
-    public CopyTradeRole Role { get; set; }
-
     [JsonPropertyName("accountId")]
     [Required]
     public long AccountId { get; set; }
