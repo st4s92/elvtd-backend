@@ -579,6 +579,11 @@ public partial class TraderUsecase
             // mapping slave relation
             var slaveIds = slaveRelations.Select(x => x.SlaveId).Distinct().ToList();
 
+            // Load master account for balance ratio
+            var masterAccount = await _accountRepository.Get(a => a.Id == masterAccountId);
+            decimal masterBalance = masterAccount?.Balance ?? 0;
+            if (masterBalance <= 0) return null;
+
             var slaves = await _accountRepository.GetMany(a => slaveIds.Contains(a.Id));
 
             var slaveMap = slaves.ToDictionary(x => x.Id);
@@ -637,11 +642,29 @@ public partial class TraderUsecase
                     .GroupBy(a => a.MasterOrderId)
                     .ToDictionary(g => g.Key, g => g.First());
 
-                // 4. CREATE missing active orders
+                // 4. CREATE or UPDATE missing active orders
                 foreach (var masterOrder in masterOrders)
                 {
-                    if (slaveActiveByMasterId.ContainsKey(masterOrder.Id))
+                    // Calculate expected lot first
+                    decimal multiplier = 1;
+                    if (configMap.TryGetValue(relation.Id, out var cfg))
+                    {
+                        multiplier = cfg.Multiplier == 0 ? 1 : cfg.Multiplier;
+                    }
+                    decimal riskRatio = masterOrder.OrderLot / masterBalance;
+                    decimal finalLot = Math.Round(riskRatio * slaveAccount.Balance * multiplier, 2);
+
+                    if (slaveActiveByMasterId.TryGetValue(masterOrder.Id, out var existingActive))
+                    {
+                        // Update lot if it's still in Progress and incorrect
+                        if (existingActive.Status == OrderStatus.Progress && existingActive.OrderLot != finalLot)
+                        {
+                            _logger.Info($"Updating queued trade {masterOrder.Id} lot from {existingActive.OrderLot} to {finalLot}");
+                            existingActive.OrderLot = finalLot;
+                            await _activeOrderRepository.Update(existingActive);
+                        }
                         continue;
+                    }
 
                     if (
                         DateTime.UtcNow - masterOrder.OrderOpenAt
@@ -662,16 +685,6 @@ public partial class TraderUsecase
 
                     if (string.IsNullOrEmpty(slavePair))
                         continue;
-
-                    // ambil multiplier
-                    decimal multiplier = 1;
-                    if (configMap.TryGetValue(relation.Id, out var cfg))
-                    {
-                        multiplier = cfg.Multiplier == 0 ? 1 : cfg.Multiplier;
-                    }
-
-                    // hitung lot
-                    var finalLot = Math.Round(masterOrder.OrderLot * multiplier, 2);
 
                     // CREATE ActiveOrder (intent)
                     var activeOrder = new ActiveOrder
