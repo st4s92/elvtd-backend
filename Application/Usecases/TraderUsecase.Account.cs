@@ -401,7 +401,7 @@ public partial class TraderUsecase
     {
         try
         {
-            await _accountRepository.Update(
+            await _accountRepository.UpdateMany(
                 a => a.Role == "MASTER" && a.DeletedAt == null,
                 a =>
                 {
@@ -420,7 +420,7 @@ public partial class TraderUsecase
     {
         try
         {
-            await _accountRepository.Update(
+            await _accountRepository.UpdateMany(
                 a => a.DeletedAt == null,
                 a =>
                 {
