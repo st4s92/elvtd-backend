@@ -177,4 +177,40 @@ public partial class TraderHandler
 
         return Response.Json(new { message = res });
     }
+
+    public async Task<IResult> HandleForceCloseAllMasterTrades()
+    {
+        var terr = await _usecase.FlushAllMasterAccounts();
+        if (terr != null)
+            return Response.Json(terr);
+
+        return Response.Json(new { message = "Force close all master trades triggered" });
+    }
+
+    public async Task<IResult> HandleKillAllTrades()
+    {
+        var terr = await _usecase.FlushAllAccounts();
+        if (terr != null)
+            return Response.Json(terr);
+
+        return Response.Json(new { message = "Global kill switch triggered" });
+    }
+
+    public async Task<IResult> GetSlaveOrdersForMaster(long id)
+    {
+        var (res, terr) = await _usecase.GetSlaveOrdersForMaster(id);
+        if (terr != null)
+            return Response.Json(terr);
+
+        return Response.Json(res);
+    }
+
+    public async Task<IResult> DeleteActiveOrder(long id)
+    {
+        var terr = await _usecase.DeleteActiveOrder(id);
+        if (terr != null)
+            return Response.Json(terr);
+
+        return Response.Json("ok");
+    }
 }

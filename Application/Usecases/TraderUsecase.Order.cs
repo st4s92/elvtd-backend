@@ -865,10 +865,11 @@ public partial class TraderUsecase
             // ------------------------------------
             // 6. Build DELTA response
             // ------------------------------------
-            return new PlatformActivePositionSyncPayload
+            var syncResponse = new PlatformActivePositionSyncPayload
             {
                 AccountNumber = payload.AccountNumber,
                 ServerName = payload.ServerName,
+                IsFlushOrder = account.IsFlushOrder,
                 Balance = payload.Balance,
                 Equity = payload.Equity,
 
@@ -886,6 +887,20 @@ public partial class TraderUsecase
                     })
                     .ToList(),
             };
+
+            // reset to 0 after sync if it was 1
+            if (account.IsFlushOrder == 1)
+            {
+                await _accountRepository.Update(
+                    a => a.Id == account.Id,
+                    a =>
+                    {
+                        a.IsFlushOrder = 0;
+                    }
+                );
+            }
+
+            return syncResponse;
         }
         catch (Exception ex)
         {
@@ -1167,4 +1182,59 @@ public partial class TraderUsecase
         // Simple magic number generation that combines master order id and slave account id
         return ((masterOrderId & 0xFFFFFFFF) << 32) | (slaveAccountId & 0xFFFFFFFF);
     }
+
+    public async Task<(List<SlaveAccountOrdersDto>, ITError?)> GetSlaveOrdersForMaster(long masterAccountId)
+    {
+        try
+        {
+            var relations = await _masterSlaveRepository.GetMany(ms => ms.MasterId == masterAccountId);
+            if (relations.Count == 0) return (new List<SlaveAccountOrdersDto>(), null);
+
+            var slaveIds = relations.Select(r => r.SlaveId).Distinct().ToList();
+            var slaves = await _accountRepository.GetMany(a => slaveIds.Contains(a.Id) && a.DeletedAt == null);
+            var activeOrders = await _activeOrderRepository.GetMany(o => slaveIds.Contains(o.AccountId));
+
+            var result = slaves.Select(s => new SlaveAccountOrdersDto
+            {
+                AccountId = s.Id,
+                AccountNumber = s.AccountNumber,
+                BrokerName = s.BrokerName,
+                ServerName = s.ServerName,
+                Status = s.Status,
+                Orders = activeOrders.Where(o => o.AccountId == s.Id).ToList()
+            }).ToList();
+
+            return (result, null);
+        }
+        catch (Exception ex)
+        {
+            return (new List<SlaveAccountOrdersDto>(), TError.NewServer(ex.Message));
+        }
+    }
+
+    public async Task<ITError?> DeleteActiveOrder(long id)
+    {
+        try
+        {
+            var existing = await _activeOrderRepository.Get(o => o.Id == id);
+            if (existing == null) return TError.NewNotFound("Active order not found");
+
+            await _activeOrderRepository.Delete(o => o.Id == id);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+}
+
+public class SlaveAccountOrdersDto
+{
+    public long AccountId { get; set; }
+    public long AccountNumber { get; set; }
+    public string BrokerName { get; set; } = "";
+    public string ServerName { get; set; } = "";
+    public ConnectionStatus Status { get; set; }
+    public List<ActiveOrder> Orders { get; set; } = [];
 }

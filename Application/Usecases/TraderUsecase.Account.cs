@@ -382,8 +382,46 @@ public partial class TraderUsecase
     {
         try
         {
-            var updated = await _accountRepository.Update(
+            await _accountRepository.Update(
                 a => a.Id == accountId && a.DeletedAt == null,
+                a =>
+                {
+                    a.IsFlushOrder = 1;
+                }
+            );
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+
+    public async Task<ITError?> FlushAllMasterAccounts()
+    {
+        try
+        {
+            await _accountRepository.Update(
+                a => a.Role == "MASTER" && a.DeletedAt == null,
+                a =>
+                {
+                    a.IsFlushOrder = 1;
+                }
+            );
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+
+    public async Task<ITError?> FlushAllAccounts()
+    {
+        try
+        {
+            await _accountRepository.Update(
+                a => a.DeletedAt == null,
                 a =>
                 {
                     a.IsFlushOrder = 1;

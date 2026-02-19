@@ -54,6 +54,28 @@ public static class TraderRoutes
 
         group
             .MapPost(
+                "/trader/orders/force-close-master",
+                async (TraderHandler handler) =>
+                {
+                    return await handler.HandleForceCloseAllMasterTrades();
+                }
+            )
+            .WithName("ForceCloseAllMasterTrades")
+            .WithTags("Orders");
+
+        group
+            .MapPost(
+                "/trader/orders/kill-all",
+                async (TraderHandler handler) =>
+                {
+                    return await handler.HandleKillAllTrades();
+                }
+            )
+            .WithName("KillAllTrades")
+            .WithTags("Orders");
+
+        group
+            .MapPost(
                 "/trader/bridge/master-order",
                 async ([FromBody] BridgeListCreateOrderPayload payload, TraderHandler handler) =>
                 {
@@ -88,6 +110,17 @@ public static class TraderRoutes
             .WithName("BridgePlatformActivePositionSync")
             .WithTags("Orders");
 
+        group
+            .MapDelete(
+                "/trader/orders/active-order/{id:long}",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.DeleteActiveOrder(id);
+                }
+            )
+            .WithName("DeleteSlaveActiveOrder")
+            .WithTags("Orders");
+
         // account
         group
             .MapGet(
@@ -108,6 +141,17 @@ public static class TraderRoutes
                     return await handler.GetAccountDetail(id);
                 }
             ).WithName("GetTraderAccountDetail")
+            .WithTags("Account");
+
+        group
+            .MapGet(
+                "/trader/account/{id:long}/slave-orders",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.GetSlaveOrdersForMaster(id);
+                }
+            )
+            .WithName("GetSlaveOrdersForMaster")
             .WithTags("Account");
 
         group
