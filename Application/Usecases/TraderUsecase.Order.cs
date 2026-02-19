@@ -1124,7 +1124,7 @@ public partial class TraderUsecase
                     OrderLot = slaveLot,
                     OrderTicket = 0, // Ticket will be filled by slave EA execution
                     MasterOrderId = masterOrder.Id,
-                    OrderMagic = slaveOrder.OrderMagic,
+                    OrderMagic = slaveOrder.OrderMagic ?? 0,
                     CopyType = "MASTER_ORDER_UPDATE",
                     CreatedAt = DateTime.UtcNow,
                 };
