@@ -732,10 +732,7 @@ public partial class TraderUsecase
                     var orphanIds = orphanActiveOrders.Select(o => o.Id).ToList();
                     await _activeOrderRepository.Delete(o => orphanIds.Contains(o.Id));
 
-                    _logger.LogInformation(
-                        "BatchClose: slave={S}, count={C}",
-                        slaveAccount.Id, orphanActiveOrders.Count
-                    );
+                    _logger.Info($"BatchClose: slave={slaveAccount.Id}, count={orphanActiveOrders.Count}");
                 }
             }
 
@@ -1064,7 +1061,7 @@ public partial class TraderUsecase
         {
             // 1. Validate Input
             if (masterBalance <= 0)
-                return TError.NewValidation("Master balance must be positive");
+                return TError.NewClient("Master balance must be positive");
 
             // 2. Find Slaves
             var (slaves, terr) = await GetMasterSlaves(new MasterSlave { MasterId = masterAccount.Id });
@@ -1136,10 +1133,7 @@ public partial class TraderUsecase
                     new List<object> { broadcastPayload }
                 );
 
-                _logger.LogInformation(
-                    "CopyOrder: master={M}, slave={S}, lot={L}",
-                    masterOrder.Id, slaveAccount.Id, slaveLot
-                );
+                _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, lot={slaveLot}");
             }
 
             return null;
