@@ -255,6 +255,12 @@ public class BridgeListCreateOrderPayload
     [JsonPropertyName("account_id")]
     public long AccountId { get; set; }
 
+    [JsonPropertyName("balance")]
+    public decimal? Balance { get; set; }
+
+    [JsonPropertyName("equity")]
+    public decimal? Equity { get; set; }
+
     [JsonPropertyName("orders")]
     public List<BridgeCreateOrderItem> Orders { get; set; } = new();
 }

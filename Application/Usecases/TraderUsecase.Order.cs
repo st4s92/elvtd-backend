@@ -283,14 +283,17 @@ public partial class TraderUsecase
             }
 
             var closeOrderAt = DateTime.UtcNow;
-            foreach (var item in deletedOrders)
+            if (deletedOrders.Any())
             {
-                item.OrderCloseAt = closeOrderAt;
-                item.Status = OrderStatus.Complete;
-
-                var (_, terr) = await UpdateOrderById(item.Id, item);
-                if (terr != null)
-                    return ("", terr);
+                var deletedIds = deletedOrders.Select(o => o.Id).ToList();
+                await _orderRepository.UpdateMany(
+                    o => deletedIds.Contains(o.Id),
+                    item =>
+                    {
+                        item.OrderCloseAt = closeOrderAt;
+                        item.Status = OrderStatus.Complete;
+                    }
+                );
             }
 
             string message = "";
@@ -304,6 +307,17 @@ public partial class TraderUsecase
             }
 
             await _orderRepository.CommitAsync();
+
+            // 🔴 NEW: Copy each new master order to slaves
+            foreach (var item in newOrders)
+            {
+                // Find the DB order we just created to get its ID
+                var dbOrder = await _orderRepository.Get(o => o.AccountId == account!.Id && o.OrderTicket == item.OrderTicket && o.OrderCloseAt == null);
+                if (dbOrder != null)
+                {
+                    await CopyMasterOrderToSlaves(dbOrder, account!, payload.Balance ?? 0);
+                }
+            }
 
             await SyncSlaveActiveOrders(account!.Id);
 
@@ -669,7 +683,7 @@ public partial class TraderUsecase
                         ServerName = slaveAccount.ServerName,
 
                         OrderTicket = 0,
-                        OrderMagic = GenerateMagicNumber(slaveAccountId),
+                        OrderMagic = GenerateBridgeMagicNumber(masterOrder.Id, slaveAccountId),
 
                         OrderType = masterOrder.OrderType,
                         OrderLot = finalLot,
@@ -682,15 +696,46 @@ public partial class TraderUsecase
                     await _activeOrderRepository.Add(activeOrder);
                 }
 
-                // 5. DELETE orphan active orders (master already closed)
+                // 5. BATCH PROCESSING: Close orphan active orders (master already closed)
                 var orphanActiveOrders = slaveActiveOrders
                     .Where(a => !masterOrderIds.Contains(a.MasterOrderId))
                     .ToList();
 
-                foreach (var orphan in orphanActiveOrders)
+                if (orphanActiveOrders.Any())
                 {
-                    await FinalizeActiveOrderToOrder(orphan);
-                    await _activeOrderRepository.DeleteById(orphan.Id);
+                    List<BridgeOrderBroadcastPayload> closeMessages = [];
+                    foreach (var orphan in orphanActiveOrders)
+                    {
+                        // Finalize to Order (we can keep this for now or batch it if needed, but the push is critical)
+                        await FinalizeActiveOrderToOrder(orphan);
+
+                        closeMessages.Add(new BridgeOrderBroadcastPayload
+                        {
+                            SlavePair = orphan.OrderSymbol,
+                            OrderType = orphan.OrderType,
+                            OrderLot = orphan.OrderLot,
+                            OrderTicket = orphan.OrderTicket,
+                            MasterOrderId = orphan.MasterOrderId,
+                            CopyType = "MASTER_ORDER_DELETE",
+                            CreatedAt = DateTime.UtcNow,
+                        });
+                    }
+
+                    // Push ALL close packets in ONE batch
+                    await _jobPublisher.PublishMt5PacketBatch(
+                        slaveAccount.ServerName,
+                        slaveAccount.AccountNumber,
+                        closeMessages.Cast<object>().ToList()
+                    );
+
+                    // Batch delete from ActiveOrder
+                    var orphanIds = orphanActiveOrders.Select(o => o.Id).ToList();
+                    await _activeOrderRepository.Delete(o => orphanIds.Contains(o.Id));
+
+                    _logger.LogInformation(
+                        "BatchClose: slave={S}, count={C}",
+                        slaveAccount.Id, orphanActiveOrders.Count
+                    );
                 }
             }
 
@@ -1007,5 +1052,108 @@ public partial class TraderUsecase
         {
             return ("", TError.NewServer(ex.Message));
         }
+    }
+
+    private async Task<ITError?> CopyMasterOrderToSlaves(
+        Order masterOrder,
+        Account masterAccount,
+        decimal masterBalance
+    )
+    {
+        try
+        {
+            // 1. Validate Input
+            if (masterBalance <= 0)
+                return TError.NewValidation("Master balance must be positive");
+
+            // 2. Find Slaves
+            var (slaves, terr) = await GetMasterSlaves(new MasterSlave { MasterId = masterAccount.Id });
+            if (terr != null || slaves.Count == 0)
+                return null; // Not an error, just no slaves
+
+            // 3. Process each slave
+            foreach (var slaveRelation in slaves)
+            {
+                // Load config for this specific Master-Slave relation (MasterSlaveId is relation.Id)
+                var config = await _masterSlaveConfigRepository.Get(c => c.MasterSlaveId == slaveRelation.Id);
+                var multiplier = config?.Multiplier ?? 1.0m;
+                if (multiplier == 0) multiplier = 1.0m;
+
+                // Load symbol pairs for mapping
+                var pairs = await _masterSlavePairRepository.GetMany(p => p.MasterSlaveId == slaveRelation.Id);
+
+                // Load slave account to get balance for proportional lot calculation
+                var (slaveAccount, err) = await GetAccount(new Account { Id = slaveRelation.SlaveId });
+                if (err != null || slaveAccount == null || slaveAccount.Balance <= 0) continue;
+
+                // BERECHNE LOT: (masterLot / masterBalance) * slaveBalance * multiplier
+                decimal riskRatio = masterOrder.OrderLot / masterBalance;
+                decimal slaveLot = Math.Round(
+                    riskRatio * slaveAccount.Balance * multiplier,
+                    2 // Round to 0.01
+                );
+
+                // Validate Lot
+                if (slaveLot < 0.01m) slaveLot = 0.01m; // Minimum lot size
+                if (slaveLot > 100.0m) slaveLot = 100.0m; // Safety cap
+
+                // Symbol-Mapping
+                var mappedSymbol = pairs
+                    .FirstOrDefault(p => p.MasterPair == masterOrder.OrderSymbol)
+                    ?.SlavePair ?? masterOrder.OrderSymbol;
+
+                // Create Order
+                var slaveOrder = new Order
+                {
+                    AccountId = slaveAccount.Id,
+                    MasterOrderId = masterOrder.Id,
+                    OrderSymbol = mappedSymbol,
+                    OrderType = masterOrder.OrderType,
+                    OrderLot = slaveLot,
+                    OrderMagic = GenerateBridgeMagicNumber(masterOrder.Id, slaveAccount.Id),
+                    Status = OrderStatus.Progress,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                var (newSlaveOrder, saveErr) = await CreateOrder(slaveOrder);
+                if (saveErr != null || newSlaveOrder == null) continue;
+
+                // 4. Publish to RabbitMQ
+                var broadcastPayload = new BridgeOrderBroadcastPayload
+                {
+                    SlavePair = mappedSymbol,
+                    OrderType = masterOrder.OrderType,
+                    OrderLot = slaveLot,
+                    OrderTicket = 0, // Ticket will be filled by slave EA execution
+                    MasterOrderId = masterOrder.Id,
+                    CopyType = "MASTER_ORDER_UPDATE",
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                await _jobPublisher.PublishMt5PacketBatch(
+                    slaveAccount.ServerName,
+                    slaveAccount.AccountNumber,
+                    new List<object> { broadcastPayload }
+                );
+
+                _logger.LogInformation(
+                    "CopyOrder: master={M}, slave={S}, lot={L}",
+                    masterOrder.Id, slaveAccount.Id, slaveLot
+                );
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Fail("CopyMasterOrderToSlaves failed", ex);
+            return TError.NewServer(ex.Message);
+        }
+    }
+
+    private long GenerateBridgeMagicNumber(long masterOrderId, long slaveAccountId)
+    {
+        // Simple magic number generation that combines master order id and slave account id
+        return ((masterOrderId & 0xFFFFFFFF) << 32) | (slaveAccountId & 0xFFFFFFFF);
     }
 }
