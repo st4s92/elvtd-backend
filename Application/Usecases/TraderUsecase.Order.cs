@@ -716,6 +716,7 @@ public partial class TraderUsecase
                             OrderLot = orphan.OrderLot,
                             OrderTicket = orphan.OrderTicket,
                             MasterOrderId = orphan.MasterOrderId,
+                            OrderMagic = orphan.OrderMagic,
                             CopyType = "MASTER_ORDER_DELETE",
                             CreatedAt = DateTime.UtcNow,
                         });
@@ -1123,6 +1124,7 @@ public partial class TraderUsecase
                     OrderLot = slaveLot,
                     OrderTicket = 0, // Ticket will be filled by slave EA execution
                     MasterOrderId = masterOrder.Id,
+                    OrderMagic = slaveOrder.OrderMagic,
                     CopyType = "MASTER_ORDER_UPDATE",
                     CreatedAt = DateTime.UtcNow,
                 };

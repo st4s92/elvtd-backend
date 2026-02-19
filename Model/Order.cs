@@ -182,6 +182,9 @@ public class BridgeOrderBroadcastPayload
     [JsonPropertyName("copy_type")]
     public string CopyType { get; set; } = "";
 
+    [JsonPropertyName("order_magic")]
+    public long OrderMagic { get; set; }
+
     [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 }
