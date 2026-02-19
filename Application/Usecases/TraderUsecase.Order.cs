@@ -1091,6 +1091,8 @@ public partial class TraderUsecase
                     2 // Round to 0.01
                 );
 
+                _logger.Info($"Lot Calculation | Master: {masterAccount.AccountNumber} ({masterBalance}), Slave: {slaveAccount.AccountNumber} ({slaveAccount.Balance}), Multiplier: {multiplier}, MasterLot: {masterOrder.OrderLot} => SlaveLot: {slaveLot}");
+
                 // Validate Lot
                 if (slaveLot < 0.01m) slaveLot = 0.01m; // Minimum lot size
                 if (slaveLot > 100.0m) slaveLot = 100.0m; // Safety cap
