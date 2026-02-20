@@ -98,4 +98,22 @@ public partial class TraderUsecase
             return TError.NewServer(ex.Message);
         }
     }
+
+    private string CleanSymbol(string sym)
+    {
+        if (string.IsNullOrEmpty(sym)) return sym;
+        string s = sym.ToUpper();
+        // Strip common suffixes
+        string[] suffixes = { ".CASH", ".PRO", ".M", ".ECN", ".I", ".SB", ".PLUS", ".MINI", ".MICRO", "++", "+" };
+        foreach (var suffix in suffixes)
+        {
+            if (s.EndsWith(suffix))
+            {
+                s = s.Substring(0, s.Length - suffix.Length);
+                break;
+            }
+        }
+        // Also strip any trailing non-alphanumeric (like . or _ or +)
+        return System.Text.RegularExpressions.Regex.Replace(s, @"[^A-Z0-9]+$", "");
+    }
 }
