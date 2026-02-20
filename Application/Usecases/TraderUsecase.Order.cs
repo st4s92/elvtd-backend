@@ -386,13 +386,28 @@ public partial class TraderUsecase
                 allMasterSlaveIds.Contains(x.MasterSlaveId)
             );
 
-            // group pairs into a dictionary
+            // group pairs into a dictionary (used as OVERRIDE)
             var allPairsMap = allPairs
                 .GroupBy(x => x.MasterSlaveId)
                 .ToDictionary(g => g.Key, g => g.ToDictionary(x => x.MasterPair, x => x.SlavePair));
 
             // config lookup dictionary
             var configMap = allConfigs.ToDictionary(x => x.MasterSlaveId, x => x);
+
+            // -----------------------------------------------
+            // PRELOAD SYMBOL MAP for canonical resolution
+            // -----------------------------------------------
+            var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
+
+            // broker_symbol+broker_name → canonical
+            var toCanonical = allSymbolMaps
+                .GroupBy(x => (x.BrokerSymbol.ToUpper(), x.BrokerName.ToUpper()))
+                .ToDictionary(g => g.Key, g => g.First().CanonicalSymbol.ToUpper());
+
+            // canonical+broker_name → broker_symbol
+            var fromCanonical = allSymbolMaps
+                .GroupBy(x => (x.CanonicalSymbol.ToUpper(), x.BrokerName.ToUpper()))
+                .ToDictionary(g => g.Key, g => g.First().BrokerSymbol);
 
             var closedThreshold = DateTime.UtcNow.AddDays(-30);
 
@@ -407,9 +422,8 @@ public partial class TraderUsecase
                 if (item == null)
                     continue;
 
-                // safe: if pairs not exist
-                if (!allPairsMap.TryGetValue(item.Id, out var masterSlavePair))
-                    continue;
+                // 1. Check MasterSlavePair override first
+                allPairsMap.TryGetValue(item.Id, out var masterSlavePair);
 
                 decimal multiplier = 1;
                 if (configMap.TryGetValue(item.Id, out var cfg))
@@ -424,9 +438,30 @@ public partial class TraderUsecase
                 // -------------------------------------------
                 foreach (var order in newOrders)
                 {
-                    // SAFE DICTIONARY ACCESS
-                    if (!masterSlavePair.TryGetValue(order.OrderSymbol, out var slavePair))
-                        continue; // skip if symbol not mapped
+                    // PRIORITY 1: MasterSlavePair override
+                    string? slavePair = null;
+                    if (masterSlavePair != null && masterSlavePair.TryGetValue(order.OrderSymbol, out var overridePair))
+                    {
+                        slavePair = overridePair;
+                    }
+                    else
+                    {
+                        // PRIORITY 2: Canonical symbol resolution
+                        var masterBroker = masterAccount.BrokerName?.ToUpper() ?? "";
+                        var slaveBroker = item.SlaveAccount?.BrokerName?.ToUpper() ?? "";
+                        var masterSymbolKey = (order.OrderSymbol.ToUpper(), masterBroker);
+
+                        if (toCanonical.TryGetValue(masterSymbolKey, out var canonical))
+                        {
+                            var slaveKey = (canonical, slaveBroker);
+                            if (fromCanonical.TryGetValue(slaveKey, out var resolved))
+                                slavePair = resolved;
+                        }
+
+                        // PRIORITY 3: Fallback — use master symbol as-is
+                        if (string.IsNullOrEmpty(slavePair))
+                            slavePair = order.OrderSymbol;
+                    }
 
                     if (string.IsNullOrEmpty(slavePair))
                         continue;
@@ -608,6 +643,19 @@ public partial class TraderUsecase
             // mapping config
             var configMap = allConfigs.ToDictionary(x => x.MasterSlaveId);
 
+            // -----------------------------------------------
+            // PRELOAD SYMBOL MAP for canonical resolution
+            // -----------------------------------------------
+            var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
+
+            var toCanonical = allSymbolMaps
+                .GroupBy(x => (x.BrokerSymbol.ToUpper(), x.BrokerName.ToUpper()))
+                .ToDictionary(g => g.Key, g => g.First().CanonicalSymbol.ToUpper());
+
+            var fromCanonical = allSymbolMaps
+                .GroupBy(x => (x.CanonicalSymbol.ToUpper(), x.BrokerName.ToUpper()))
+                .ToDictionary(g => g.Key, g => g.First().BrokerSymbol);
+
             var toleranceSeconds = int.Parse(
                 Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0"
             );
@@ -676,12 +724,34 @@ public partial class TraderUsecase
                     }
 
                     // ambil pair mapping untuk relation ini
-                    if (!pairMap.TryGetValue(relation.Id, out var relationPairs))
-                        continue;
+                    pairMap.TryGetValue(relation.Id, out var relationPairs);
 
-                    // ambil slave pair
-                    if (!relationPairs.TryGetValue(masterOrder.OrderSymbol, out var slavePair))
-                        continue;
+                    // Symbol resolution with 3-tier priority
+                    string? slavePair = null;
+
+                    // PRIORITY 1: MasterSlavePair override
+                    if (relationPairs != null && relationPairs.TryGetValue(masterOrder.OrderSymbol, out var overridePair))
+                    {
+                        slavePair = overridePair;
+                    }
+                    else
+                    {
+                        // PRIORITY 2: Canonical symbol resolution
+                        var masterBroker = masterAccount?.BrokerName?.ToUpper() ?? "";
+                        var slaveBroker = slaveAccount.BrokerName?.ToUpper() ?? "";
+                        var masterSymbolKey = (masterOrder.OrderSymbol.ToUpper(), masterBroker);
+
+                        if (toCanonical.TryGetValue(masterSymbolKey, out var canonical))
+                        {
+                            var slaveKey = (canonical, slaveBroker);
+                            if (fromCanonical.TryGetValue(slaveKey, out var resolved))
+                                slavePair = resolved;
+                        }
+
+                        // PRIORITY 3: Fallback — use master symbol as-is
+                        if (string.IsNullOrEmpty(slavePair))
+                            slavePair = masterOrder.OrderSymbol;
+                    }
 
                     if (string.IsNullOrEmpty(slavePair))
                         continue;

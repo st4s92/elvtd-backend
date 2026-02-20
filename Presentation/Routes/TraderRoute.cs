@@ -429,5 +429,64 @@ public static class TraderRoutes
             )
             .WithName("AddServer")
             .WithTags("Server");
+
+        // =============================================
+        // SYMBOL MAP ROUTES
+        // =============================================
+
+        group
+            .MapGet(
+                "/trader/symbol-map",
+                async (TraderHandler handler) =>
+                {
+                    return await handler.GetSymbolMaps();
+                }
+            )
+            .WithName("GetSymbolMaps")
+            .WithTags("SymbolMap");
+
+        group
+            .MapGet(
+                "/trader/symbol-map/canonical",
+                async (TraderHandler handler) =>
+                {
+                    return await handler.GetCanonicalSymbols();
+                }
+            )
+            .WithName("GetCanonicalSymbols")
+            .WithTags("SymbolMap");
+
+        group
+            .MapPost(
+                "/trader/symbol-map",
+                async ([FromBody] SymbolMapPayload payload, TraderHandler handler) =>
+                {
+                    return await handler.CreateSymbolMap(payload);
+                }
+            )
+            .WithName("CreateSymbolMap")
+            .WithTags("SymbolMap");
+
+        group
+            .MapPut(
+                "/trader/symbol-map/{id:long}",
+                async (long id, [FromBody] SymbolMapPayload payload, TraderHandler handler) =>
+                {
+                    return await handler.UpdateSymbolMap(id, payload);
+                }
+            )
+            .WithName("UpdateSymbolMap")
+            .WithTags("SymbolMap");
+
+        group
+            .MapDelete(
+                "/trader/symbol-map/{id:long}",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.DeleteSymbolMap(id);
+                }
+            )
+            .WithName("DeleteSymbolMap")
+            .WithTags("SymbolMap");
     }
 }

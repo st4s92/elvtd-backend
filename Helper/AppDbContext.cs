@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<ServerAccount> ServerAccount => Set<ServerAccount>();
 
     public DbSet<ActiveOrder> ActiveOrders => Set<ActiveOrder>();
+    public DbSet<SymbolMap> SymbolMaps => Set<SymbolMap>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options) { }
@@ -43,6 +44,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Server>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<OrderLog>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<AccountLog>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<SymbolMap>().HasQueryFilter(e => e.DeletedAt == null);
+
+        // Unique index: one broker_symbol per broker/server
+        modelBuilder.Entity<SymbolMap>()
+            .HasIndex(s => new { s.BrokerName, s.BrokerSymbol })
+            .IsUnique()
+            .HasFilter("deleted_at IS NULL");
 
         // === Relationships ===
         // Account → User
