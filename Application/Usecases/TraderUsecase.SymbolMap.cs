@@ -51,7 +51,7 @@ public partial class TraderUsecase
                 BrokerSymbol = payload.BrokerSymbol,
                 CanonicalSymbol = payload.CanonicalSymbol,
             };
-            var result = await _symbolMapRepository.Add(entity);
+            var result = await _symbolMapRepository.Save(entity);
             return (result, null);
         }
         catch (Exception ex)
@@ -68,12 +68,16 @@ public partial class TraderUsecase
             if (existing == null)
                 return (null, TError.NewNotFound("SymbolMap not found"));
 
-            existing.BrokerName = payload.BrokerName;
-            existing.ServerName = payload.ServerName;
-            existing.BrokerSymbol = payload.BrokerSymbol;
-            existing.CanonicalSymbol = payload.CanonicalSymbol;
-
-            await _symbolMapRepository.Update(existing);
+            await _symbolMapRepository.Update(
+                x => x.Id == id,
+                x =>
+                {
+                    x.BrokerName = payload.BrokerName;
+                    x.ServerName = payload.ServerName;
+                    x.BrokerSymbol = payload.BrokerSymbol;
+                    x.CanonicalSymbol = payload.CanonicalSymbol;
+                }
+            );
             return (existing, null);
         }
         catch (Exception ex)
@@ -90,8 +94,10 @@ public partial class TraderUsecase
             if (existing == null)
                 return TError.NewNotFound("SymbolMap not found");
 
-            existing.DeletedAt = DateTime.UtcNow;
-            await _symbolMapRepository.Update(existing);
+            await _symbolMapRepository.Update(
+                x => x.Id == id,
+                x => x.DeletedAt = DateTime.UtcNow
+            );
             return null;
         }
         catch (Exception ex)
