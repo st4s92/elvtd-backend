@@ -920,15 +920,26 @@ public partial class TraderUsecase
                 return slaveFuzzyMap.BrokerSymbol;
         }
 
-        // PRIORITY 4: Pattern-based fallback (Learn from slave broker mappings)
-        var likelySlaveSymbol = allSymbolMaps
+        // PRIORITY 4: Fuzzy Match (Ignore Suffixes/Prefixes)
+        // 4.1 First attempt: Does the cleaned master perfectly equal a cleaned slave symbol we know?
+        var perfectCleanMatch = allSymbolMaps
             .Where(x => (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY") &&
-                       (x.BrokerSymbol.ToUpper() == cleanedMaster.ToUpper() || x.BrokerSymbol.ToUpper().StartsWith(cleanedMaster.ToUpper())))
+                        CleanSymbol(x.BrokerSymbol).ToUpper() == cleanedMaster.ToUpper())
             .OrderBy(x => x.BrokerSymbol.Length)
             .FirstOrDefault();
 
-        if (likelySlaveSymbol != null)
-            return likelySlaveSymbol.BrokerSymbol;
+        if (perfectCleanMatch != null)
+            return perfectCleanMatch.BrokerSymbol;
+
+        // 4.2 Second attempt: StartsWith Fallback (e.g. US30 -> US30.cash if no perfect clean match exists)
+        var startsWithMatch = allSymbolMaps
+            .Where(x => (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY") &&
+                        x.BrokerSymbol.ToUpper().StartsWith(cleanedMaster.ToUpper()))
+            .OrderBy(x => x.BrokerSymbol.Length)
+            .FirstOrDefault();
+
+        if (startsWithMatch != null)
+            return startsWithMatch.BrokerSymbol;
 
         // PRIORITY 5: Fallback -- use master symbol as-is
         return masterSymbol;
