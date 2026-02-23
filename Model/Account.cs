@@ -149,6 +149,18 @@ public class AccountGetPaginatedObject
 
     [JsonPropertyName("updated_at")]
     public DateTime UpdatedAt { get; set; }
+
+    [JsonPropertyName("balance")]
+    public decimal Balance { get; set; }
+
+    [JsonPropertyName("equity")]
+    public decimal Equity { get; set; }
+
+    [JsonPropertyName("open_positions_count")]
+    public int OpenPositionsCount { get; set; }
+
+    [JsonPropertyName("dedicated_server_name")]
+    public string DedicatedServerName { get; set; } = "";
 }
 
 public class TradePlatformCreateJob

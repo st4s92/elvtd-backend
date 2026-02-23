@@ -114,6 +114,10 @@ public partial class TraderHandler
             ServerStatusMessage = a.ServerAccount?.Message,
             CreatedAt = a.CreatedAt,
             UpdatedAt = a.UpdatedAt,
+            Balance = a.Balance,
+            Equity = a.Equity,
+            OpenPositionsCount = a.Orders.Count,
+            DedicatedServerName = a.ServerAccount?.Server?.ServerName ?? "-",
         })
             .ToList();
 
