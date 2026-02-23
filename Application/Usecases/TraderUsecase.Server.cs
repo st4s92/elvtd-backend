@@ -249,6 +249,7 @@ public partial class TraderUsecase
         {
             return (null, TError.NewServer(ex.Message));
         }
+    }
 
     public async Task<ITError?> DeleteServerByID(long id)
     {
@@ -272,6 +273,5 @@ public partial class TraderUsecase
         {
             return TError.NewServer("database error", ex.Message);
         }
-    }
     }
 }
