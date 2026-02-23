@@ -30,6 +30,7 @@ public class ServerPlatformCreatedHandler
         {
             AccountId = request.AccountId,
             InstallationPath = request.InstallationPath,
+            ServerIp = request.ServerIp,
             Status = (ConnectionStatus)request.Status,
             Message = request.Message,
             Pid = request.Pid,

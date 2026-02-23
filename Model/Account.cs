@@ -211,6 +211,7 @@ public class ServerAccountPlatformUpdateRequest
     public string Message { get; set; } = "";
     public ConnectionStatus Status { get; set; }
     public string InstallationPath { get; set; } = "";
+    public string ServerIp { get; set; } = "";
     public int Pid { get; set; }
 }
 

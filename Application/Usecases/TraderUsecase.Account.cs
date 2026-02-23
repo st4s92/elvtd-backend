@@ -299,6 +299,15 @@ public partial class TraderUsecase
             if (terr != null)
                 return (null, terr);
 
+            if (!string.IsNullOrEmpty(param.ServerIp))
+            {
+                var server = await _serverRepository.Get(s => s.ServerIp == param.ServerIp);
+                if (server != null)
+                {
+                    serverAccount!.ServerId = server.Id;
+                }
+            }
+
             serverAccount!.InstallationPath = param.InstallationPath;
             serverAccount!.Status = param.Status;
             serverAccount!.Message = param.Message;

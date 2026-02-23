@@ -220,7 +220,17 @@ public partial class TraderUsecase
             var server = await _serverRepository.Get(a => a.ServerIp == param.Ip);
             if (server == null)
             {
-                return (server, TError.NewNotFound("server not found"));
+                // AUTO-REGISTER new server
+                var newServer = new Server
+                {
+                    ServerIp = param.Ip,
+                    ServerName = $"Worker_{param.Ip.Replace(".", "_")}",
+                    Status = param.Status,
+                    ServerOs = "Auto-Registered",
+                };
+                var (created, terr) = await AddServer(newServer);
+                if (terr != null) return (null, terr);
+                return (created, null);
             }
 
             if (server.Status != ConnectionStatus.Success)
