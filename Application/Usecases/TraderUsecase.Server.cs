@@ -233,14 +233,11 @@ public partial class TraderUsecase
                 return (created, null);
             }
 
-            if (server.Status != ConnectionStatus.Success)
+            server.Status = param.Status;
+            var (_, terrs) = await UpdateServerById(server.Id, server);
+            if (terrs != null)
             {
-                server.Status = param.Status;
-                var (_, terrs) = await UpdateServerById(server.Id, server);
-                if(terrs != null)
-                {
-                    return (server, TError.NewServer("cannot save server status"));
-                }
+                return (server, TError.NewServer("cannot save server status"));
             }
 
             return (server, null);
