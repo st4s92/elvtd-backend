@@ -430,6 +430,50 @@ public static class TraderRoutes
             .WithName("AddServer")
             .WithTags("Server");
 
+        group
+            .MapGet(
+                "/trader/servers",
+                async ([AsParameters] ServerGetPayload query, TraderHandler handler) =>
+                {
+                    return await handler.GetServers(query);
+                }
+            )
+            .WithName("GetServers")
+            .WithTags("Server");
+
+        group
+            .MapGet(
+                "/trader/servers/{id:int}",
+                async (int id, TraderHandler handler) =>
+                {
+                    return await handler.GetServer(id);
+                }
+            )
+            .WithName("GetServer")
+            .WithTags("Server");
+
+        group
+            .MapPut(
+                "/trader/servers/{id:long}",
+                async (long id, [FromBody] Server payload, TraderHandler handler) =>
+                {
+                    return await handler.UpdateServer(id, payload);
+                }
+            )
+            .WithName("UpdateServer")
+            .WithTags("Server");
+
+        group
+            .MapDelete(
+                "/trader/servers/{id:long}",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.DeleteServer(id);
+                }
+            )
+            .WithName("DeleteServer")
+            .WithTags("Server");
+
         // =============================================
         // SYMBOL MAP ROUTES
         // =============================================

@@ -249,5 +249,29 @@ public partial class TraderUsecase
         {
             return (null, TError.NewServer(ex.Message));
         }
+
+    public async Task<ITError?> DeleteServerByID(long id)
+    {
+        try
+        {
+            var (existing, terr) = await GetServer(new Server { Id = id });
+            if (terr != null)
+                return terr;
+
+            await _serverRepository.Update(
+                x => x.Id == id,
+                x =>
+                {
+                    x.DeletedAt = DateTime.Now;
+                }
+            );
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer("database error", ex.Message);
+        }
+    }
     }
 }

@@ -108,4 +108,14 @@ public partial class TraderHandler
         }
         return Response.Json("ok");
     }
+
+    public async Task<IResult> DeleteServer(long id)
+    {
+        var terr = await _usecase.DeleteServerByID(id);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
 }
