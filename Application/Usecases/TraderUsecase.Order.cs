@@ -685,14 +685,6 @@ public partial class TraderUsecase
             // -----------------------------------------------
             var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
 
-            var toCanonical = allSymbolMaps
-                .GroupBy(x => (x.BrokerSymbol.ToUpper(), x.BrokerName.ToUpper()))
-                .ToDictionary(g => g.Key, g => g.First().CanonicalSymbol.ToUpper());
-
-            var fromCanonical = allSymbolMaps
-                .GroupBy(x => (x.CanonicalSymbol.ToUpper(), x.BrokerName.ToUpper()))
-                .ToDictionary(g => g.Key, g => g.First().BrokerSymbol);
-
             var toleranceSeconds = int.Parse(
                 Environment.GetEnvironmentVariable("COPY_TOLERANCE_SECOND") ?? "0"
             );
@@ -763,69 +755,14 @@ public partial class TraderUsecase
                     // ambil pair mapping untuk relation ini
                     pairMap.TryGetValue(relation.Id, out var relationPairs);
 
-                    // Symbol resolution with 3-tier priority
-                    string? slavePair = null;
-
-                    // PRIORITY 1: MasterSlavePair override
-                    if (relationPairs != null && relationPairs.TryGetValue(masterOrder.OrderSymbol, out var overridePair))
-                    {
-                        slavePair = overridePair;
-
-                        // FIX CASING:
-                        var exactOverride = allSymbolMaps.FirstOrDefault(x => 
-                            x.BrokerName.ToUpper() == slaveAccount.BrokerName.ToUpper() && 
-                            x.BrokerSymbol.ToUpper() == slavePair.ToUpper());
-                        if (exactOverride != null)
-                        {
-                            slavePair = exactOverride.BrokerSymbol;
-                        }
-                    }
-                    else
-                    {
-                        // PRIORITY 2: Exact Canonical resolution
-                        var masterBroker = masterAccount?.BrokerName?.ToUpper() ?? "";
-                        var slaveBroker = slaveAccount.BrokerName?.ToUpper() ?? "";
-                        var masterSymbolKey = (masterOrder.OrderSymbol.ToUpper(), masterBroker);
-
-                        if (toCanonical.TryGetValue(masterSymbolKey, out var canonical))
-                        {
-                            var slaveKey = (canonical, slaveBroker);
-                            if (fromCanonical.TryGetValue(slaveKey, out var resolved))
-                                slavePair = resolved;
-                        }
-
-                        // PRIORITY 3: Fuzzy Canonical resolution (Cleaned Master Symbol)
-                        if (string.IsNullOrEmpty(slavePair))
-                        {
-                            var cleanedMaster = CleanSymbol(masterOrder.OrderSymbol);
-                            var masterFuzzyKey = (cleanedMaster, masterBroker);
-                            if (toCanonical.TryGetValue(masterFuzzyKey, out var fuzzyCanonical))
-                            {
-                                var slaveKey = (fuzzyCanonical, slaveBroker);
-                                if (fromCanonical.TryGetValue(slaveKey, out var resolved))
-                                    slavePair = resolved;
-                            }
-                        }
-
-                        // PRIORITY 4: Pattern-based fallback (Learn from slave broker mappings)
-                        if (string.IsNullOrEmpty(slavePair))
-                        {
-                            var cleanedMaster = CleanSymbol(masterOrder.OrderSymbol);
-                            var likelySlaveSymbol = allSymbolMaps
-                                .Where(x => x.BrokerName.ToUpper() == slaveBroker &&
-                                           (x.BrokerSymbol.ToUpper() == cleanedMaster || x.BrokerSymbol.ToUpper().StartsWith(cleanedMaster)))
-                                .OrderBy(x => x.BrokerSymbol.Length)
-                                .Select(x => x.BrokerSymbol)
-                                .FirstOrDefault();
-
-                            if (!string.IsNullOrEmpty(likelySlaveSymbol))
-                                slavePair = likelySlaveSymbol;
-                        }
-
-                        // PRIORITY 5: Fallback — use master symbol as-is
-                        if (string.IsNullOrEmpty(slavePair))
-                            slavePair = masterOrder.OrderSymbol;
-                    }
+                    // Symbol resolution with 5-tier priority using Helper Function
+                    string? slavePair = ResolveSymbol(
+                        masterOrder.OrderSymbol,
+                        masterAccount?.BrokerName ?? "",
+                        slaveAccount.BrokerName ?? "",
+                        relationPairs,
+                        allSymbolMaps
+                    );
 
                     if (string.IsNullOrEmpty(slavePair))
                         continue;
@@ -920,6 +857,81 @@ public partial class TraderUsecase
         };
 
         await _orderRepository.Save(order);
+    }
+
+    private string? ResolveSymbol(
+        string masterSymbol,
+        string masterBroker,
+        string slaveBroker,
+        Dictionary<string, string>? relationPairs,
+        List<SymbolMap> allSymbolMaps
+    )
+    {
+        string? slavePair = null;
+
+        // PRIORITY 1: MasterSlavePair override
+        if (relationPairs != null && relationPairs.TryGetValue(masterSymbol, out var overridePair))
+        {
+            slavePair = overridePair;
+
+            // FIX CASING:
+            var exactOverride = allSymbolMaps.FirstOrDefault(x => 
+                x.BrokerName.ToUpper() == slaveBroker.ToUpper() && 
+                x.BrokerSymbol.ToUpper() == slavePair.ToUpper());
+            if (exactOverride != null)
+            {
+                slavePair = exactOverride.BrokerSymbol;
+            }
+            return slavePair;
+        }
+
+        masterBroker = masterBroker.ToUpper();
+        slaveBroker = slaveBroker.ToUpper();
+        var masterSymbolUpper = masterSymbol.ToUpper();
+
+        // PRIORITY 2: Exact Canonical resolution
+        var masterMap = allSymbolMaps.FirstOrDefault(x => 
+            x.BrokerSymbol.ToUpper() == masterSymbolUpper && 
+            (x.BrokerName.ToUpper() == masterBroker || x.BrokerName.ToUpper() == "ANY"));
+            
+        var canonical = masterMap != null ? masterMap.CanonicalSymbol.ToUpper() : masterSymbolUpper;
+
+        var slaveMap = allSymbolMaps.FirstOrDefault(x => 
+            x.CanonicalSymbol.ToUpper() == canonical && 
+            (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY"));
+            
+        if (slaveMap != null)
+            return slaveMap.BrokerSymbol;
+
+        // PRIORITY 3: Fuzzy Canonical resolution
+        var cleanedMaster = CleanSymbol(masterSymbol);
+        var masterFuzzyMap = allSymbolMaps.FirstOrDefault(x => 
+            x.BrokerSymbol.ToUpper() == cleanedMaster.ToUpper() && 
+            (x.BrokerName.ToUpper() == masterBroker || x.BrokerName.ToUpper() == "ANY"));
+            
+        if (masterFuzzyMap != null)
+        {
+            var fuzzyCanonical = masterFuzzyMap.CanonicalSymbol.ToUpper();
+            var slaveFuzzyMap = allSymbolMaps.FirstOrDefault(x => 
+                x.CanonicalSymbol.ToUpper() == fuzzyCanonical && 
+                (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY"));
+            
+            if (slaveFuzzyMap != null)
+                return slaveFuzzyMap.BrokerSymbol;
+        }
+
+        // PRIORITY 4: Pattern-based fallback (Learn from slave broker mappings)
+        var likelySlaveSymbol = allSymbolMaps
+            .Where(x => (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY") &&
+                       (x.BrokerSymbol.ToUpper() == cleanedMaster.ToUpper() || x.BrokerSymbol.ToUpper().StartsWith(cleanedMaster.ToUpper())))
+            .OrderBy(x => x.BrokerSymbol.Length)
+            .FirstOrDefault();
+
+        if (likelySlaveSymbol != null)
+            return likelySlaveSymbol.BrokerSymbol;
+
+        // PRIORITY 5: Fallback -- use master symbol as-is
+        return masterSymbol;
     }
 
     private static int _magicCounter = 0;
@@ -1269,21 +1281,17 @@ public partial class TraderUsecase
                 if (slaveLot < 0.01m) slaveLot = 0.01m; // Minimum lot size
                 if (slaveLot > 100.0m) slaveLot = 100.0m; // Safety cap
 
-                // Symbol-Mapping
-                var mappedSymbol = pairs
-                    .FirstOrDefault(p => p.MasterPair == masterOrder.OrderSymbol)
-                    ?.SlavePair ?? masterOrder.OrderSymbol;
-
-                // Fix Exact Case from SymbolMap
-                var exactSymbol = await _symbolMapRepository.Get(x => 
-                    x.BrokerName.ToUpper() == (slaveAccount.BrokerName ?? "").ToUpper() && 
-                    x.BrokerSymbol.ToUpper() == mappedSymbol.ToUpper() && 
-                    x.DeletedAt == null);
-
-                if (exactSymbol != null)
-                {
-                    mappedSymbol = exactSymbol.BrokerSymbol;
-                }
+                // Symbol-Mapping using standard helper
+                var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
+                var relationPairs = pairs.ToDictionary(x => x.MasterPair, x => x.SlavePair);
+                
+                var mappedSymbol = ResolveSymbol(
+                    masterOrder.OrderSymbol,
+                    masterAccount.BrokerName ?? "",
+                    slaveAccount.BrokerName ?? "",
+                    relationPairs,
+                    allSymbolMaps
+                ) ?? masterOrder.OrderSymbol;
 
                 // Create Order
                 var slaveOrder = new Order
