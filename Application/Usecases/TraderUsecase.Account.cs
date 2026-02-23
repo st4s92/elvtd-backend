@@ -343,6 +343,12 @@ public partial class TraderUsecase
             if (account == null)
                 return (null, TError.NewNotFound("account not found"));
 
+            // 🔴 NEW: Update account state (Heartbeat)
+            account.Balance = param.Balance ?? account.Balance;
+            account.Equity = param.Equity ?? account.Equity;
+            account.Status = ConnectionStatus.Success;
+            await _accountRepository.Save(account, a => a.Id == account.Id);
+
             var activeOrders = await _orderRepository.GetMany(o =>
                 o.AccountId == account.Id && o.OrderCloseAt == null
             );

@@ -113,6 +113,7 @@ public partial class TraderHandler
             ServerStatus = a.ServerAccount?.Status.ToString(),
             ServerStatusMessage = a.ServerAccount?.Message,
             CreatedAt = a.CreatedAt,
+            UpdatedAt = a.UpdatedAt,
         })
             .ToList();
 
