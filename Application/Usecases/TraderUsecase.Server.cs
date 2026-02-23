@@ -227,6 +227,10 @@ public partial class TraderUsecase
                     ServerName = $"Worker_{param.Ip.Replace(".", "_")}",
                     Status = param.Status,
                     ServerOs = "Auto-Registered",
+                    ActiveTerminals = param.ActiveTerminals,
+                    CpuUsage = param.CpuUsage,
+                    RamUsage = param.RamUsage,
+                    UptimeString = param.Uptime,
                 };
                 var (created, terr) = await AddServer(newServer);
                 if (terr != null) return (null, terr);
@@ -234,6 +238,10 @@ public partial class TraderUsecase
             }
 
             server.Status = param.Status;
+            server.ActiveTerminals = param.ActiveTerminals;
+            server.CpuUsage = param.CpuUsage;
+            server.RamUsage = param.RamUsage;
+            server.UptimeString = param.Uptime;
             var (_, terrs) = await UpdateServerById(server.Id, server);
             if (terrs != null)
             {

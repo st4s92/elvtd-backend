@@ -31,6 +31,18 @@ public class Server : IAuditableEntity
     [Column("server_os"), MaxLength(300)]
     public string ServerOs { get; set; } = "";
 
+    [Column("active_terminals")]
+    public int ActiveTerminals { get; set; }
+
+    [Column("cpu_usage")]
+    public double CpuUsage { get; set; }
+
+    [Column("ram_usage")]
+    public double RamUsage { get; set; }
+
+    [Column("uptime"), MaxLength(100)]
+    public string UptimeString { get; set; } = "";
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 
@@ -132,6 +144,18 @@ public class ServerHeartbeatRequest
 
     [JsonPropertyName("timestamp")]
     public long Timestamp { get; set; }
+
+    [JsonPropertyName("active_terminals")]
+    public int ActiveTerminals { get; set; }
+
+    [JsonPropertyName("cpu_usage")]
+    public double CpuUsage { get; set; }
+
+    [JsonPropertyName("ram_usage")]
+    public double RamUsage { get; set; }
+
+    [JsonPropertyName("uptime")]
+    public string Uptime { get; set; } = "";
 }
 
 public class HealthCheckResponse
