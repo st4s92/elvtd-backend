@@ -443,6 +443,15 @@ public partial class TraderUsecase
                     if (masterSlavePair != null && masterSlavePair.TryGetValue(order.OrderSymbol, out var overridePair))
                     {
                         slavePair = overridePair;
+
+                        // FIX CASING:
+                        var exactOverride = allSymbolMaps.FirstOrDefault(x => 
+                            x.BrokerName.ToUpper() == (item.SlaveAccount?.BrokerName ?? "").ToUpper() && 
+                            x.BrokerSymbol.ToUpper() == slavePair.ToUpper());
+                        if (exactOverride != null)
+                        {
+                            slavePair = exactOverride.BrokerSymbol;
+                        }
                     }
                     else
                     {
@@ -761,6 +770,15 @@ public partial class TraderUsecase
                     if (relationPairs != null && relationPairs.TryGetValue(masterOrder.OrderSymbol, out var overridePair))
                     {
                         slavePair = overridePair;
+
+                        // FIX CASING:
+                        var exactOverride = allSymbolMaps.FirstOrDefault(x => 
+                            x.BrokerName.ToUpper() == slaveAccount.BrokerName.ToUpper() && 
+                            x.BrokerSymbol.ToUpper() == slavePair.ToUpper());
+                        if (exactOverride != null)
+                        {
+                            slavePair = exactOverride.BrokerSymbol;
+                        }
                     }
                     else
                     {
@@ -1255,6 +1273,17 @@ public partial class TraderUsecase
                 var mappedSymbol = pairs
                     .FirstOrDefault(p => p.MasterPair == masterOrder.OrderSymbol)
                     ?.SlavePair ?? masterOrder.OrderSymbol;
+
+                // Fix Exact Case from SymbolMap
+                var exactSymbol = await _symbolMapRepository.Get(x => 
+                    x.BrokerName.ToUpper() == (slaveAccount.BrokerName ?? "").ToUpper() && 
+                    x.BrokerSymbol.ToUpper() == mappedSymbol.ToUpper() && 
+                    x.DeletedAt == null);
+
+                if (exactSymbol != null)
+                {
+                    mappedSymbol = exactSymbol.BrokerSymbol;
+                }
 
                 // Create Order
                 var slaveOrder = new Order
