@@ -300,8 +300,8 @@ public partial class TraderUsecase
                     !string.IsNullOrWhiteSpace(p.SlaveSymbol))
                 .Select(p => new
                 {
-                    Master = p.MasterSymbol.Trim().ToUpper(),
-                    Slave = p.SlaveSymbol.Trim().ToUpper()
+                    Master = p.MasterSymbol.Trim(),
+                    Slave = p.SlaveSymbol.Trim()
                 })
                 .Distinct()
                 .ToList();
