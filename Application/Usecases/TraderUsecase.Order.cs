@@ -892,13 +892,13 @@ public partial class TraderUsecase
         // PRIORITY 2: Exact Canonical resolution
         var masterMap = allSymbolMaps.FirstOrDefault(x => 
             x.BrokerSymbol.ToUpper() == masterSymbolUpper && 
-            (x.BrokerName.ToUpper() == masterBroker || x.BrokerName.ToUpper() == "ANY"));
+            (masterBroker.StartsWith(x.BrokerName.ToUpper()) || x.BrokerName.ToUpper() == "ANY"));
             
         var canonical = masterMap != null ? masterMap.CanonicalSymbol.ToUpper() : masterSymbolUpper;
 
         var slaveMap = allSymbolMaps.FirstOrDefault(x => 
             x.CanonicalSymbol.ToUpper() == canonical && 
-            (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY"));
+            (slaveBroker.StartsWith(x.BrokerName.ToUpper()) || x.BrokerName.ToUpper() == "ANY"));
             
         if (slaveMap != null)
             return slaveMap.BrokerSymbol;
@@ -907,14 +907,14 @@ public partial class TraderUsecase
         var cleanedMaster = CleanSymbol(masterSymbol);
         var masterFuzzyMap = allSymbolMaps.FirstOrDefault(x => 
             x.BrokerSymbol.ToUpper() == cleanedMaster.ToUpper() && 
-            (x.BrokerName.ToUpper() == masterBroker || x.BrokerName.ToUpper() == "ANY"));
+            (masterBroker.StartsWith(x.BrokerName.ToUpper()) || x.BrokerName.ToUpper() == "ANY"));
             
         if (masterFuzzyMap != null)
         {
             var fuzzyCanonical = masterFuzzyMap.CanonicalSymbol.ToUpper();
             var slaveFuzzyMap = allSymbolMaps.FirstOrDefault(x => 
                 x.CanonicalSymbol.ToUpper() == fuzzyCanonical && 
-                (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY"));
+                (slaveBroker.StartsWith(x.BrokerName.ToUpper()) || x.BrokerName.ToUpper() == "ANY"));
             
             if (slaveFuzzyMap != null)
                 return slaveFuzzyMap.BrokerSymbol;
@@ -923,7 +923,7 @@ public partial class TraderUsecase
         // PRIORITY 4: Fuzzy Match (Ignore Suffixes/Prefixes)
         // 4.1 First attempt: Does the cleaned master perfectly equal a cleaned slave symbol we know?
         var perfectCleanMatch = allSymbolMaps
-            .Where(x => (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY") &&
+            .Where(x => (slaveBroker.StartsWith(x.BrokerName.ToUpper()) || x.BrokerName.ToUpper() == "ANY") &&
                         CleanSymbol(x.BrokerSymbol).ToUpper() == cleanedMaster.ToUpper())
             .OrderBy(x => x.BrokerSymbol.Length)
             .FirstOrDefault();
@@ -933,7 +933,7 @@ public partial class TraderUsecase
 
         // 4.2 Second attempt: StartsWith Fallback (e.g. US30 -> US30.cash if no perfect clean match exists)
         var startsWithMatch = allSymbolMaps
-            .Where(x => (x.BrokerName.ToUpper() == slaveBroker || x.BrokerName.ToUpper() == "ANY") &&
+            .Where(x => (slaveBroker.StartsWith(x.BrokerName.ToUpper()) || x.BrokerName.ToUpper() == "ANY") &&
                         x.BrokerSymbol.ToUpper().StartsWith(cleanedMaster.ToUpper()))
             .OrderBy(x => x.BrokerSymbol.Length)
             .FirstOrDefault();
