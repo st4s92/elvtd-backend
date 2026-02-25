@@ -215,11 +215,17 @@ public class OrderQuery
     [JsonPropertyName("master_order_id")]
     public long? MasterOrderId { get; set; }
 
+    [JsonPropertyName("order_ticket")]
+    public long? OrderTicket { get; set; }
+
     [JsonPropertyName("order_symbol")]
     public string? OrderSymbol { get; set; }
 
     [JsonPropertyName("order_type")]
     public string? OrderType { get; set; }
+
+    [JsonPropertyName("order_lot")]
+    public double? OrderLot { get; set; }
 
     [JsonPropertyName("status")]
     public OrderStatus? Status { get; set; }

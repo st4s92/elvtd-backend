@@ -44,8 +44,10 @@ public partial class TraderHandler
             Id = query.Id ?? 0,
             AccountId = query.AccountId ?? 0,
             MasterOrderId = query.MasterOrderId,
+            OrderTicket = query.OrderTicket ?? 0,
             OrderSymbol = query.OrderSymbol ?? "",
             OrderType = query.OrderType ?? "",
+            OrderLot = query.OrderLot ?? 0,
             Status = query.Status ?? 0,
             IsMasterOnly = query.IsMasterOnly,
             CopyMessage = query.Search, // Temporarily hijacking CopyMessage as search string if needed, or update Order model
