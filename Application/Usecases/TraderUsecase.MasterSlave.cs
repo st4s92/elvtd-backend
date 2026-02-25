@@ -63,7 +63,17 @@ public partial class TraderUsecase
     {
         try
         {
-            var (data, total) = await _masterSlaveRepository.GetPaginated(FilterMasterSlave(param), page, pageSize, q => q.OrderByDescending(o => o.CreatedAt));
+            var (data, total) = await _masterSlaveRepository.GetPaginated(
+                FilterMasterSlave(param),
+                page,
+                pageSize,
+                q => q.OrderByDescending(o => o.CreatedAt),
+                q => q
+                    .Include(ms => ms.Configs.Where(c => c.DeletedAt == null))
+                    .Include(ms => ms.Pairs.Where(p => p.DeletedAt == null))
+                    .Include(ms => ms.MasterAccount)
+                    .Include(ms => ms.SlaveAccount)
+            );
             if (data == null)
                 return ([], 0, null);
             return (data, total, null);
