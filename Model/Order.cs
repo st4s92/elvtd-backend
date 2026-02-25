@@ -79,6 +79,18 @@ public class Order : IAuditableEntity
     [Column("order_profit", TypeName = "decimal(13,2)")]
     public decimal? OrderProfit { get; set; }
 
+    [NotMapped]
+    public int SlaveCount { get; set; }
+
+    [NotMapped]
+    public int SlaveSuccessCount { get; set; }
+
+    [NotMapped]
+    public int SlaveFailureCount { get; set; }
+
+    [NotMapped]
+    public bool IsMasterOnly { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 
@@ -211,6 +223,12 @@ public class OrderQuery
 
     [JsonPropertyName("status")]
     public OrderStatus? Status { get; set; } = OrderStatus.None;
+
+    [JsonPropertyName("search")]
+    public string? Search { get; set; }
+
+    [JsonPropertyName("is_master_only")]
+    public bool IsMasterOnly { get; set; }
 }
 
 public class OrderGetPaginatedPayload : OrderQuery
@@ -220,6 +238,12 @@ public class OrderGetPaginatedPayload : OrderQuery
 
     [JsonPropertyName("page")]
     public int Page { get; set; }
+
+    [JsonPropertyName("sort_by")]
+    public string? SortBy { get; set; }
+
+    [JsonPropertyName("sort_order")]
+    public string? SortOrder { get; set; }
 }
 
 // simplyfiy create new order item

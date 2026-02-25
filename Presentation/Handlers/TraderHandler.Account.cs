@@ -90,10 +90,15 @@ public partial class TraderHandler
             Role = query.Role ?? "",
         };
 
+        Console.WriteLine($"[DEBUG] GetPaginatedAccounts: Search='{query.Search}', Page={query.Page}, PerPage={query.PerPage}");
+
         var (res, total, terr) = await _usecase.GetPaginatedAccounts(
             accountFilter,
             query.Page,
-            query.PerPage
+            query.PerPage,
+            query.SortBy,
+            query.SortOrder,
+            query.Search
         );
         if (terr != null)
         {
@@ -126,6 +131,8 @@ public partial class TraderHandler
             Data = data,
             Total = total,
         };
+
+        Console.WriteLine($"[DEBUG] GetPaginatedAccounts Result: {data.Count} items, Total {total}");
 
         return Response.Json(resp);
     }

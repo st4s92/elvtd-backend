@@ -100,6 +100,9 @@ public class AccountGetPayload : AccountPayload
 {
     [JsonPropertyName("id")]
     public long? Id { get; set; }
+
+    [JsonPropertyName("search")]
+    public string? Search { get; set; }
 }
 
 public class AccountGetPaginatedPayload : AccountGetPayload
@@ -109,6 +112,12 @@ public class AccountGetPaginatedPayload : AccountGetPayload
 
     [JsonPropertyName("page")]
     public int Page { get; set; }
+
+    [JsonPropertyName("sort_by")]
+    public string? SortBy { get; set; }
+
+    [JsonPropertyName("sort_order")]
+    public string? SortOrder { get; set; }
 }
 
 public class AccountGetPaginatedObject

@@ -34,7 +34,10 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
     public async Task<(List<Account> data, long total)> GetPaginatedAccounts(
         Account param,
         int page,
-        int pageSize
+        int pageSize,
+        string? sortBy = null,
+        string? sortOrder = null,
+        string? search = null
     )
     {
         var query = _context.Accounts.Where(a => a.DeletedAt == null).AsQueryable();
@@ -61,13 +64,39 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
         if (!string.IsNullOrEmpty(param.Role))
             query = query.Where(a => a.Role == param.Role);
 
+        // ===== SEARCH =====
+        if (!string.IsNullOrEmpty(search))
+        {
+            query = query.Where(a =>
+                a.AccountNumber.ToString().Contains(search) ||
+                a.BrokerName.Contains(search) ||
+                a.ServerName.Contains(search) ||
+                a.PlatformName.Contains(search)
+            );
+        }
+
+        // ===== SORTING =====
+        bool isDesc = sortOrder?.ToLower() == "desc";
+        query = sortBy?.ToLower() switch
+        {
+            "id" => isDesc ? query.OrderByDescending(a => a.Id) : query.OrderBy(a => a.Id),
+            "platformname" => isDesc ? query.OrderByDescending(a => a.PlatformName) : query.OrderBy(a => a.PlatformName),
+            "accountnumber" => isDesc ? query.OrderByDescending(a => a.AccountNumber) : query.OrderBy(a => a.AccountNumber),
+            "brokername" => isDesc ? query.OrderByDescending(a => a.BrokerName) : query.OrderBy(a => a.BrokerName),
+            "servername" => isDesc ? query.OrderByDescending(a => a.ServerName) : query.OrderBy(a => a.ServerName),
+            "role" => isDesc ? query.OrderByDescending(a => a.Role) : query.OrderBy(a => a.Role),
+            "createdat" => isDesc ? query.OrderByDescending(a => a.CreatedAt) : query.OrderBy(a => a.CreatedAt),
+            "balance" => isDesc ? query.OrderByDescending(a => a.Balance) : query.OrderBy(a => a.Balance),
+            "equity" => isDesc ? query.OrderByDescending(a => a.Equity) : query.OrderBy(a => a.Equity),
+            _ => query.OrderByDescending(a => a.CreatedAt)
+        };
+
         var total = await query.CountAsync();
 
         var data = await query
             .Include(a => a.ServerAccount)
                 .ThenInclude(sa => sa!.Server)
             .Include(a => a.Orders.Where(o => o.OrderCloseAt == null))
-            .OrderByDescending(a => a.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

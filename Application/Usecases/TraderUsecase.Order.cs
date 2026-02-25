@@ -15,13 +15,18 @@ public partial class TraderUsecase
             (param.Id == 0 || a.Id == param.Id)
             && (param.AccountId == 0 || a.AccountId == param.AccountId)
             && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
+            && (!param.IsMasterOnly || a.MasterOrderId == null)
             && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
-            && (!param.CloseTicket.HasValue || a.CloseTicket == param.CloseTicket.Value)
-            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
-            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
+            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol.Contains(param.OrderSymbol))
+            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType.Contains(param.OrderType))
             && (param.OrderLot == 0 || a.OrderLot == param.OrderLot)
-            && (!param.OrderMagic.HasValue || a.OrderMagic == param.OrderMagic.Value)
-            && (param.Status == 0 || a.Status == param.Status);
+            && (param.Status == 0 || a.Status == param.Status)
+            && (string.IsNullOrEmpty(param.CopyMessage) || (
+                a.OrderSymbol.Contains(param.CopyMessage) || 
+                a.OrderType.Contains(param.CopyMessage) || 
+                a.OrderTicket.ToString().Contains(param.CopyMessage) ||
+                (a.MasterOrderId.HasValue && a.MasterOrderId.Value.ToString().Contains(param.CopyMessage))
+            ));
     }
 
     public async Task<(Order?, ITError?)> GetOrder(Order param)
@@ -57,7 +62,9 @@ public partial class TraderUsecase
     public async Task<(List<Order>, long total, ITError?)> GetPaginatedOrders(
         Order param,
         int page,
-        int pageSize
+        int pageSize,
+        string? sortBy = null,
+        string? sortOrder = null
     )
     {
         try
@@ -66,10 +73,54 @@ public partial class TraderUsecase
                 FilterOrder(param),
                 page,
                 pageSize,
-                q => q.OrderByDescending(o => o.CreatedAt)
+                q =>
+                {
+                    bool isDesc = sortOrder?.ToLower() == "desc";
+                    return sortBy?.ToLower() switch
+                    {
+                        "id" => isDesc ? q.OrderByDescending(o => o.Id) : q.OrderBy(o => o.Id),
+                        "masterorderid" => isDesc ? q.OrderByDescending(o => o.MasterOrderId) : q.OrderBy(o => o.MasterOrderId),
+                        "ordersymbol" => isDesc ? q.OrderByDescending(o => o.OrderSymbol) : q.OrderBy(o => o.OrderSymbol),
+                        "ordertype" => isDesc ? q.OrderByDescending(o => o.OrderType) : q.OrderBy(o => o.OrderType),
+                        "orderlot" => isDesc ? q.OrderByDescending(o => o.OrderLot) : q.OrderBy(o => o.OrderLot),
+                        "orderprofit" => isDesc ? q.OrderByDescending(o => o.OrderProfit) : q.OrderBy(o => o.OrderProfit),
+                        "createdat" => isDesc ? q.OrderByDescending(o => o.CreatedAt) : q.OrderBy(o => o.CreatedAt),
+                        _ => q.OrderByDescending(o => o.CreatedAt)
+                    };
+                }
             );
             if (data == null)
                 return ([], 0, null);
+
+            // Populate SlaveCounts if searching for master orders
+            if (param.IsMasterOnly && data.Count > 0)
+            {
+                var masterIds = data.Select(o => o.Id).ToList();
+                var slaveStats = await _orderRepository.GetMany(o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value));
+
+                var statsMap = slaveStats
+                    .GroupBy(o => o.MasterOrderId!.Value)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => new
+                        {
+                            Total = g.Count(),
+                            Success = g.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
+                            Failure = g.Count(o => o.Status == OrderStatus.Failed)
+                        }
+                    );
+
+                foreach (var order in data)
+                {
+                    if (statsMap.TryGetValue(order.Id, out var stats))
+                    {
+                        order.SlaveCount = stats.Total;
+                        order.SlaveSuccessCount = stats.Success;
+                        order.SlaveFailureCount = stats.Failure;
+                    }
+                }
+            }
+
             return (data, total, null);
         }
         catch (Exception ex)

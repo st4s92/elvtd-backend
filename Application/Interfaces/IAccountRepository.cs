@@ -9,6 +9,9 @@ public interface IAccountRepository : IRepository<Account>
     Task<(List<Account> data, long total)> GetPaginatedAccounts(
         Account param,
         int page,
-        int pageSize
+        int pageSize,
+        string? sortBy = null,
+        string? sortOrder = null,
+        string? search = null
     );
 }

@@ -47,12 +47,18 @@ public partial class TraderHandler
             OrderSymbol = query.OrderSymbol ?? "",
             OrderType = query.OrderType ?? "",
             Status = query.Status ?? 0,
+            IsMasterOnly = query.IsMasterOnly,
+            CopyMessage = query.Search, // Temporarily hijacking CopyMessage as search string if needed, or update Order model
         };
+
+        Console.WriteLine($"[DEBUG] GetPaginatedOrders: IsMasterOnly={query.IsMasterOnly}, Search='{query.Search}', Page={query.Page}, PerPage={query.PerPage}");
 
         var (res, total, terr) = await _usecase.GetPaginatedOrders(
             orderFilter,
             query.Page,
-            query.PerPage
+            query.PerPage,
+            query.SortBy,
+            query.SortOrder
         );
         if (terr != null)
         {
@@ -60,6 +66,7 @@ public partial class TraderHandler
         }
 
         var resp = new GetPaginatedResponse<Order> { Data = res, Total = total };
+        Console.WriteLine($"[DEBUG] GetPaginatedOrders Result: {res.Count} items, Total {total}");
         return Response.Json(resp);
     }
 

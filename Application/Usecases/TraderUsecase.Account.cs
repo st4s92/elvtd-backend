@@ -64,7 +64,10 @@ public partial class TraderUsecase
     public async Task<(List<Account>, long total, ITError?)> GetPaginatedAccounts(
         Account param,
         int page,
-        int pageSize
+        int pageSize,
+        string? sortBy = null,
+        string? sortOrder = null,
+        string? search = null
     )
     {
         try
@@ -72,7 +75,10 @@ public partial class TraderUsecase
             var (data, total) = await _accountRepository.GetPaginatedAccounts(
                 param,
                 page,
-                pageSize
+                pageSize,
+                sortBy,
+                sortOrder,
+                search
             );
             if (data == null)
                 return ([], 0, null);
