@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using Backend.Helper;
 using Backend.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Application.Usecases;
 
