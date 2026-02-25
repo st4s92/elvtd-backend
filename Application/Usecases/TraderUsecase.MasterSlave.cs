@@ -70,11 +70,21 @@ public partial class TraderUsecase
                 pageSize,
                 q => q.OrderByDescending(o => o.CreatedAt),
                 q => q
-                    .Include(ms => ms.Configs.Where(c => c.DeletedAt == null))
-                    .Include(ms => ms.Pairs.Where(p => p.DeletedAt == null))
+                    .Include(ms => ms.Configs)
+                    .Include(ms => ms.Pairs)
                     .Include(ms => ms.MasterAccount)
                     .Include(ms => ms.SlaveAccount)
             );
+
+            // Filter out soft-deleted configs and pairs in memory
+            if (data != null)
+            {
+                foreach (var item in data)
+                {
+                    item.Configs = item.Configs.Where(c => c.DeletedAt == null).ToList();
+                    item.Pairs = item.Pairs.Where(p => p.DeletedAt == null).ToList();
+                }
+            }
             if (data == null)
                 return ([], 0, null);
             return (data, total, null);

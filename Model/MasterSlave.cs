@@ -20,7 +20,10 @@ public class MasterSlave : IAuditableEntity
     [Column("slave_id")]
     public long SlaveId { get; set; }
 
+    [ForeignKey(nameof(MasterId))]
     public Account? MasterAccount { get; set; }
+
+    [ForeignKey(nameof(SlaveId))]
     public Account? SlaveAccount { get; set; }
 
     // ✅ Add these navigation collections
