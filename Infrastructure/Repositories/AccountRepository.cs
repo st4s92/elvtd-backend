@@ -68,7 +68,6 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
         if (!string.IsNullOrEmpty(search))
         {
             query = query.Where(a =>
-                a.AccountNumber.ToString().Contains(search) ||
                 a.BrokerName.Contains(search) ||
                 a.ServerName.Contains(search) ||
                 a.PlatformName.Contains(search)

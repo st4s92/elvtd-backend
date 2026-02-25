@@ -23,9 +23,7 @@ public partial class TraderUsecase
             && (param.Status == 0 || a.Status == param.Status)
             && (string.IsNullOrEmpty(param.CopyMessage) || (
                 a.OrderSymbol.Contains(param.CopyMessage) || 
-                a.OrderType.Contains(param.CopyMessage) || 
-                a.OrderTicket.ToString().Contains(param.CopyMessage) ||
-                (a.MasterOrderId.HasValue && a.MasterOrderId.Value.ToString().Contains(param.CopyMessage))
+                a.OrderType.Contains(param.CopyMessage)
             ));
     }
 
