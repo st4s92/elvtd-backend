@@ -53,7 +53,7 @@ public partial class TraderHandler
             CopyMessage = query.Search, // Temporarily hijacking CopyMessage as search string if needed, or update Order model
         };
 
-        Console.WriteLine($"[DEBUG] GetPaginatedOrders: IsMasterOnly={query.IsMasterOnly}, Search='{query.Search}', Page={query.Page}, PerPage={query.PerPage}");
+
 
         var (res, total, terr) = await _usecase.GetPaginatedOrders(
             orderFilter,
@@ -68,7 +68,7 @@ public partial class TraderHandler
         }
 
         var resp = new GetPaginatedResponse<Order> { Data = res, Total = total };
-        Console.WriteLine($"[DEBUG] GetPaginatedOrders Result: {res.Count} items, Total {total}");
+
         return Response.Json(resp);
     }
 

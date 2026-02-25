@@ -225,7 +225,7 @@ public class OrderQuery
     public string? OrderType { get; set; }
 
     [JsonPropertyName("order_lot")]
-    public double? OrderLot { get; set; }
+    public decimal? OrderLot { get; set; }
 
     [JsonPropertyName("status")]
     public OrderStatus? Status { get; set; }
