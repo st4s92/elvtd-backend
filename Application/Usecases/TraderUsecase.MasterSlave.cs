@@ -135,14 +135,13 @@ public partial class TraderUsecase
             if (data == null)
                 return (null, TError.NewServer("cannot create new masterSlave"));
 
-            await _systemLogUsecase.CreateLog(new SystemLog
-            {
-                Category = "MasterSlave",
-                Action = "Create",
-                AccountId = data.SlaveId, // or MasterId
-                Level = "Info",
-                Message = $"Created Master-Slave connection: Master {data.MasterId} -> Slave {data.SlaveId}"
-            });
+            await _systemLogUsecase.CreateLog(
+                "MasterSlave",
+                "Create",
+                data.SlaveId, // or MasterId
+                $"Created Master-Slave connection: Master {data.MasterId} -> Slave {data.SlaveId}",
+                "Info"
+            );
 
             return (data, null);
         }
@@ -171,14 +170,13 @@ public partial class TraderUsecase
             if (data == null)
                 return (null, TError.NewServer("cannot save masterSlave"));
 
-            await _systemLogUsecase.CreateLog(new SystemLog
-            {
-                Category = "MasterSlave",
-                Action = "Update",
-                AccountId = param.SlaveId > 0 ? param.SlaveId : (long?)null,
-                Level = "Info",
-                Message = $"Updated Master-Slave connection {id} (Master {param.MasterId} -> Slave {param.SlaveId})"
-            });
+            await _systemLogUsecase.CreateLog(
+                "MasterSlave",
+                "Update",
+                param.SlaveId > 0 ? param.SlaveId : (long?)null,
+                $"Updated Master-Slave connection {id} (Master {param.MasterId} -> Slave {param.SlaveId})",
+                "Info"
+            );
 
             return (data, null);
         }
@@ -342,14 +340,13 @@ public partial class TraderUsecase
 
             await _masterSlaveRepository.CommitAsync();
 
-            await _systemLogUsecase.CreateLog(new SystemLog
-            {
-                Category = "MasterSlave",
-                Action = "EditFullConfig",
-                AccountId = payload.DestinationId, 
-                Level = "Info",
-                Message = $"Edited Master-Slave Full Config ({payload.ConnectionName}): Master {masterId} -> Slave {slaveId} with Multiplier {payload.Multiplier}"
-            });
+            await _systemLogUsecase.CreateLog(
+                "MasterSlave",
+                "EditFullConfig",
+                payload.DestinationId, 
+                $"Edited Master-Slave Full Config ({payload.ConnectionName}): Master {masterId} -> Slave {slaveId} with Multiplier {payload.Multiplier}",
+                "Info"
+            );
 
             return (masterSlave, null);
         }

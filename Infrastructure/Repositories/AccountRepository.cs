@@ -65,7 +65,7 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
 
         var data = await query
             .Include(a => a.ServerAccount)
-                .ThenInclude(sa => sa.Server)
+                .ThenInclude(sa => sa!.Server)
             .Include(a => a.Orders.Where(o => o.OrderCloseAt == null))
             .OrderByDescending(a => a.CreatedAt)
             .Skip((page - 1) * pageSize)

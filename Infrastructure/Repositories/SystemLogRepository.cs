@@ -69,7 +69,7 @@ public class SystemLogRepository : ISystemLogRepository
 
     public async Task<SystemLog?> Save(
         SystemLog data,
-        Expression<Func<SystemLog, bool>> filter = null
+        Expression<Func<SystemLog, bool>>? filter = null
     )
     {
         if (filter != null)

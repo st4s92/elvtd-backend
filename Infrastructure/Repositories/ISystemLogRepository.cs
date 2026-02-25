@@ -5,7 +5,7 @@ namespace Backend.Infrastructure.Repositories;
 
 public interface ISystemLogRepository
 {
-    Task<SystemLog?> Save(SystemLog data, Expression<Func<SystemLog, bool>> filter = null);
+    Task<SystemLog?> Save(SystemLog data, Expression<Func<SystemLog, bool>>? filter = null);
     Task<SystemLog?> Get(Expression<Func<SystemLog, bool>> filter);
     Task<IEnumerable<SystemLog>> GetMany(Expression<Func<SystemLog, bool>> filter);
 
