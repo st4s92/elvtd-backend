@@ -61,7 +61,9 @@ public class Account : IAuditableEntity
     // Reverse navigation
     [JsonIgnore]
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    [JsonIgnore]
     public ICollection<MasterSlave> MasterRelations { get; set; } = new List<MasterSlave>();
+    [JsonIgnore]
     public ICollection<MasterSlave> SlaveRelations { get; set; } = new List<MasterSlave>();
 
     public ServerAccount? ServerAccount { get; set; }

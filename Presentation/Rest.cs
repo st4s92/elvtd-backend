@@ -33,6 +33,14 @@ public static class Rest
 
         builder.Services.AddScoped(typeof(AppLogger<>));
         builder.Services.AddSingleton<IJobPublisher, RabbitMqJobPublisher>();
+        
+        // Fix for 500 Internal Server Error (Circular References in JSON)
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+            options.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        });
+
         builder.Services.AddScoped<IServerAccountRepository, ServerAccountRepository>();
         builder.Services.AddScoped<IServerRepository, ServerRepository>();
         builder.Services.AddScoped<IMasterSlaveRepository, MasterSlaveRepository>();
