@@ -134,6 +134,16 @@ public partial class TraderUsecase
             var data = await _masterSlaveRepository.Save(masterSlave);
             if (data == null)
                 return (null, TError.NewServer("cannot create new masterSlave"));
+
+            await _systemLogUsecase.CreateLog(new SystemLog
+            {
+                Category = "MasterSlave",
+                Action = "Create",
+                AccountId = data.SlaveId, // or MasterId
+                Level = "Info",
+                Message = $"Created Master-Slave connection: Master {data.MasterId} -> Slave {data.SlaveId}"
+            });
+
             return (data, null);
         }
         catch (Exception ex)
@@ -160,6 +170,15 @@ public partial class TraderUsecase
             var data = await _masterSlaveRepository.Save(param, a => a.Id == id);
             if (data == null)
                 return (null, TError.NewServer("cannot save masterSlave"));
+
+            await _systemLogUsecase.CreateLog(new SystemLog
+            {
+                Category = "MasterSlave",
+                Action = "Update",
+                AccountId = param.SlaveId > 0 ? param.SlaveId : (long?)null,
+                Level = "Info",
+                Message = $"Updated Master-Slave connection {id} (Master {param.MasterId} -> Slave {param.SlaveId})"
+            });
 
             return (data, null);
         }
@@ -322,6 +341,15 @@ public partial class TraderUsecase
             }
 
             await _masterSlaveRepository.CommitAsync();
+
+            await _systemLogUsecase.CreateLog(new SystemLog
+            {
+                Category = "MasterSlave",
+                Action = "EditFullConfig",
+                AccountId = payload.DestinationId, 
+                Level = "Info",
+                Message = $"Edited Master-Slave Full Config ({payload.ConnectionName}): Master {masterId} -> Slave {slaveId} with Multiplier {payload.Multiplier}"
+            });
 
             return (masterSlave, null);
         }
