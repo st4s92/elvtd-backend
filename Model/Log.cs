@@ -160,3 +160,69 @@ public class SyncAccountStatePayload
     [JsonPropertyName("positions")]
     public List<OrderLogPayload> Positions { get; set; } = new();
 }
+
+[Table("system_logs")]
+public class SystemLog : IAuditableEntity
+{
+    [Key]
+    [Column("id")]
+    public long Id { get; set; }
+
+    [Column("category"), MaxLength(50)]
+    public string Category { get; set; } = ""; // e.g., "Account", "Order", "System"
+
+    [Column("action"), MaxLength(50)]
+    public string Action { get; set; } = ""; // e.g., "Create", "Delete", "Install", "Restart"
+
+    [Column("account_id")]
+    public long? AccountId { get; set; } // Nullable, as some logs might be system-wide
+
+    [JsonIgnore]
+    [ForeignKey(nameof(AccountId))]
+    public Account? Account { get; set; }
+
+    [Column("message")]
+    public string Message { get; set; } = "";
+
+    [Column("level"), MaxLength(20)]
+    public string Level { get; set; } = "Info"; // "Info", "Warning", "Error"
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; }
+
+    [Column("updated_at")]
+    public DateTime UpdatedAt { get; set; }
+
+    [Column("deleted_at")]
+    public DateTime? DeletedAt { get; set; }
+
+    public bool IsDeleted => DeletedAt.HasValue;
+}
+
+public class SystemLogGetPayload
+{
+    public string? Category { get; set; }
+    public string? Action { get; set; }
+    public long? AccountNumber { get; set; }
+    public string? Level { get; set; }
+    public string? Search { get; set; }
+}
+
+public class SystemLogGetPaginatedPayload : SystemLogGetPayload
+{
+    public int Page { get; set; } = 1;
+    public int PerPage { get; set; } = 10;
+}
+
+public class SystemLogDto
+{
+    public long Id { get; set; }
+    public string Category { get; set; } = "";
+    public string Action { get; set; } = "";
+    public long? AccountId { get; set; }
+    public long? AccountNumber { get; set; }
+    public string? ServerName { get; set; }
+    public string Message { get; set; } = "";
+    public string Level { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+}

@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
 
     public DbSet<ActiveOrder> ActiveOrders => Set<ActiveOrder>();
     public DbSet<SymbolMap> SymbolMaps => Set<SymbolMap>();
+    public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options) { }
@@ -45,6 +46,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<OrderLog>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<AccountLog>().HasQueryFilter(e => e.DeletedAt == null);
         modelBuilder.Entity<SymbolMap>().HasQueryFilter(e => e.DeletedAt == null);
+        modelBuilder.Entity<SystemLog>().HasQueryFilter(e => e.DeletedAt == null);
 
         // Unique index: one broker_symbol per broker/server
         modelBuilder.Entity<SymbolMap>()

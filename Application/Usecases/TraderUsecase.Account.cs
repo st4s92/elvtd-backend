@@ -146,6 +146,7 @@ public partial class TraderUsecase
             Console.WriteLine("try to publish event");
 
             await _jobPublisher.PublishCreateJob(job);
+            await _systemLogUsecase.CreateLog("Account", "Create", data.Id, $"Account {data.AccountNumber} created on server {server.ServerName}.");
 
             return (data, null);
         }
@@ -207,6 +208,7 @@ public partial class TraderUsecase
             Console.WriteLine("try to publish event");
 
             await _jobPublisher.PublishCreateJob(job);
+            await _systemLogUsecase.CreateLog("Account", "Install", accountID, $"Installation triggered for account {acc.AccountNumber}.");
 
             return null;
         }
@@ -248,6 +250,7 @@ public partial class TraderUsecase
             Console.WriteLine("try to publish restart event");
 
             await _jobPublisher.PublishRestartJob(job);
+            await _systemLogUsecase.CreateLog("Account", "Restart", accountID, $"Restart triggered for account {acc.AccountNumber}.");
 
             return null;
         }
@@ -278,6 +281,8 @@ public partial class TraderUsecase
             var data = await _accountRepository.Save(existing, a => a.Id == id);
             if (data == null)
                 return (null, TError.NewServer("cannot save account"));
+
+            await _systemLogUsecase.CreateLog("Account", "Update", id, $"Account {data.AccountNumber} details updated.");
 
             return (data, null);
         }
@@ -319,6 +324,7 @@ public partial class TraderUsecase
             Console.WriteLine("try to publish delete account event");
 
             await _jobPublisher.PublishDeleteJob(job);
+            await _systemLogUsecase.CreateLog("Account", "Delete", id, $"Account {existing.AccountNumber} soft deleted.");
 
             return null;
         }

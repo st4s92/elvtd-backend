@@ -41,6 +41,7 @@ var api = app.MapGroup("/api");
 api.MapUserRoutes();
 api.MapCtraderRoutes();
 api.MapTraderRoutes();
+api.MapLogRoutes();
 
 // Socket.Init(app);
 

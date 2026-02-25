@@ -22,6 +22,7 @@ public partial class TraderUsecase
     private readonly WebSocketServer _wsServer;
     private readonly IJobPublisher _jobPublisher;
     private readonly ISymbolMapRepository _symbolMapRepository;
+    private readonly SystemLogUsecase _systemLogUsecase;
     public TraderUsecase(
         ITradingRepository tradingRepository,
         IAccountRepository accountRepository,
@@ -38,7 +39,8 @@ public partial class TraderUsecase
         AppLogger<TraderUsecase> logger,
         WebSocketServer wsServer,
         IJobPublisher jobPublisher,
-        ISymbolMapRepository symbolMapRepository
+        ISymbolMapRepository symbolMapRepository,
+        SystemLogUsecase systemLogUsecase
     )
     {
         _tradingRepository = tradingRepository;
@@ -57,5 +59,6 @@ public partial class TraderUsecase
         _wsServer = wsServer;
         _jobPublisher = jobPublisher;
         _symbolMapRepository = symbolMapRepository;
+        _systemLogUsecase = systemLogUsecase;
     }
 }
