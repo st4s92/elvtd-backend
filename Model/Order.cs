@@ -89,7 +89,7 @@ public class Order : IAuditableEntity
     public int SlaveFailureCount { get; set; }
 
     [NotMapped]
-    public bool IsMasterOnly { get; set; }
+    public bool? IsMasterOnly { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
@@ -222,13 +222,13 @@ public class OrderQuery
     public string? OrderType { get; set; }
 
     [JsonPropertyName("status")]
-    public OrderStatus? Status { get; set; } = OrderStatus.None;
+    public OrderStatus? Status { get; set; }
 
     [JsonPropertyName("search")]
     public string? Search { get; set; }
 
     [JsonPropertyName("is_master_only")]
-    public bool IsMasterOnly { get; set; }
+    public bool? IsMasterOnly { get; set; }
 }
 
 public class OrderGetPaginatedPayload : OrderQuery

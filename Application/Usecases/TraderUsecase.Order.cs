@@ -15,15 +15,16 @@ public partial class TraderUsecase
             (param.Id == 0 || a.Id == param.Id)
             && (param.AccountId == 0 || a.AccountId == param.AccountId)
             && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
-            && (!param.IsMasterOnly || a.MasterOrderId == null)
+            && (param.IsMasterOnly != true || a.MasterOrderId == null)
             && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
-            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol.Contains(param.OrderSymbol))
-            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType.Contains(param.OrderType))
+            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
+            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
             && (param.OrderLot == 0 || a.OrderLot == param.OrderLot)
             && (param.Status == 0 || a.Status == param.Status)
             && (string.IsNullOrEmpty(param.CopyMessage) || (
-                a.OrderSymbol.Contains(param.CopyMessage) || 
-                a.OrderType.Contains(param.CopyMessage)
+                (a.OrderSymbol != null && a.OrderSymbol.Contains(param.CopyMessage)) || 
+                (a.OrderType != null && a.OrderType.Contains(param.CopyMessage)) ||
+                (a.CopyMessage != null && a.CopyMessage.Contains(param.CopyMessage))
             ));
     }
 
