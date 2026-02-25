@@ -15,6 +15,7 @@ public class MasterSlaveConfig : IAuditableEntity
     [Column("master_slave_id")]
     public long MasterSlaveId { get; set; }
 
+    [JsonIgnore]
     [ForeignKey(nameof(MasterSlaveId))]
     public virtual MasterSlave? MasterSlave { get; set; }
 
