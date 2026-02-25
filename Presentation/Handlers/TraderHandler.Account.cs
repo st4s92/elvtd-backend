@@ -202,6 +202,22 @@ public partial class TraderHandler
         return Response.Json("ok");
     }
 
+    public async Task<IResult> TriggerRestartByAccountId(long id)
+    {
+        if (id == 0)
+        {
+            var terrs = TError.NewClient("Id should be filled");
+            return Response.Json(terrs);
+        }
+
+        var terr = await _usecase.TriggerRestartByAccountId(id);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
+
     public async Task<IResult> GetMasterOrderStatus(BridgeListCreateOrderPayload payload)
     {
         if (payload.AccountId == 0 || payload.ServerName == "")

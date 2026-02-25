@@ -6,6 +6,7 @@ public interface IJobPublisher
 {
     Task PublishCreateJob(TradePlatformCreateJob job);
     Task PublishDeleteJob(TradePlatformCreateJob job);
+    Task PublishRestartJob(TradePlatformCreateJob job);
     Task PublishMt5Packet(
         string server,
         long account,

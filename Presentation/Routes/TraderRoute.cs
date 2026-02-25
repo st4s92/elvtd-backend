@@ -188,6 +188,17 @@ public static class TraderRoutes
             .WithTags("Account");
 
         group
+            .MapPost(
+                "/trader/account/{id:int}/restart",
+                async (int id, TraderHandler handler) =>
+                {
+                    return await handler.TriggerRestartByAccountId(id);
+                }
+            )
+            .WithName("TriggerRestartByAccountId")
+            .WithTags("Account");
+
+        group
             .MapGet(
                 "/trader/account",
                 async ([AsParameters] AccountGetPayload query, TraderHandler handler) =>

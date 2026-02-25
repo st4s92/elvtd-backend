@@ -216,6 +216,47 @@ public partial class TraderUsecase
         }
     }
 
+    public async Task<ITError?> TriggerRestartByAccountId(long accountID)
+    {
+        try
+        {
+            var (masAcc, terr) = await GetServerAccount(
+                new ServerAccount { AccountId = accountID }
+            );
+            if (terr != null)
+                return terr;
+
+            Account? acc;
+            (acc, terr) = await GetAccount(new Account { Id = accountID });
+            if (terr != null)
+                return terr;
+
+            var job = new TradePlatformCreateJob
+            {
+                Id = accountID,
+                PlatformName = acc!.PlatformName,
+                AccountNumber = acc!.AccountNumber,
+                AccountPassword = acc!.AccountPassword,
+                BrokerName = acc!.BrokerName,
+                ServerName = acc!.ServerName,
+                UserId = acc!.UserId,
+                Role = acc!.Role,
+                Status = (int)masAcc!.Status,
+                Message = masAcc.Message,
+                Pid = masAcc.PlatformPid ?? 0,
+            };
+            Console.WriteLine("try to publish restart event");
+
+            await _jobPublisher.PublishRestartJob(job);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return TError.NewServer(ex.Message);
+        }
+    }
+
     public async Task<(Account?, ITError?)> UpdateAccountById(long id, Account param)
     {
         try

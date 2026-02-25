@@ -56,6 +56,23 @@ public class RabbitMqJobPublisher : IJobPublisher
         return Task.CompletedTask;
     }
 
+    public Task PublishRestartJob(TradePlatformCreateJob job)
+    {
+        var body = JsonSerializer.SerializeToUtf8Bytes(job);
+        Console.WriteLine(Encoding.UTF8.GetString(body.ToArray()));
+
+        _channel.QueueDeclare("platform.restart", true, false, false, null);
+
+        _channel.BasicPublish(
+            exchange: "",
+            routingKey: "platform.restart",
+            basicProperties: null,
+            body: body
+        );
+
+        return Task.CompletedTask;
+    }
+
     public Task PublishMt5Packet(
         string server,
         long account,
