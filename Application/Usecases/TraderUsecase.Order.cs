@@ -92,7 +92,7 @@ public partial class TraderUsecase
                 return ([], 0, null);
 
             // Populate SlaveCounts if searching for master orders
-            if (param.IsMasterOnly && data.Count > 0)
+            if (param.IsMasterOnly == true && data.Count > 0)
             {
                 var masterIds = data.Select(o => o.Id).ToList();
                 var slaveStats = await _orderRepository.GetMany(o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value));
