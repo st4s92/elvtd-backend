@@ -149,6 +149,9 @@ public class BridgeOrderItem
     [JsonPropertyName("order_close_price")]
     public decimal OrderClosePrice { get; set; }
 
+    [JsonPropertyName("order_profit")]
+    public decimal? OrderProfit { get; set; }
+
     [JsonPropertyName("order_comment")]
     public string OrderMagic { get; set; } = "";
 

@@ -208,6 +208,7 @@ public partial class TraderUsecase
                 existingOrder.OrderCloseAt = DateTime.UtcNow;
                 existingOrder.ClosePrice = payload.Order.OrderClosePrice;
                 existingOrder.Status = OrderStatus.Complete;
+                existingOrder.OrderProfit = payload.Order.OrderProfit;
             }
 
             if (existingOrder == null)
@@ -286,12 +287,24 @@ public partial class TraderUsecase
             if (deletedOrders.Any())
             {
                 var deletedIds = deletedOrders.Select(o => o.Id).ToList();
+                var deletedTickets = deletedOrders.Select(o => o.OrderTicket).ToList();
+
+                var latestLogs = await _orderLogRepository.GetMany(log => log.AccountId == account!.Id && deletedTickets.Contains(log.OrderTicket));
+                var logMap = latestLogs.GroupBy(log => log.OrderTicket).ToDictionary(g => g.Key, g => g.OrderByDescending(log => log.CreatedAt).FirstOrDefault());
+
                 await _orderRepository.UpdateMany(
                     o => deletedIds.Contains(o.Id),
                     item =>
                     {
                         item.OrderCloseAt = closeOrderAt;
                         item.Status = OrderStatus.Complete;
+                        
+                        // Capture PnL from the last known OrderLog
+                        if (logMap.TryGetValue(item.OrderTicket, out var log) && log != null)
+                        {
+                            item.OrderProfit = log.OrderProfit;
+                            item.ClosePrice = log.LastPrice ?? log.OrderPrice;
+                        }
                     }
                 );
             }
