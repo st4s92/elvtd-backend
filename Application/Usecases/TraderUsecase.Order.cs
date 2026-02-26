@@ -112,7 +112,7 @@ public partial class TraderUsecase
                     Status = ao.Status,
                     CreatedAt = ao.CreatedAt,
                     UpdatedAt = ao.UpdatedAt,
-                    OrderOpenAt = ao.CreatedAt, // Active orders use CreatedAt as Open date
+                    OrderOpenAt = ao.OrderOpenAt ?? ao.CreatedAt, 
                 }).ToList();
 
                 // Hydrate Account for active orders
@@ -1228,6 +1228,7 @@ public partial class TraderUsecase
                 dbOrder.OrderTicket = mtPos.OrderTicket;
                 dbOrder.OrderProfit = mtPos.OrderProfit;
                 dbOrder.OrderPrice = mtPos.OrderPrice;
+                dbOrder.OrderOpenAt = mtPos.OrderOpenAt;
                 dbOrder.Status = OrderStatus.Success;
 
                 await _activeOrderRepository.Update(dbOrder);

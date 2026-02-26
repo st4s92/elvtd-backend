@@ -57,8 +57,12 @@ public class ActiveOrder : IAuditableEntity
     [Column("order_price", TypeName = "decimal(13,6)")]
     public decimal OrderPrice { get; set; }
 
+    [Column("order_open_at")]
+    public DateTime? OrderOpenAt { get; set; }
+
     [Column("order_profit", TypeName = "decimal(13,2)")]
     public decimal? OrderProfit { get; set; }
+
 
     [Column("status")]
     public OrderStatus Status { get; set; }
