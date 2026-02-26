@@ -21,15 +21,19 @@ public class Order : IAuditableEntity
 {
     [Key]
     [Column("id")]
+    [JsonPropertyName("id")]
     public long Id { get; set; }
 
     [Column("account_id")]
+    [JsonPropertyName("account_id")]
     public long AccountId { get; set; }
 
     [ForeignKey(nameof(AccountId))]
+    [JsonPropertyName("account")]
     public Account? Account { get; set; }
 
     [Column("master_order_id")]
+    [JsonPropertyName("master_order_id")]
     public long? MasterOrderId { get; set; }
 
     [JsonIgnore]
@@ -37,75 +41,99 @@ public class Order : IAuditableEntity
     public Order? MasterOrder { get; set; }
 
     [Column("order_ticket")]
+    [JsonPropertyName("order_ticket")]
     public long OrderTicket { get; set; }
 
     [Column("close_ticket")]
+    [JsonPropertyName("close_ticket")]
     public long? CloseTicket { get; set; }
 
     [Column("order_symbol"), MaxLength(20)]
+    [JsonPropertyName("order_symbol")]
     public string OrderSymbol { get; set; } = "";
 
     [Column("order_type"), MaxLength(20)]
+    [JsonPropertyName("order_type")]
     public string OrderType { get; set; } = "";
 
     [Column("order_lot", TypeName = "decimal(13,3)")]
+    [JsonPropertyName("order_lot")]
     public decimal OrderLot { get; set; }
 
     [Column("order_price", TypeName = "decimal(13,6)")]
+    [JsonPropertyName("order_price")]
     public decimal? OrderPrice { get; set; }
 
     [Column("close_price", TypeName = "decimal(13,6)")]
+    [JsonPropertyName("close_price")]
     public decimal? ClosePrice { get; set; }
 
     [Column("order_magic")]
+    [JsonPropertyName("order_magic")]
     public long? OrderMagic { get; set; }
 
     [Column("status")]
+    [JsonPropertyName("status")]
     public OrderStatus Status { get; set; }
 
     [Column("copy_message"), MaxLength(255)]
+    [JsonPropertyName("copy_message")]
     public string? CopyMessage { get; set; }
 
     [Column("order_open_at")]
+    [JsonPropertyName("order_open_at")]
     public DateTime? OrderOpenAt { get; set; }
 
     [Column("order_copied_at")]
+    [JsonPropertyName("order_copied_at")]
     public DateTime? OrderCopiedAt { get; set; }
 
     [Column("order_close_at")]
+    [JsonPropertyName("order_close_at")]
     public DateTime? OrderCloseAt { get; set; }
 
     [Column("order_profit", TypeName = "decimal(13,2)")]
+    [JsonPropertyName("order_profit")]
     public decimal? OrderProfit { get; set; }
 
     [NotMapped]
+    [JsonPropertyName("average_execution_lag")]
     public long? AverageExecutionLag { get; set; }
 
     [NotMapped]
+    [JsonPropertyName("max_execution_lag")]
     public long? MaxExecutionLag { get; set; }
 
     [NotMapped]
+    [JsonPropertyName("slave_count")]
     public int SlaveCount { get; set; }
 
     [NotMapped]
+    [JsonPropertyName("slave_success_count")]
     public int SlaveSuccessCount { get; set; }
 
     [NotMapped]
+    [JsonPropertyName("slave_failure_count")]
     public int SlaveFailureCount { get; set; }
 
     [NotMapped]
+    [JsonPropertyName("is_master_only")]
     public bool? IsMasterOnly { get; set; }
 
     [NotMapped]
+    [JsonPropertyName("is_closed")]
     public bool? IsClosed { get; set; }
 
     [Column("created_at")]
+    [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 
     [Column("updated_at")]
+    [JsonPropertyName("updated_at")]
     public DateTime UpdatedAt { get; set; }
 
     [Column("deleted_at")]
+    [JsonPropertyName("deleted_at")]
     public DateTime? DeletedAt { get; set; }
 
     public bool IsDeleted => DeletedAt.HasValue;

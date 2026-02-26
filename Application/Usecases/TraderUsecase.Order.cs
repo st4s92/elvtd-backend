@@ -112,6 +112,7 @@ public partial class TraderUsecase
                     Status = ao.Status,
                     CreatedAt = ao.CreatedAt,
                     UpdatedAt = ao.UpdatedAt,
+                    OrderOpenAt = ao.CreatedAt, // Active orders use CreatedAt as Open date
                 }).ToList();
 
                 // Hydrate Account for active orders
