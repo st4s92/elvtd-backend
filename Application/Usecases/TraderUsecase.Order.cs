@@ -126,8 +126,35 @@ public partial class TraderUsecase
                     }
                 }
 
-                combinedOrders.AddRange(ordersFromDb);
-                combinedOrders.AddRange(activeAsOrders);
+                // Deduplicate: If an order exists in both tables, merge or prefer activeAsOrders for live data
+                var uniqueOrdersMap = new Dictionary<string, Order>();
+
+                foreach (var o in ordersFromDb)
+                {
+                    var key = $"{o.AccountId}_{o.MasterOrderId}";
+                    uniqueOrdersMap[key] = o;
+                }
+
+                foreach (var ao in activeAsOrders)
+                {
+                    var key = $"{ao.AccountId}_{ao.MasterOrderId}";
+                    if (uniqueOrdersMap.TryGetValue(key, out var existing))
+                    {
+                        // Merge live data into existing DB record
+                        existing.OrderPrice = ao.OrderPrice;
+                        existing.OrderProfit = ao.OrderProfit;
+                        existing.OrderTicket = ao.OrderTicket;
+                        existing.Status = ao.Status;
+                        existing.OrderOpenAt = ao.OrderOpenAt;
+                        if (existing.Account == null) existing.Account = ao.Account;
+                    }
+                    else
+                    {
+                        uniqueOrdersMap[key] = ao;
+                    }
+                }
+
+                combinedOrders = uniqueOrdersMap.Values.ToList();
 
                 // Sorting Combined
                 bool isDesc = sortOrder?.ToLower() == "desc";
@@ -136,9 +163,9 @@ public partial class TraderUsecase
                 sorted = sortField switch
                 {
                     "id" => isDesc ? sorted.OrderByDescending(o => o.Id) : sorted.OrderBy(o => o.Id),
-                "createdat" => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt),
-                "orderopenat" => isDesc ? sorted.OrderByDescending(o => o.OrderOpenAt) : sorted.OrderBy(o => o.OrderOpenAt),
-                "orderprofit" => isDesc ? sorted.OrderByDescending(o => o.OrderProfit) : sorted.OrderBy(o => o.OrderProfit),
+                    "createdat" => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt),
+                    "orderopenat" => isDesc ? sorted.OrderByDescending(o => o.OrderOpenAt) : sorted.OrderBy(o => o.OrderOpenAt),
+                    "orderprofit" => isDesc ? sorted.OrderByDescending(o => o.OrderProfit) : sorted.OrderBy(o => o.OrderProfit),
                     "orderprice" => isDesc ? sorted.OrderByDescending(o => o.OrderPrice) : sorted.OrderBy(o => o.OrderPrice),
                     "orderlot" => isDesc ? sorted.OrderByDescending(o => o.OrderLot) : sorted.OrderBy(o => o.OrderLot),
                     _ => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt)
