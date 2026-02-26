@@ -80,6 +80,12 @@ public class Order : IAuditableEntity
     public decimal? OrderProfit { get; set; }
 
     [NotMapped]
+    public long? AverageExecutionLag { get; set; }
+
+    [NotMapped]
+    public long? MaxExecutionLag { get; set; }
+
+    [NotMapped]
     public int SlaveCount { get; set; }
 
     [NotMapped]
@@ -235,6 +241,9 @@ public class OrderQuery
 
     [JsonPropertyName("is_master_only")]
     public bool? IsMasterOnly { get; set; }
+
+    [JsonPropertyName("is_closed")]
+    public bool? IsClosed { get; set; }
 }
 
 public class OrderGetPaginatedPayload : OrderQuery

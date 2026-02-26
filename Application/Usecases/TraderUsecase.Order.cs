@@ -21,6 +21,7 @@ public partial class TraderUsecase
             && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
             && (param.OrderLot == 0 || a.OrderLot == param.OrderLot)
             && (param.Status == 0 || a.Status == param.Status)
+            && (param.IsClosed == null || (param.IsClosed == true ? a.OrderCloseAt != null : a.OrderCloseAt == null))
             && (string.IsNullOrEmpty(param.CopyMessage) || (
                 (a.OrderSymbol != null && a.OrderSymbol.Contains(param.CopyMessage)) || 
                 (a.OrderType != null && a.OrderType.Contains(param.CopyMessage)) ||
@@ -101,11 +102,24 @@ public partial class TraderUsecase
                     .GroupBy(o => o.MasterOrderId!.Value)
                     .ToDictionary(
                         g => g.Key,
-                        g => new
-                        {
-                            Total = g.Count(),
-                            Success = g.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
-                            Failure = g.Count(o => o.Status == OrderStatus.Failed)
+                        g => {
+                            var slaves = g.ToList();
+                            var masterOrder = data.FirstOrDefault(d => d.Id == g.Key);
+                            long avgLag = 0;
+                            long maxLag = 0;
+                            if (masterOrder != null && slaves.Any()) {
+                                var lags = slaves.Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds).ToList();
+                                avgLag = (long)lags.Average();
+                                maxLag = lags.Max();
+                            }
+                            return new
+                            {
+                                Total = slaves.Count,
+                                Success = slaves.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
+                                Failure = slaves.Count(o => o.Status == OrderStatus.Failed),
+                                AvgLag = avgLag,
+                                MaxLag = maxLag
+                            };
                         }
                     );
 
@@ -116,6 +130,8 @@ public partial class TraderUsecase
                         order.SlaveCount = stats.Total;
                         order.SlaveSuccessCount = stats.Success;
                         order.SlaveFailureCount = stats.Failure;
+                        order.AverageExecutionLag = stats.AvgLag;
+                        order.MaxExecutionLag = stats.MaxLag;
                     }
                 }
             }
