@@ -96,6 +96,9 @@ public class Order : IAuditableEntity
     [NotMapped]
     public bool? IsMasterOnly { get; set; }
 
+    [NotMapped]
+    public bool? IsClosed { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 

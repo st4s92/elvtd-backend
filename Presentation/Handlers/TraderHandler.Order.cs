@@ -50,6 +50,7 @@ public partial class TraderHandler
             OrderLot = query.OrderLot ?? 0,
             Status = query.Status ?? 0,
             IsMasterOnly = query.IsMasterOnly,
+            IsClosed = query.IsClosed,
             CopyMessage = query.Search, // Temporarily hijacking CopyMessage as search string if needed, or update Order model
         };
 
