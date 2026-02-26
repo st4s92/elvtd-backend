@@ -177,6 +177,17 @@ public partial class TraderUsecase
                 total = combinedOrders.Count;
                 var data = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
+                // Final Hydration Pass: Ensure all orders in result set have Account info
+                var missingAccIds = data.Where(o => o.Account == null).Select(o => o.AccountId).Distinct().ToList();
+                if (missingAccIds.Count > 0)
+                {
+                    var missingAccounts = await _accountRepository.GetMany(a => missingAccIds.Contains(a.Id));
+                    foreach (var o in data.Where(o => o.Account == null))
+                    {
+                        o.Account = missingAccounts.FirstOrDefault(a => a.Id == o.AccountId);
+                    }
+                }
+
                 // Populate SlaveCounts etc for masters
                 if (param.IsMasterOnly == true && data.Count > 0)
                 {
@@ -293,6 +304,17 @@ public partial class TraderUsecase
                             order.AverageExecutionLag = stats.AvgLag;
                             order.MaxExecutionLag = stats.MaxLag;
                         }
+                    }
+                }
+
+                // Final Hydration Pass: Ensure all orders in result set have Account info
+                var missingAccIds = data.Where(o => o.Account == null).Select(o => o.AccountId).Distinct().ToList();
+                if (missingAccIds.Count > 0)
+                {
+                    var missingAccounts = await _accountRepository.GetMany(a => missingAccIds.Contains(a.Id));
+                    foreach (var o in data.Where(o => o.Account == null))
+                    {
+                        o.Account = missingAccounts.FirstOrDefault(a => a.Id == o.AccountId);
                     }
                 }
 
