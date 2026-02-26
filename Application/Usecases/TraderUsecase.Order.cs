@@ -131,13 +131,16 @@ public partial class TraderUsecase
 
                 foreach (var o in ordersFromDb)
                 {
-                    var key = $"{o.AccountId}_{o.MasterOrderId}";
+                    // If MasterOrderId is null, it's a MASTER order -> needs unique key (Id)
+                    // If MasterOrderId is NOT null, it's a SLAVE order -> deduplicate by Account+MasterRef
+                    var key = o.MasterOrderId == null ? $"m_{o.Id}" : $"s_{o.AccountId}_{o.MasterOrderId}";
                     uniqueOrdersMap[key] = o;
                 }
 
                 foreach (var ao in activeAsOrders)
                 {
-                    var key = $"{ao.AccountId}_{ao.MasterOrderId}";
+                    // Active orders are always slaves.
+                    var key = $"s_{ao.AccountId}_{ao.MasterOrderId}";
                     if (uniqueOrdersMap.TryGetValue(key, out var existing))
                     {
                         // Merge live data into existing DB record
