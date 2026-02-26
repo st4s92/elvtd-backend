@@ -78,6 +78,14 @@ public class AppDbContext : DbContext
             .HasForeignKey(o => o.AccountId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // ActiveOrders → Accounts
+        modelBuilder
+            .Entity<ActiveOrder>()
+            .HasOne(a => a.Account)
+            .WithMany(u => u.ActiveOrders)
+            .HasForeignKey(o => o.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Orders self-reference for master-slave link
         modelBuilder
             .Entity<Order>()

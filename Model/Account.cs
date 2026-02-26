@@ -66,6 +66,9 @@ public class Account : IAuditableEntity
     [JsonIgnore]
     public ICollection<MasterSlave> SlaveRelations { get; set; } = new List<MasterSlave>();
 
+    [JsonIgnore]
+    public ICollection<ActiveOrder> ActiveOrders { get; set; } = new List<ActiveOrder>();
+
     public ServerAccount? ServerAccount { get; set; }
 }
 

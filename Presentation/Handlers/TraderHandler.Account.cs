@@ -121,7 +121,7 @@ public partial class TraderHandler
             UpdatedAt = a.UpdatedAt,
             Balance = a.Balance,
             Equity = a.Equity,
-            OpenPositionsCount = a.Orders.Count,
+            OpenPositionsCount = a.Orders.Count + a.ActiveOrders.Count,
             DedicatedServerName = a.ServerAccount?.Server?.ServerName ?? "-",
         })
             .ToList();

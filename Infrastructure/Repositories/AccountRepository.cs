@@ -96,6 +96,7 @@ public class AccountRepository : BaseRepository<Account>, IAccountRepository
             .Include(a => a.ServerAccount)
                 .ThenInclude(sa => sa!.Server)
             .Include(a => a.Orders.Where(o => o.OrderCloseAt == null))
+            .Include(a => a.ActiveOrders)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

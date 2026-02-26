@@ -19,6 +19,9 @@ public class ActiveOrder : IAuditableEntity
     [Column("account_id")]
     public long AccountId { get; set; } // SLAVE account id
 
+    [ForeignKey(nameof(AccountId))]
+    public Account? Account { get; set; }
+
     [Column("account_number")]
     public long AccountNumber { get; set; } // SLAVE MT5 account number
 

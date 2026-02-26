@@ -26,7 +26,6 @@ public class Order : IAuditableEntity
     [Column("account_id")]
     public long AccountId { get; set; }
 
-    [JsonIgnore]
     [ForeignKey(nameof(AccountId))]
     public Account? Account { get; set; }
 

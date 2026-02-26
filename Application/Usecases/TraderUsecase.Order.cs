@@ -29,6 +29,19 @@ public partial class TraderUsecase
             ));
     }
 
+    private static Expression<Func<ActiveOrder, bool>> FilterActiveOrder(Order param)
+    {
+        return a =>
+            (param.AccountId == 0 || a.AccountId == param.AccountId)
+            && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
+            && (param.IsMasterOnly != true) // Active orders are always slaves
+            && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
+            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
+            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
+            && (param.OrderLot == 0 || a.OrderLot == param.OrderLot)
+            && (param.Status == 0 || a.Status == param.Status);
+    }
+
     public async Task<(Order?, ITError?)> GetOrder(Order param)
     {
         try
@@ -69,74 +82,190 @@ public partial class TraderUsecase
     {
         try
         {
-            var (data, total) = await _orderRepository.GetPaginated(
-                FilterOrder(param),
-                page,
-                pageSize,
-                q =>
-                {
-                    bool isDesc = sortOrder?.ToLower() == "desc";
-                    return sortBy?.ToLower() switch
-                    {
-                        "id" => isDesc ? q.OrderByDescending(o => o.Id) : q.OrderBy(o => o.Id),
-                        "masterorderid" => isDesc ? q.OrderByDescending(o => o.MasterOrderId) : q.OrderBy(o => o.MasterOrderId),
-                        "ordersymbol" => isDesc ? q.OrderByDescending(o => o.OrderSymbol) : q.OrderBy(o => o.OrderSymbol),
-                        "ordertype" => isDesc ? q.OrderByDescending(o => o.OrderType) : q.OrderBy(o => o.OrderType),
-                        "orderlot" => isDesc ? q.OrderByDescending(o => o.OrderLot) : q.OrderBy(o => o.OrderLot),
-                        "orderprofit" => isDesc ? q.OrderByDescending(o => o.OrderProfit) : q.OrderBy(o => o.OrderProfit),
-                        "createdat" => isDesc ? q.OrderByDescending(o => o.CreatedAt) : q.OrderBy(o => o.CreatedAt),
-                        _ => q.OrderByDescending(o => o.CreatedAt)
-                    };
-                }
-            );
-            if (data == null)
-                return ([], 0, null);
+            List<Order> combinedOrders = new List<Order>();
+            long total = 0;
 
-            // Populate SlaveCounts if searching for master orders
-            if (param.IsMasterOnly == true && data.Count > 0)
+            // If we are NOT explicitly asking for only closed orders, we should include active_orders
+            if (param.IsClosed != true)
             {
-                var masterIds = data.Select(o => o.Id).ToList();
-                var slaveStats = await _orderRepository.GetMany(o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value));
+                // Fetch Master and potential open/closed orders from orders table
+                var (ordersFromDb, _) = await _orderRepository.GetPaginated(
+                    FilterOrder(param),
+                    1, 2000, // Fetch more for combination
+                    q => q.OrderByDescending(o => o.CreatedAt),
+                    q => q.Include(o => o.Account)
+                );
 
-                var statsMap = slaveStats
-                    .GroupBy(o => o.MasterOrderId!.Value)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => {
-                            var slaves = g.ToList();
-                            var masterOrder = data.FirstOrDefault(d => d.Id == g.Key);
-                            long avgLag = 0;
-                            long maxLag = 0;
-                            if (masterOrder != null && slaves.Any()) {
-                                var lags = slaves.Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds).ToList();
-                                avgLag = (long)lags.Average();
-                                maxLag = lags.Max();
-                            }
-                            return new
-                            {
-                                Total = slaves.Count,
-                                Success = slaves.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
-                                Failure = slaves.Count(o => o.Status == OrderStatus.Failed),
-                                AvgLag = avgLag,
-                                MaxLag = maxLag
-                            };
-                        }
-                    );
-
-                foreach (var order in data)
+                // Fetch Slave Open Orders from active_orders table
+                var activeOrders = await _activeOrderRepository.GetMany(FilterActiveOrder(param));
+                var activeAsOrders = activeOrders.Select(ao => new Order
                 {
-                    if (statsMap.TryGetValue(order.Id, out var stats))
+                    Id = -ao.Id,
+                    AccountId = ao.AccountId,
+                    MasterOrderId = ao.MasterOrderId,
+                    OrderTicket = ao.OrderTicket,
+                    OrderSymbol = ao.OrderSymbol,
+                    OrderType = ao.OrderType,
+                    OrderLot = ao.OrderLot,
+                    OrderPrice = ao.OrderPrice,
+                    OrderProfit = ao.OrderProfit,
+                    Status = ao.Status,
+                    CreatedAt = ao.CreatedAt,
+                    UpdatedAt = ao.UpdatedAt,
+                }).ToList();
+
+                // Hydrate Account for active orders
+                if (activeAsOrders.Count > 0)
+                {
+                    var accIds = activeAsOrders.Select(o => o.AccountId).Distinct().ToList();
+                    var accounts = await _accountRepository.GetMany(a => accIds.Contains(a.Id));
+                    foreach (var o in activeAsOrders)
                     {
-                        order.SlaveCount = stats.Total;
-                        order.SlaveSuccessCount = stats.Success;
-                        order.SlaveFailureCount = stats.Failure;
-                        order.AverageExecutionLag = stats.AvgLag;
-                        order.MaxExecutionLag = stats.MaxLag;
+                        o.Account = accounts.FirstOrDefault(a => a.Id == o.AccountId);
                     }
                 }
-            }
 
-            return (data, total, null);
+                combinedOrders.AddRange(ordersFromDb);
+                combinedOrders.AddRange(activeAsOrders);
+
+                // Sorting Combined
+                bool isDesc = sortOrder?.ToLower() == "desc";
+                var sorted = combinedOrders.AsQueryable();
+                string sortField = sortBy?.ToLower().Replace("_", "") ?? "createdat";
+                sorted = sortField switch
+                {
+                    "id" => isDesc ? sorted.OrderByDescending(o => o.Id) : sorted.OrderBy(o => o.Id),
+                    "createdat" => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt),
+                    "orderprofit" => isDesc ? sorted.OrderByDescending(o => o.OrderProfit) : sorted.OrderBy(o => o.OrderProfit),
+                    "orderprice" => isDesc ? sorted.OrderByDescending(o => o.OrderPrice) : sorted.OrderBy(o => o.OrderPrice),
+                    "orderlot" => isDesc ? sorted.OrderByDescending(o => o.OrderLot) : sorted.OrderBy(o => o.OrderLot),
+                    _ => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt)
+                };
+
+                total = combinedOrders.Count;
+                var data = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+                // Populate SlaveCounts etc for masters
+                if (param.IsMasterOnly == true && data.Count > 0)
+                {
+                    var masterIds = data.Select(o => o.Id).ToList();
+                    var slaveStats = await _orderRepository.GetMany(o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value));
+                    
+                    var statsMap = slaveStats
+                        .GroupBy(o => o.MasterOrderId!.Value)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => {
+                                var slaves = g.ToList();
+                                var masterOrder = data.FirstOrDefault(d => d.Id == g.Key);
+                                long avgLag = 0;
+                                long maxLag = 0;
+                                if (masterOrder != null && slaves.Any()) {
+                                    var lags = slaves.Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds).ToList();
+                                    avgLag = (long)lags.Average();
+                                    maxLag = lags.Max();
+                                }
+                                return new
+                                {
+                                    Total = slaves.Count,
+                                    Success = slaves.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
+                                    Failure = slaves.Count(o => o.Status == OrderStatus.Failed),
+                                    AvgLag = avgLag,
+                                    MaxLag = maxLag
+                                };
+                            }
+                        );
+
+                    foreach (var order in data)
+                    {
+                        if (statsMap.TryGetValue(order.Id, out var stats))
+                        {
+                            order.SlaveCount = stats.Total;
+                            order.SlaveSuccessCount = stats.Success;
+                            order.SlaveFailureCount = stats.Failure;
+                            order.AverageExecutionLag = stats.AvgLag;
+                            order.MaxExecutionLag = stats.MaxLag;
+                        }
+                    }
+                }
+
+                return (data, total, null);
+            }
+            else
+            {
+                var (data, totalRes) = await _orderRepository.GetPaginated(
+                    FilterOrder(param),
+                    page,
+                    pageSize,
+                    q =>
+                    {
+                        bool isDesc = sortOrder?.ToLower() == "desc";
+                        string sortField = sortBy?.ToLower().Replace("_", "") ?? "createdat";
+                        return sortField switch
+                        {
+                            "id" => isDesc ? q.OrderByDescending(o => o.Id) : q.OrderBy(o => o.Id),
+                            "masterorderid" => isDesc ? q.OrderByDescending(o => o.MasterOrderId) : q.OrderBy(o => o.MasterOrderId),
+                            "ordersymbol" => isDesc ? q.OrderByDescending(o => o.OrderSymbol) : q.OrderBy(o => o.OrderSymbol),
+                            "ordertype" => isDesc ? q.OrderByDescending(o => o.OrderType) : q.OrderBy(o => o.OrderType),
+                            "orderlot" => isDesc ? q.OrderByDescending(o => o.OrderLot) : q.OrderBy(o => o.OrderLot),
+                            "orderprofit" => isDesc ? q.OrderByDescending(o => o.OrderProfit) : q.OrderBy(o => o.OrderProfit),
+                            "orderprice" => isDesc ? q.OrderByDescending(o => o.OrderPrice) : q.OrderBy(o => o.OrderPrice),
+                            "createdat" => isDesc ? q.OrderByDescending(o => o.CreatedAt) : q.OrderBy(o => o.CreatedAt),
+                            _ => q.OrderByDescending(o => o.CreatedAt)
+                        };
+                    },
+                    q => q.Include(o => o.Account)
+                );
+
+                if (data == null)
+                    return ([], 0, null);
+
+                // Populate SlaveCounts if searching for master orders
+                if (param.IsMasterOnly == true && data.Count > 0)
+                {
+                    var masterIds = data.Select(o => o.Id).ToList();
+                    var slaveStats = await _orderRepository.GetMany(o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value));
+
+                    var statsMap = slaveStats
+                        .GroupBy(o => o.MasterOrderId!.Value)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => {
+                                var slaves = g.ToList();
+                                var masterOrder = data.FirstOrDefault(d => d.Id == g.Key);
+                                long avgLag = 0;
+                                long maxLag = 0;
+                                if (masterOrder != null && slaves.Any()) {
+                                    var lags = slaves.Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds).ToList();
+                                    avgLag = (long)lags.Average();
+                                    maxLag = lags.Max();
+                                }
+                                return new
+                                {
+                                    Total = slaves.Count,
+                                    Success = slaves.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
+                                    Failure = slaves.Count(o => o.Status == OrderStatus.Failed),
+                                    AvgLag = avgLag,
+                                    MaxLag = maxLag
+                                };
+                            }
+                        );
+
+                    foreach (var order in data)
+                    {
+                        if (statsMap.TryGetValue(order.Id, out var stats))
+                        {
+                            order.SlaveCount = stats.Total;
+                            order.SlaveSuccessCount = stats.Success;
+                            order.SlaveFailureCount = stats.Failure;
+                            order.AverageExecutionLag = stats.AvgLag;
+                            order.MaxExecutionLag = stats.MaxLag;
+                        }
+                    }
+                }
+
+                return (data, totalRes, null);
+            }
         }
         catch (Exception ex)
         {
