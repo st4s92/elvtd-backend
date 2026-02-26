@@ -10,6 +10,7 @@ public class ActiveOrder : IAuditableEntity
 {
     [Key]
     [Column("id")]
+    [JsonPropertyName("id")]
     public long Id { get; set; }
 
     // -------------------------
@@ -17,15 +18,19 @@ public class ActiveOrder : IAuditableEntity
     // -------------------------
 
     [Column("account_id")]
+    [JsonPropertyName("account_id")]
     public long AccountId { get; set; } // SLAVE account id
 
     [ForeignKey(nameof(AccountId))]
+    [JsonPropertyName("account")]
     public Account? Account { get; set; }
 
     [Column("account_number")]
+    [JsonPropertyName("account_number")]
     public long AccountNumber { get; set; } // SLAVE MT5 account number
 
     [Column("server_name")]
+    [JsonPropertyName("server_name")]
     public string? ServerName { get; set; }
 
     // -------------------------
@@ -33,6 +38,7 @@ public class ActiveOrder : IAuditableEntity
     // -------------------------
 
     [Column("master_order_id")]
+    [JsonPropertyName("master_order_id")]
     public long MasterOrderId { get; set; }
 
     // -------------------------
@@ -40,31 +46,40 @@ public class ActiveOrder : IAuditableEntity
     // -------------------------
 
     [Column("order_ticket")]
+    [JsonPropertyName("order_ticket")]
     public long OrderTicket { get; set; } = 0; // updated later by MT5
 
     [Column("order_symbol")]
+    [JsonPropertyName("order_symbol")]
     public string OrderSymbol { get; set; } = "";
 
     [Column("order_magic")]
+    [JsonPropertyName("order_magic")]
     public long OrderMagic { get; set; }
 
     [Column("order_type"), MaxLength(20)]
+    [JsonPropertyName("order_type")]
     public string OrderType { get; set; } = "";
 
     [Column("order_lot", TypeName = "decimal(13,3)")]
+    [JsonPropertyName("order_lot")]
     public decimal OrderLot { get; set; }
 
     [Column("order_price", TypeName = "decimal(13,6)")]
+    [JsonPropertyName("order_price")]
     public decimal OrderPrice { get; set; }
 
     [Column("order_open_at")]
+    [JsonPropertyName("order_open_at")]
     public DateTime? OrderOpenAt { get; set; }
 
     [Column("order_profit", TypeName = "decimal(13,2)")]
+    [JsonPropertyName("order_profit")]
     public decimal? OrderProfit { get; set; }
 
 
     [Column("status")]
+    [JsonPropertyName("status")]
     public OrderStatus Status { get; set; }
 
     // -------------------------
@@ -72,9 +87,11 @@ public class ActiveOrder : IAuditableEntity
     // -------------------------
 
     [Column("created_at")]
+    [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 
     [Column("updated_at")]
+    [JsonPropertyName("updated_at")]
     public DateTime UpdatedAt { get; set; }
 }
 

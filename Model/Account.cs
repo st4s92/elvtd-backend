@@ -9,36 +9,47 @@ public class Account : IAuditableEntity
 {
     [Key]
     [Column("id")]
+    [JsonPropertyName("id")]
     public long Id { get; set; }
 
     [Column("platform_name"), MaxLength(100)]
+    [JsonPropertyName("platform_name")]
     public string PlatformName { get; set; } = "";
 
     [Column("account_number")]
+    [JsonPropertyName("account_number")]
     public long AccountNumber { get; set; }
 
     [Column("account_password")]
+    [JsonPropertyName("account_password")]
     public string AccountPassword { get; set; } = "";
 
     [Column("broker_name"), MaxLength(100)]
+    [JsonPropertyName("broker_name")]
     public string BrokerName { get; set; } = "";
 
     [Column("server_name"), MaxLength(100)]
+    [JsonPropertyName("server_name")]
     public string ServerName { get; set; } = "";
 
     [Column("user_id")]
+    [JsonPropertyName("user_id")]
     public long UserId { get; set; }
 
     [Column("equity")]
+    [JsonPropertyName("equity")]
     public decimal Equity { get; set; }
 
     [Column("balance")]
+    [JsonPropertyName("balance")]
     public decimal Balance { get; set; }
 
     [Column("status")]
+    [JsonPropertyName("status")]
     public ConnectionStatus Status { get; set; } = ConnectionStatus.None;
 
     [Column("role")]
+    [JsonPropertyName("role")]
     public string Role { get; set; } = "";
 
     [Column("is_flush_order")]
@@ -48,12 +59,15 @@ public class Account : IAuditableEntity
     public User? User { get; set; }
 
     [Column("created_at")]
+    [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 
     [Column("updated_at")]
+    [JsonPropertyName("updated_at")]
     public DateTime UpdatedAt { get; set; }
 
     [Column("deleted_at")]
+    [JsonPropertyName("deleted_at")]
     public DateTime? DeletedAt { get; set; }
 
     public bool IsDeleted => DeletedAt.HasValue;
