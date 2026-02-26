@@ -130,7 +130,7 @@ public partial class TraderUsecase
                 combinedOrders.AddRange(activeAsOrders);
 
                 // Sorting Combined
-                bool isDesc = sortOrder?.ToLower() != "asc";
+                bool isDesc = sortOrder?.ToLower() == "desc";
                 var sorted = combinedOrders.AsQueryable();
                 string sortField = sortBy?.ToLower().Replace("_", "") ?? "createdat";
                 sorted = sortField switch
