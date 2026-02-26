@@ -13,7 +13,10 @@ namespace Backend.Application.Interfaces
 
         // main code
         Task<T?> Get(Expression<Func<T, bool>> predicate);
-        Task<List<T>> GetMany(Expression<Func<T, bool>> predicate);
+        Task<List<T>> GetMany(
+            Expression<Func<T, bool>> predicate,
+            Func<IQueryable<T>, IQueryable<T>>? include = null
+        );
 
         Task<(List<T> items, long total)> GetPaginated(
             Expression<Func<T, bool>> predicate,

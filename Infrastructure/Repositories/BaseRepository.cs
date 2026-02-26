@@ -26,9 +26,17 @@ namespace Backend.Infrastructure.Repositories
         }
 
         // GET MANY
-        public async Task<List<T>> GetMany(Expression<Func<T, bool>> predicate)
+        public async Task<List<T>> GetMany(
+            Expression<Func<T, bool>> predicate,
+            Func<IQueryable<T>, IQueryable<T>>? include = null
+        )
         {
-            return await _db.AsNoTracking().Where(predicate).ToListAsync();
+            var query = _db.AsNoTracking().Where(predicate);
+
+            if (include != null)
+                query = include(query);
+
+            return await query.ToListAsync();
         }
 
         // PAGINATED
