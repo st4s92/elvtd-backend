@@ -994,6 +994,7 @@ public partial class TraderUsecase
 
                         OrderSymbol = slavePair,
                         Status = OrderStatus.Progress,
+                        OrderOpenAt = masterOrder.OrderOpenAt,
                     };
 
                     await _activeOrderRepository.Add(activeOrder);

@@ -3,7 +3,12 @@ using Microsoft.AspNetCore.Http;
 
 namespace Backend.Helper;
 
-public record ApiResponse<T>(bool Status, int Code, T? Data, string? Message = null);
+public record ApiResponse<T>(
+    [property: JsonPropertyName("status")] bool Status,
+    [property: JsonPropertyName("code")] int Code,
+    [property: JsonPropertyName("data")] T? Data,
+    [property: JsonPropertyName("message")] string? Message = null
+);
 
 public static class Response
 {

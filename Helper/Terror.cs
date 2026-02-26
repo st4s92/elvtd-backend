@@ -22,8 +22,11 @@ public interface ITError
 
 public class TError : Exception, ITError
 {
+    [JsonPropertyName("code")]
     public int Code { get; private set; }
+    [JsonPropertyName("file_path")]
     public string FilePath { get; private set; }
+    [JsonPropertyName("function")]
     public string Function { get; private set; }
 
     public TError(int code, string message, string filePath, string function)
