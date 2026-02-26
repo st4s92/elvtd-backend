@@ -20,9 +20,11 @@ public class Server : IAuditableEntity
     public long Id { get; set; }
 
     [Column("server_name"), MaxLength(100)]
+    [JsonPropertyName("server_name")]
     public string ServerName { get; set; } = "";
 
     [Column("server_ip"), MaxLength(100)]
+    [JsonPropertyName("server_ip")]
     public string ServerIp { get; set; } = "";
 
     [Column("status")]
@@ -106,22 +108,27 @@ public class ServerAccount : IAuditableEntity
     [Column("status")]
     public ConnectionStatus Status { get; set; } = ConnectionStatus.None;
     [Column("message"), MaxLength(100)]
+    [JsonPropertyName("message")]
     public string Message { get; set; } = "";
 
     [Column("created_at")]
+    [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 
     [Column("updated_at")]
+    [JsonPropertyName("updated_at")]
     public DateTime UpdatedAt { get; set; }
 
     [Column("deleted_at")]
+    [JsonPropertyName("deleted_at")]
     public DateTime? DeletedAt { get; set; }
 
     public bool IsDeleted => DeletedAt.HasValue;
 
     [JsonIgnore]
     public Account Account { get; set; } = null!;
-    [JsonIgnore]
+    
+    [JsonPropertyName("server")]
     public Server Server { get; set; } = null!;
 }
 

@@ -83,6 +83,7 @@ public class Account : IAuditableEntity
     [JsonIgnore]
     public ICollection<ActiveOrder> ActiveOrders { get; set; } = new List<ActiveOrder>();
 
+    [JsonPropertyName("server_account")]
     public ServerAccount? ServerAccount { get; set; }
 }
 
