@@ -130,14 +130,15 @@ public partial class TraderUsecase
                 combinedOrders.AddRange(activeAsOrders);
 
                 // Sorting Combined
-                bool isDesc = sortOrder?.ToLower() == "desc";
+                bool isDesc = sortOrder?.ToLower() != "asc";
                 var sorted = combinedOrders.AsQueryable();
                 string sortField = sortBy?.ToLower().Replace("_", "") ?? "createdat";
                 sorted = sortField switch
                 {
                     "id" => isDesc ? sorted.OrderByDescending(o => o.Id) : sorted.OrderBy(o => o.Id),
-                    "createdat" => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt),
-                    "orderprofit" => isDesc ? sorted.OrderByDescending(o => o.OrderProfit) : sorted.OrderBy(o => o.OrderProfit),
+                "createdat" => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt),
+                "orderopenat" => isDesc ? sorted.OrderByDescending(o => o.OrderOpenAt) : sorted.OrderBy(o => o.OrderOpenAt),
+                "orderprofit" => isDesc ? sorted.OrderByDescending(o => o.OrderProfit) : sorted.OrderBy(o => o.OrderProfit),
                     "orderprice" => isDesc ? sorted.OrderByDescending(o => o.OrderPrice) : sorted.OrderBy(o => o.OrderPrice),
                     "orderlot" => isDesc ? sorted.OrderByDescending(o => o.OrderLot) : sorted.OrderBy(o => o.OrderLot),
                     _ => isDesc ? sorted.OrderByDescending(o => o.CreatedAt) : sorted.OrderBy(o => o.CreatedAt)
