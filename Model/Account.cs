@@ -103,19 +103,19 @@ public class AccountPayload
     public string? AccountPassword { get; set; }
 
     [JsonPropertyName("broker_name")]
-    public string? BrokerName { get; set; } = "";
+    public string? BrokerName { get; set; }
 
     [JsonPropertyName("server_name")]
-    public string? ServerName { get; set; } = "";
+    public string? ServerName { get; set; }
 
     [JsonPropertyName("user_id")]
     public long? UserId { get; set; }
 
     [JsonPropertyName("type")]
-    public string? Type { get; set; } = "";
+    public string? Type { get; set; }
 
     [JsonPropertyName("role")]
-    public string? Role { get; set; } = "SLAVE";
+    public string? Role { get; set; }
 
     [JsonPropertyName("copier_version")]
     public string? CopierVersion { get; set; }
