@@ -71,5 +71,7 @@ public static class Rest
         builder.Services.AddHostedService<ServerHeartbeatConsumer>();
         builder.Services.AddScoped<ServerPlatformCreatedHandler>();
         builder.Services.AddHostedService<ServerPlatformCreatedConsumer>();
+        builder.Services.AddHostedService<ServerPlatformRestartedConsumer>();
+        builder.Services.AddHostedService<ServerPlatformDeletedConsumer>();
     }
 }

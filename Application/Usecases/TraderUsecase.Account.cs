@@ -373,6 +373,13 @@ public partial class TraderUsecase
             if (data == null)
                 return (null, TError.NewServer("cannot save server account"));
 
+            // Log job progress/result to SystemLogs for the Job Queue UI
+            var level = param.Status == ConnectionStatus.UnknownFail ? "Error" : "Info";
+            var action = param.Status == ConnectionStatus.Success ? "JobSuccess" : "JobProgress";
+            if (param.Status == ConnectionStatus.UnknownFail) action = "JobFailed";
+
+            await _systemLogUsecase.CreateLog("Account", action, param.AccountId, param.Message ?? "Update received", level);
+
             return (data, null);
         }
         catch (Exception ex)
