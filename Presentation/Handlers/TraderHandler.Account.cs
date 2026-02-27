@@ -74,7 +74,24 @@ public partial class TraderHandler
         {
             return Response.Json(terr);
         }
-        return Response.Json(res);
+
+        var data = res.Select(a => new AccountGetPaginatedObject
+        {
+            Id = a.Id,
+            PlatformName = a.PlatformName,
+            AccountNumber = a.AccountNumber,
+            BrokerName = a.BrokerName,
+            ServerName = a.ServerName,
+            UserId = a.UserId,
+            Role = a.Role,
+            Status = a.Status,
+            CreatedAt = a.CreatedAt,
+            UpdatedAt = a.UpdatedAt,
+            Balance = a.Balance,
+            Equity = a.Equity,
+        }).ToList();
+
+        return Response.Json(data);
     }
 
     public async Task<IResult> GetPaginatedAccounts(AccountGetPaginatedPayload query)

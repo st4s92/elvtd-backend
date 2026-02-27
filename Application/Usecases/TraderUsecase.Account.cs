@@ -27,7 +27,7 @@ public partial class TraderUsecase
                     || a.ServerName.Contains(param.ServerName)
                 )
                 && (param.UserId == 0 || a.UserId == param.UserId)
-                && (string.IsNullOrEmpty(param.Role) || a.Role.Contains(param.Role))
+                && (string.IsNullOrEmpty(param.Role) || a.Role.ToLower().Contains(param.Role.ToLower()))
         );
     }
 
