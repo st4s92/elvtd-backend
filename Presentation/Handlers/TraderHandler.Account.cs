@@ -123,6 +123,7 @@ public partial class TraderHandler
             Equity = a.Equity,
             OpenPositionsCount = a.Orders.Count + a.ActiveOrders.Count,
             DedicatedServerName = a.ServerAccount?.Server?.ServerName ?? "-",
+            CopierVersion = a.CopierVersion,
         })
             .ToList();
 

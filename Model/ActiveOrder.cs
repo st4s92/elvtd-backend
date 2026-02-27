@@ -114,6 +114,9 @@ public class PlatformActivePositionSyncPayload
 
     [JsonPropertyName("position_list")]
     public List<PlatformPositionDto> PositionList { get; set; } = [];
+
+    [JsonPropertyName("copier_version")]
+    public string? CopierVersion { get; set; }
 }
 
 public class PlatformPositionDto

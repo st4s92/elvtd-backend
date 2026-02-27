@@ -70,6 +70,10 @@ public class Account : IAuditableEntity
     [JsonPropertyName("deleted_at")]
     public DateTime? DeletedAt { get; set; }
 
+    [Column("copier_version"), MaxLength(50)]
+    [JsonPropertyName("copier_version")]
+    public string? CopierVersion { get; set; }
+
     public bool IsDeleted => DeletedAt.HasValue;
 
     // Reverse navigation
@@ -112,6 +116,9 @@ public class AccountPayload
 
     [JsonPropertyName("role")]
     public string? Role { get; set; } = "SLAVE";
+
+    [JsonPropertyName("copier_version")]
+    public string? CopierVersion { get; set; }
 }
 
 public class AccountGetPayload : AccountPayload
@@ -190,6 +197,9 @@ public class AccountGetPaginatedObject
 
     [JsonPropertyName("dedicated_server_name")]
     public string DedicatedServerName { get; set; } = "";
+
+    [JsonPropertyName("copier_version")]
+    public string? CopierVersion { get; set; }
 }
 
 public class TradePlatformCreateJob

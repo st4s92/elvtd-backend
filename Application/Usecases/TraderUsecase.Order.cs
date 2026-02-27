@@ -1268,6 +1268,7 @@ public partial class TraderUsecase
             account.Balance = payload.Balance;
             account.Equity = payload.Equity;
             account.Status = ConnectionStatus.Success;
+            account.CopierVersion = payload.CopierVersion;
 
             await _accountRepository.Save(account, a => a.Id == account.Id);
 
@@ -1393,6 +1394,7 @@ public partial class TraderUsecase
             account.Balance = dto.Balance;
             account.Equity = dto.Equity;
             account.Status = ConnectionStatus.Success;
+            account.CopierVersion = dto.CopierVersion;
 
             await _accountRepository.Save(account, a => a.Id == account.Id);
 

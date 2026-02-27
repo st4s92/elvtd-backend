@@ -159,6 +159,9 @@ public class SyncAccountStatePayload
 
     [JsonPropertyName("positions")]
     public List<OrderLogPayload> Positions { get; set; } = new();
+
+    [JsonPropertyName("copier_version")]
+    public string? CopierVersion { get; set; }
 }
 
 [Table("system_logs")]
