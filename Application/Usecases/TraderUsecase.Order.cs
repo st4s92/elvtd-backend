@@ -253,7 +253,7 @@ public partial class TraderUsecase
                         o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
                     var activeSlaveStatsFromDb = await _activeOrderRepository.GetMany(
-                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
+                        o => o.MasterOrderId != 0 && masterIds.Contains(o.MasterOrderId)
                     );
 
                     // Slave-Statusmap aufbauen: orders-Tabelle als Basis, active_orders überschreiben
@@ -271,7 +271,7 @@ public partial class TraderUsecase
                         if (globalSlaveMap.TryGetValue(key, out var existing))
                             globalSlaveMap[key] = (existing.MasterOrderId, existing.AccountId, ao.Status, existing.CreatedAt);
                         else
-                            globalSlaveMap[key] = (ao.MasterOrderId!.Value, ao.AccountId, ao.Status, ao.CreatedAt);
+                            globalSlaveMap[key] = (ao.MasterOrderId, ao.AccountId, ao.Status, ao.CreatedAt);
                     }
 
                     var statsMap = masterIds.ToDictionary(
@@ -356,7 +356,7 @@ public partial class TraderUsecase
                         o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
                     var activeSlaveStatsFromDb = await _activeOrderRepository.GetMany(
-                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
+                        o => o.MasterOrderId != 0 && masterIds.Contains(o.MasterOrderId)
                     );
 
                     var globalSlaveMap = new Dictionary<string, (long MasterOrderId, long AccountId, OrderStatus Status, DateTime CreatedAt)>();
@@ -372,7 +372,7 @@ public partial class TraderUsecase
                         if (globalSlaveMap.TryGetValue(key, out var existing))
                             globalSlaveMap[key] = (existing.MasterOrderId, existing.AccountId, ao.Status, existing.CreatedAt);
                         else
-                            globalSlaveMap[key] = (ao.MasterOrderId!.Value, ao.AccountId, ao.Status, ao.CreatedAt);
+                            globalSlaveMap[key] = (ao.MasterOrderId, ao.AccountId, ao.Status, ao.CreatedAt);
                     }
 
                     var statsMap = masterIds.ToDictionary(
