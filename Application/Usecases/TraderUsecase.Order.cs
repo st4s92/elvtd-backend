@@ -1313,7 +1313,7 @@ public partial class TraderUsecase
                 IsFlushOrder = account.IsFlushOrder,
                 Balance = payload.Balance,
                 Equity = payload.Equity,
-
+                CopierVersion = account.CopierVersion,
                 PositionList = dbActiveOrders
                     .Select(o => new PlatformPositionDto
                     {

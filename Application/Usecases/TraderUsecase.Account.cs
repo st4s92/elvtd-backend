@@ -413,6 +413,7 @@ public partial class TraderUsecase
                 IsFlushOrder = account.IsFlushOrder,
                 Balance = account.Balance,
                 Equity = account.Equity,
+                CopierVersion = account.CopierVersion,
                 PositionList = activeOrders
                     .Select(o => new PlatformPositionDto
                     {
