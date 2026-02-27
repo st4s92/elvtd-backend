@@ -452,5 +452,43 @@ public partial class TraderUsecase
         }
     }
 
+    public async Task<(bool, ITError?)> DeleteMasterSlave(long id)
+    {
+        try
+        {
+            var (existing, terr) = await GetMasterSlave(new MasterSlave { Id = id });
+            if (terr != null)
+                return (false, terr);
 
+            // Soft delete relations
+            await _masterSlaveRepository.Update(
+                m => m.Id == id,
+                m => m.DeletedAt = DateTime.UtcNow
+            );
+
+            await _masterSlaveConfigRepository.UpdateMany(
+                c => c.MasterSlaveId == id && c.DeletedAt == null,
+                c => c.DeletedAt = DateTime.UtcNow
+            );
+
+            await _masterSlavePairRepository.UpdateMany(
+                p => p.MasterSlaveId == id && p.DeletedAt == null,
+                p => p.DeletedAt = DateTime.UtcNow
+            );
+
+            await _systemLogUsecase.CreateLog(
+                "MasterSlave",
+                "Delete",
+                existing!.SlaveId,
+                $"Deleted Master-Slave connection {id} (Master {existing.MasterId} -> Slave {existing.SlaveId})",
+                "Info"
+            );
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            return (false, TError.NewServer("database error", ex.Message));
+        }
+    }
 }

@@ -323,6 +323,17 @@ public static class TraderRoutes
             .WithName("GetTraderPaginatedMasterSlaves")
             .WithTags("Master Slave");
 
+        group
+            .MapDelete(
+                "/trader/master-slave/{id:long}",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.DeleteMasterSlave(id);
+                }
+            )
+            .WithName("DeleteMasterSlave")
+            .WithTags("Master Slave");
+
         // master slave pair
         group
             .MapGet(

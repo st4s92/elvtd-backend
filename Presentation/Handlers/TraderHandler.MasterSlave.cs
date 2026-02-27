@@ -157,4 +157,14 @@ public partial class TraderHandler
         }
         return Response.Json(data);
     }
+
+    public async Task<IResult> DeleteMasterSlave(long id)
+    {
+        var (res, terr) = await _usecase.DeleteMasterSlave(id);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
 }
