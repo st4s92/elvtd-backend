@@ -42,6 +42,43 @@ public partial class TraderUsecase
             && (param.Status == 0 || a.Status == param.Status);
     }
 
+    // Status-Filter-freie Varianten für PATH A (Merge-Logik):
+    // Status wird erst NACH dem Merge angewendet, damit active_orders-Überschreibung
+    // korrekt berücksichtigt wird (ein Slave mit Status 600 in orders, aber 200 in
+    // active_orders soll im "Progress"-Filter korrekt erscheinen).
+    private static Expression<Func<Order, bool>> FilterOrderForMerge(Order param)
+    {
+        return a =>
+            (param.Id == 0 || a.Id == param.Id)
+            && (param.AccountId == 0 || a.AccountId == param.AccountId)
+            && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
+            && (param.IsMasterOnly != true || a.MasterOrderId == null)
+            && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
+            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
+            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
+            && (param.OrderLot == 0 || a.OrderLot == param.OrderLot)
+            // Status-Filter absichtlich weggelassen – wird nach dem Merge angewendet
+            && (param.IsClosed == null || (param.IsClosed == true ? a.OrderCloseAt != null : a.OrderCloseAt == null))
+            && (string.IsNullOrEmpty(param.CopyMessage) || (
+                (a.OrderSymbol != null && a.OrderSymbol.Contains(param.CopyMessage)) ||
+                (a.OrderType != null && a.OrderType.Contains(param.CopyMessage)) ||
+                (a.CopyMessage != null && a.CopyMessage.Contains(param.CopyMessage))
+            ));
+    }
+
+    private static Expression<Func<ActiveOrder, bool>> FilterActiveOrderForMerge(Order param)
+    {
+        return a =>
+            (param.AccountId == 0 || a.AccountId == param.AccountId)
+            && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
+            && (param.IsMasterOnly != true) // Active orders are always slaves
+            && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
+            && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
+            && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
+            && (param.OrderLot == 0 || a.OrderLot == param.OrderLot);
+            // Status-Filter absichtlich weggelassen – wird nach dem Merge angewendet
+    }
+
     public async Task<(Order?, ITError?)> GetOrder(Order param)
     {
         try
@@ -88,16 +125,18 @@ public partial class TraderUsecase
             // If we are NOT explicitly asking for only closed orders, we should include active_orders
             if (param.IsClosed != true)
             {
-                // Fetch Master and potential open/closed orders from orders table
+                // Fetch Master and potential open/closed orders from orders table.
+                // Kein Status-Filter hier – wird nach dem Merge mit active_orders angewendet,
+                // damit der live-Status aus active_orders korrekt berücksichtigt wird.
                 var (ordersFromDb, _) = await _orderRepository.GetPaginated(
-                    FilterOrder(param),
+                    FilterOrderForMerge(param),
                     1, 2000, // Fetch more for combination
                     q => q.OrderByDescending(o => o.CreatedAt),
                     q => q.Include(o => o.Account).ThenInclude(a => a != null ? a.ServerAccount : null).ThenInclude(sa => sa != null ? sa.Server : null)
                 );
 
-                // Fetch Slave Open Orders from active_orders table
-                var activeOrders = await _activeOrderRepository.GetMany(FilterActiveOrder(param));
+                // Fetch Slave Open Orders from active_orders table (ebenfalls ohne Status-Filter).
+                var activeOrders = await _activeOrderRepository.GetMany(FilterActiveOrderForMerge(param));
                 var activeAsOrders = activeOrders.Select(ao => new Order
                 {
                     Id = -ao.Id,
@@ -162,6 +201,16 @@ public partial class TraderUsecase
 
                 combinedOrders = uniqueOrdersMap.Values.ToList();
 
+                // Status-Filter NACH dem Merge anwenden.
+                // Dadurch wird der live-Status aus active_orders (der ggf. den orders-Tabellen-Status
+                // überschrieben hat) korrekt für die Filterung verwendet.
+                // Beispiel: Slave hat Status 600 in orders-Tabelle, aber Status 200 in active_orders
+                // → nach Merge ist Status 200 → "Progress"-Filter findet den Slave korrekt.
+                if (param.Status != 0)
+                {
+                    combinedOrders = combinedOrders.Where(o => o.Status == param.Status).ToList();
+                }
+
                 // Sorting Combined
                 bool isDesc = sortOrder?.ToLower() == "desc";
                 var sorted = combinedOrders.AsQueryable();
@@ -194,36 +243,65 @@ public partial class TraderUsecase
                     }
                 }
 
-                // Populate SlaveCounts etc for masters
+                // Populate SlaveCounts etc for masters.
+                // active_orders werden mit einbezogen (gleiche Merge-Logik wie oben),
+                // damit der angezeigte SlaveSuccessCount den tatsächlichen Live-Status widerspiegelt.
                 if (param.IsMasterOnly == true && data.Count > 0)
                 {
                     var masterIds = data.Select(o => o.Id).ToList();
-                    var slaveStats = await _orderRepository.GetMany(o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value));
-                    
-                    var statsMap = slaveStats
-                        .GroupBy(o => o.MasterOrderId!.Value)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => {
-                                var slaves = g.ToList();
-                                var masterOrder = data.FirstOrDefault(d => d.Id == g.Key);
-                                long avgLag = 0;
-                                long maxLag = 0;
-                                if (masterOrder != null && slaves.Any()) {
-                                    var lags = slaves.Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds).ToList();
-                                    avgLag = (long)lags.Average();
-                                    maxLag = lags.Max();
-                                }
-                                return new
-                                {
-                                    Total = slaves.Count,
-                                    Success = slaves.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
-                                    Failure = slaves.Count(o => o.Status == OrderStatus.Failed),
-                                    AvgLag = avgLag,
-                                    MaxLag = maxLag
-                                };
+                    var slaveStatsFromDb = await _orderRepository.GetMany(
+                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
+                    );
+                    var activeSlaveStatsFromDb = await _activeOrderRepository.GetMany(
+                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
+                    );
+
+                    // Slave-Statusmap aufbauen: orders-Tabelle als Basis, active_orders überschreiben
+                    // Key: "{MasterOrderId}_{AccountId}" – ein Slave pro (Master, Account)
+                    var globalSlaveMap = new Dictionary<string, (long MasterOrderId, long AccountId, OrderStatus Status, DateTime CreatedAt)>();
+
+                    foreach (var s in slaveStatsFromDb)
+                    {
+                        var key = $"{s.MasterOrderId}_{s.AccountId}";
+                        globalSlaveMap[key] = (s.MasterOrderId!.Value, s.AccountId, s.Status, s.CreatedAt);
+                    }
+                    foreach (var ao in activeSlaveStatsFromDb)
+                    {
+                        var key = $"{ao.MasterOrderId}_{ao.AccountId}";
+                        if (globalSlaveMap.TryGetValue(key, out var existing))
+                            globalSlaveMap[key] = (existing.MasterOrderId, existing.AccountId, ao.Status, existing.CreatedAt);
+                        else
+                            globalSlaveMap[key] = (ao.MasterOrderId!.Value, ao.AccountId, ao.Status, ao.CreatedAt);
+                    }
+
+                    var statsMap = masterIds.ToDictionary(
+                        masterId => masterId,
+                        masterId =>
+                        {
+                            var masterSlaves = globalSlaveMap.Values.Where(s => s.MasterOrderId == masterId).ToList();
+                            var masterOrder = data.FirstOrDefault(d => d.Id == masterId);
+
+                            long avgLag = 0;
+                            long maxLag = 0;
+                            if (masterOrder != null && masterSlaves.Any())
+                            {
+                                var lags = masterSlaves
+                                    .Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds)
+                                    .ToList();
+                                avgLag = (long)lags.Average();
+                                maxLag = lags.Max();
                             }
-                        );
+
+                            return new
+                            {
+                                Total = masterSlaves.Count,
+                                Success = masterSlaves.Count(s => s.Status == OrderStatus.Success || s.Status == OrderStatus.Complete),
+                                Failure = masterSlaves.Count(s => s.Status == OrderStatus.Failed),
+                                AvgLag = avgLag,
+                                MaxLag = maxLag
+                            };
+                        }
+                    );
 
                     foreach (var order in data)
                     {
@@ -269,36 +347,62 @@ public partial class TraderUsecase
                 if (data == null)
                     return ([], 0, null);
 
-                // Populate SlaveCounts if searching for master orders
+                // Populate SlaveCounts if searching for master orders (PATH B – closed orders).
+                // Gleiche Merge-Logik wie PATH A: active_orders überschreiben den DB-Status.
                 if (param.IsMasterOnly == true && data.Count > 0)
                 {
                     var masterIds = data.Select(o => o.Id).ToList();
-                    var slaveStats = await _orderRepository.GetMany(o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value));
+                    var slaveStatsFromDb = await _orderRepository.GetMany(
+                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
+                    );
+                    var activeSlaveStatsFromDb = await _activeOrderRepository.GetMany(
+                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
+                    );
 
-                    var statsMap = slaveStats
-                        .GroupBy(o => o.MasterOrderId!.Value)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => {
-                                var slaves = g.ToList();
-                                var masterOrder = data.FirstOrDefault(d => d.Id == g.Key);
-                                long avgLag = 0;
-                                long maxLag = 0;
-                                if (masterOrder != null && slaves.Any()) {
-                                    var lags = slaves.Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds).ToList();
-                                    avgLag = (long)lags.Average();
-                                    maxLag = lags.Max();
-                                }
-                                return new
-                                {
-                                    Total = slaves.Count,
-                                    Success = slaves.Count(o => o.Status == OrderStatus.Success || o.Status == OrderStatus.Complete),
-                                    Failure = slaves.Count(o => o.Status == OrderStatus.Failed),
-                                    AvgLag = avgLag,
-                                    MaxLag = maxLag
-                                };
+                    var globalSlaveMap = new Dictionary<string, (long MasterOrderId, long AccountId, OrderStatus Status, DateTime CreatedAt)>();
+
+                    foreach (var s in slaveStatsFromDb)
+                    {
+                        var key = $"{s.MasterOrderId}_{s.AccountId}";
+                        globalSlaveMap[key] = (s.MasterOrderId!.Value, s.AccountId, s.Status, s.CreatedAt);
+                    }
+                    foreach (var ao in activeSlaveStatsFromDb)
+                    {
+                        var key = $"{ao.MasterOrderId}_{ao.AccountId}";
+                        if (globalSlaveMap.TryGetValue(key, out var existing))
+                            globalSlaveMap[key] = (existing.MasterOrderId, existing.AccountId, ao.Status, existing.CreatedAt);
+                        else
+                            globalSlaveMap[key] = (ao.MasterOrderId!.Value, ao.AccountId, ao.Status, ao.CreatedAt);
+                    }
+
+                    var statsMap = masterIds.ToDictionary(
+                        masterId => masterId,
+                        masterId =>
+                        {
+                            var masterSlaves = globalSlaveMap.Values.Where(s => s.MasterOrderId == masterId).ToList();
+                            var masterOrder = data.FirstOrDefault(d => d.Id == masterId);
+
+                            long avgLag = 0;
+                            long maxLag = 0;
+                            if (masterOrder != null && masterSlaves.Any())
+                            {
+                                var lags = masterSlaves
+                                    .Select(s => (long)(s.CreatedAt - masterOrder.CreatedAt).TotalMilliseconds)
+                                    .ToList();
+                                avgLag = (long)lags.Average();
+                                maxLag = lags.Max();
                             }
-                        );
+
+                            return new
+                            {
+                                Total = masterSlaves.Count,
+                                Success = masterSlaves.Count(s => s.Status == OrderStatus.Success || s.Status == OrderStatus.Complete),
+                                Failure = masterSlaves.Count(s => s.Status == OrderStatus.Failed),
+                                AvgLag = avgLag,
+                                MaxLag = maxLag
+                            };
+                        }
+                    );
 
                     foreach (var order in data)
                     {
