@@ -284,6 +284,14 @@ public partial class TraderUsecase
                 existing.AccountPassword = param.AccountPassword;
             }
 
+            // cTrader token fields
+            if (!string.IsNullOrEmpty(param.AccessToken))
+            {
+                existing.AccessToken = param.AccessToken;
+                existing.RefreshToken = param.RefreshToken;
+                existing.TokenExpiredAt = param.TokenExpiredAt;
+            }
+
             var data = await _accountRepository.Save(existing, a => a.Id == id);
             if (data == null)
                 return (null, TError.NewServer("cannot save account"));

@@ -9,14 +9,14 @@ namespace Backend.Presentation.Handlers;
 public class CtraderHandler
 {
     private readonly CtraderUsecase _usecase;
-    private readonly ITradingRepository _tradingRepository;
+    private readonly IAccountRepository _accountRepository;
 
     public CtraderHandler(
         CtraderUsecase usecase,
-        ITradingRepository tradingRepository)
+        IAccountRepository accountRepository)
     {
         _usecase = usecase;
-        _tradingRepository = tradingRepository;
+        _accountRepository = accountRepository;
     }
 
     public IResult GetAuthPage()
@@ -78,50 +78,49 @@ public class CtraderHandler
     }
 
     /// <summary>
-    /// Direkt einen cTrader Token in app_tokens speichern/aktualisieren.
+    /// Direkt cTrader Token im accounts-Table speichern.
     /// PUT /api/ctrader/token/save
     /// </summary>
     public async Task<IResult> SaveTokenDirect(CtraderTokenPayload payload)
     {
-        Console.WriteLine($"[SaveTokenDirect] accountNumber={payload.AccountNumber}, hasAccessToken={!string.IsNullOrEmpty(payload.AccessToken)}");
-
         if (payload.AccountNumber == 0 || string.IsNullOrEmpty(payload.AccessToken))
         {
             return Response.Json(TError.NewClient("account_number and access_token are required"));
         }
 
-        var token = new AppToken
+        try
         {
-            Platform = "cTrader",
-            PlatformId = payload.AccountNumber.ToString(),
-            AuthToken = payload.AccessToken!,
-            RefreshToken = payload.RefreshToken ?? "",
-            ExpiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry)
+            // Account direkt aus DB laden
+            var account = await _accountRepository.Get(a => a.AccountNumber == payload.AccountNumber && a.PlatformName == "cTrader");
+            if (account == null)
+            {
+                return Response.Json(TError.NewClient($"cTrader account {payload.AccountNumber} not found"));
+            }
+
+            // Token-Felder direkt auf Account setzen
+            account.AccessToken = payload.AccessToken;
+            account.RefreshToken = payload.RefreshToken ?? "";
+            account.TokenExpiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry)
                 ? expiry
-                : DateTime.UtcNow.AddDays(30),
-            UserID = 0,
-        };
+                : DateTime.UtcNow.AddDays(30);
 
-        var (_, tokenErr) = await _tradingRepository.SaveToken(token);
-        if (tokenErr != null)
-        {
-            Console.WriteLine($"[SaveTokenDirect] SaveToken FAILED: {tokenErr}");
-            return Response.Json(TError.NewServer($"SaveToken failed: {tokenErr}"));
+            var saved = await _accountRepository.Save(account, a => a.Id == account.Id);
+            if (saved == null)
+            {
+                return Response.Json(TError.NewServer("Failed to save account"));
+            }
+
+            return Response.Json(new
+            {
+                saved = true,
+                account_number = payload.AccountNumber,
+                access_token_preview = payload.AccessToken!.Substring(0, Math.Min(10, payload.AccessToken.Length)) + "...",
+            });
         }
-
-        Console.WriteLine($"[SaveTokenDirect] Token saved OK for account {payload.AccountNumber}");
-
-        // Verify it was saved
-        var verify = await _tradingRepository.GetToken("cTrader", payload.AccountNumber.ToString());
-        Console.WriteLine($"[SaveTokenDirect] Verify: token={verify?.AuthToken?.Substring(0, Math.Min(10, verify?.AuthToken?.Length ?? 0))}...");
-
-        return Response.Json(new
+        catch (Exception ex)
         {
-            saved = true,
-            account_number = payload.AccountNumber,
-            verify_token_exists = verify != null,
-            verify_token_value = verify?.AuthToken?.Substring(0, Math.Min(10, verify?.AuthToken?.Length ?? 0)) + "...",
-        });
+            return Response.Json(TError.NewServer($"SaveTokenDirect: {ex.Message}"));
+        }
     }
 }
 

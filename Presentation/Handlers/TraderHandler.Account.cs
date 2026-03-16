@@ -22,6 +22,14 @@ public partial class TraderHandler
             Role = accountPayload.Role ?? "SLAVE",
         };
 
+        // cTrader: Token-Felder direkt auf Account setzen
+        if (isCtrader && !string.IsNullOrEmpty(accountPayload.AccessToken))
+        {
+            account.AccessToken = accountPayload.AccessToken;
+            account.RefreshToken = accountPayload.RefreshToken ?? "";
+            account.TokenExpiredAt = DateTime.TryParse(accountPayload.ExpiryToken, out var addExpiry) ? addExpiry : DateTime.UtcNow.AddDays(30);
+        }
+
         if (isCtrader)
         {
             // cTrader: nur Account Number ist Pflicht (kein Passwort, OAuth stattdessen)
@@ -55,21 +63,6 @@ public partial class TraderHandler
         if (terr != null)
         {
             return Response.Json(terr);
-        }
-
-        // cTrader: Token speichern falls mitgegeben
-        if (isCtrader && res != null && !string.IsNullOrEmpty(accountPayload.AccessToken))
-        {
-            var token = new AppToken
-            {
-                Platform = "cTrader",
-                PlatformId = account.AccountNumber.ToString(),
-                AuthToken = accountPayload.AccessToken ?? "",
-                RefreshToken = accountPayload.RefreshToken ?? "",
-                ExpiredAt = DateTime.TryParse(accountPayload.ExpiryToken, out var expiry) ? expiry : DateTime.UtcNow.AddDays(30),
-                UserID = account.UserId,
-            };
-            await _tradingRepository.SaveToken(token);
         }
 
         return Response.Json(res);
@@ -235,37 +228,19 @@ public partial class TraderHandler
             AccountPassword = payload.AccountPassword ?? "",
         };
 
+        // cTrader: Token-Felder direkt im Account speichern
+        if (isCtrader && !string.IsNullOrEmpty(payload.AccessToken))
+        {
+            account.AccessToken = payload.AccessToken;
+            account.RefreshToken = payload.RefreshToken ?? "";
+            account.TokenExpiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry) ? expiry : DateTime.UtcNow.AddDays(30);
+        }
+
         var (_, terr) = await _usecase.UpdateAccountById(id, account);
         if (terr != null)
         {
             Console.WriteLine($"[UpdateAccount] UpdateAccountById failed: {terr}");
             return Response.Json(terr);
-        }
-
-        Console.WriteLine($"[UpdateAccount] Account updated OK. isCtrader={isCtrader}, hasAccessToken={!string.IsNullOrEmpty(payload.AccessToken)}");
-
-        // cTrader: Token speichern/aktualisieren falls mitgegeben
-        if (isCtrader && !string.IsNullOrEmpty(payload.AccessToken))
-        {
-            Console.WriteLine($"[UpdateAccount] Saving cTrader token for platformId={payload.AccountNumber}");
-            var token = new AppToken
-            {
-                Platform = "cTrader",
-                PlatformId = (payload.AccountNumber ?? 0).ToString(),
-                AuthToken = payload.AccessToken ?? "",
-                RefreshToken = payload.RefreshToken ?? "",
-                ExpiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry) ? expiry : DateTime.UtcNow.AddDays(30),
-                UserID = payload.UserId ?? 0,
-            };
-            var (savedToken, tokenErr) = await _tradingRepository.SaveToken(token);
-            if (tokenErr != null)
-            {
-                Console.WriteLine($"[UpdateAccount] SaveToken FAILED: {tokenErr}");
-            }
-            else
-            {
-                Console.WriteLine($"[UpdateAccount] Token saved successfully for account {payload.AccountNumber}");
-            }
         }
 
         return Response.Json("ok");

@@ -14,7 +14,6 @@ public class CtraderUsecase
 {
     private readonly UserUsecase _userUsecase;
     private readonly ICtraderRepository _ctraderRepository;
-    private readonly ITradingRepository _tradingRepository;
     private readonly IAccountRepository _accountRepository;
     private readonly IJobPublisher _jobPublisher;
     private readonly string _ctraderClientId;
@@ -24,14 +23,12 @@ public class CtraderUsecase
 
     public CtraderUsecase(
         ICtraderRepository ctraderRepository,
-        ITradingRepository tradingRepository,
         IAccountRepository accountRepository,
         IJobPublisher jobPublisher,
         UserUsecase userUsecase)
     {
         _userUsecase = userUsecase;
         _ctraderRepository = ctraderRepository;
-        _tradingRepository = tradingRepository;
         _accountRepository = accountRepository;
         _jobPublisher = jobPublisher;
         _ctraderClientId = Environment.GetEnvironmentVariable("CTRADER_CLIENT_ID")!;
@@ -72,10 +69,7 @@ public class CtraderUsecase
         tokenModel.UserID = userId;
         tokenModel.PlatformId = ctraderUser!.AccountId.ToString();
 
-        // 3. Save token to database
-        await _tradingRepository.SaveToken(tokenModel);
-
-        // 4. Create or update account in accounts table
+        // 3. Create or update account in accounts table (tokens stored directly on account)
         await _accountRepository.Save(
             new Account
             {
@@ -89,6 +83,9 @@ public class CtraderUsecase
                 Equity = (decimal)ctraderUser.Equity,
                 Status = ConnectionStatus.None,
                 Role = "",
+                AccessToken = tokenModel.AuthToken,
+                RefreshToken = tokenModel.RefreshToken,
+                TokenExpiredAt = tokenModel.ExpiredAt,
             },
             a => a.PlatformName == _platformName
                 && a.AccountNumber == ctraderUser.AccountId
@@ -111,19 +108,25 @@ public class CtraderUsecase
             return (null, TError.NewClient("account is not a cTrader account"));
         }
 
-        var token = await _tradingRepository.GetToken(
-            _platformName,
-            account.AccountNumber.ToString()
-        );
-
-        if (token == null)
+        if (string.IsNullOrEmpty(account.AccessToken))
         {
             return (null, TError.NewNotFound("token not found for this account"));
         }
 
+        // Build AppToken from Account fields (for backward compatibility with handler response)
+        var token = new AppToken
+        {
+            AuthToken = account.AccessToken!,
+            RefreshToken = account.RefreshToken ?? "",
+            ExpiredAt = account.TokenExpiredAt ?? DateTime.UtcNow,
+            Platform = _platformName,
+            PlatformId = account.AccountNumber.ToString(),
+            UserID = account.UserId,
+        };
+
         if (token.ExpiredAt < DateTime.UtcNow)
         {
-            var (refreshedToken, terr) = await RefreshToken(token);
+            var (refreshedToken, terr) = await RefreshToken(token, account);
             if (terr != null)
             {
                 return (null, terr);
@@ -141,29 +144,25 @@ public class CtraderUsecase
             return (null, TError.NewClient("account_number is required"));
         }
 
-        // 1. Build token from manual input
-        var tokenModel = new AppToken
-        {
-            Platform = _platformName,
-            AuthToken = payload.AccessToken,
-            RefreshToken = payload.RefreshToken,
-            ExpiredAt = DateTime.Parse(payload.ExpiryToken),
-            UserID = payload.UserId,
-            PlatformId = payload.AccountNumber.ToString(),
-        };
+        // 1. Parse expiry date
+        var expiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry)
+            ? expiry
+            : DateTime.UtcNow.AddDays(30);
 
-        // 2. Save token to database
-        var (_, tokenErr) = await _tradingRepository.SaveToken(tokenModel);
-        if (tokenErr != null)
-        {
-            return (null, tokenErr);
-        }
-
-        // 3. Try to get cTrader user info (optional – use manual values as fallback)
+        // 2. Try to get cTrader user info (optional – use manual values as fallback)
         decimal balance = 0;
         decimal equity = 0;
         try
         {
+            var tokenModel = new AppToken
+            {
+                Platform = _platformName,
+                AuthToken = payload.AccessToken,
+                RefreshToken = payload.RefreshToken,
+                ExpiredAt = expiredAt,
+                UserID = payload.UserId,
+                PlatformId = payload.AccountNumber.ToString(),
+            };
             var (ctraderUser, terr) = await _ctraderRepository.GetUserByTokenAsync(tokenModel);
             if (terr == null && ctraderUser != null)
             {
@@ -176,7 +175,7 @@ public class CtraderUsecase
             // cTrader API unreachable – continue with defaults
         }
 
-        // 4. Create or update account
+        // 3. Create or update account (tokens stored directly on account)
         var account = await _accountRepository.Save(
             new Account
             {
@@ -190,13 +189,16 @@ public class CtraderUsecase
                 Equity = equity,
                 Status = ConnectionStatus.None,
                 Role = payload.Role,
+                AccessToken = payload.AccessToken,
+                RefreshToken = payload.RefreshToken,
+                TokenExpiredAt = expiredAt,
             },
             a => a.PlatformName == _platformName
                 && a.AccountNumber == payload.AccountNumber
                 && a.UserId == payload.UserId
         );
 
-        // 5. Notify Go bridge via RabbitMQ to connect this account
+        // 4. Notify Go bridge via RabbitMQ to connect this account
         if (account != null)
         {
             await _jobPublisher.PublishCtraderManageAccount(account);
@@ -206,6 +208,7 @@ public class CtraderUsecase
     }
 
     // GetAccountsForBridge returns all cTrader accounts with their tokens embedded
+    // Tokens are now stored directly on the Account model (not in app_tokens table)
     public async Task<List<object>> GetAccountsForBridge()
     {
         var accounts = await _accountRepository.GetMany(
@@ -215,28 +218,6 @@ public class CtraderUsecase
         var result = new List<object>();
         foreach (var account in accounts)
         {
-            string accessToken = "";
-            string refreshToken = "";
-            string expiredAt = "";
-
-            try
-            {
-                var token = await _tradingRepository.GetToken(
-                    _platformName,
-                    account.AccountNumber.ToString()
-                );
-                if (token != null)
-                {
-                    accessToken = token.AuthToken ?? "";
-                    refreshToken = token.RefreshToken ?? "";
-                    expiredAt = token.ExpiredAt.ToString("o");
-                }
-            }
-            catch
-            {
-                // Token not found — continue with empty values
-            }
-
             result.Add(new
             {
                 id = account.Id,
@@ -249,16 +230,16 @@ public class CtraderUsecase
                 balance = (double)account.Balance,
                 equity = (double)account.Equity,
                 status = (int)account.Status,
-                access_token = accessToken,
-                refresh_token = refreshToken,
-                expired_at = expiredAt,
+                access_token = account.AccessToken ?? "",
+                refresh_token = account.RefreshToken ?? "",
+                expired_at = account.TokenExpiredAt?.ToString("o") ?? "",
             });
         }
 
         return result;
     }
 
-    public async Task<(AppToken?, ITError?)> RefreshToken(AppToken token)
+    public async Task<(AppToken?, ITError?)> RefreshToken(AppToken token, Account? account = null)
     {
         var (newToken, terr) = await _ctraderRepository.RefreshTokenAsync(token.RefreshToken);
         if (terr != null)
@@ -270,7 +251,23 @@ public class CtraderUsecase
         newToken.PlatformId = token.PlatformId;
         newToken.UserID = token.UserID;
 
-        await _tradingRepository.SaveToken(newToken);
+        // Save refreshed token directly on the Account
+        if (account == null)
+        {
+            account = await _accountRepository.Get(
+                a => a.PlatformName == _platformName
+                    && a.AccountNumber.ToString() == token.PlatformId
+            );
+        }
+
+        if (account != null)
+        {
+            account.AccessToken = newToken.AuthToken;
+            account.RefreshToken = newToken.RefreshToken;
+            account.TokenExpiredAt = newToken.ExpiredAt;
+            await _accountRepository.Save(account, a => a.Id == account.Id);
+        }
+
         return (newToken, null);
     }
 }

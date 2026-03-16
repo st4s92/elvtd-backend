@@ -74,6 +74,18 @@ public class Account : IAuditableEntity
     [JsonPropertyName("copier_version")]
     public string? CopierVersion { get; set; }
 
+    [Column("access_token"), MaxLength(500)]
+    [JsonPropertyName("access_token")]
+    public string? AccessToken { get; set; }
+
+    [Column("refresh_token"), MaxLength(500)]
+    [JsonPropertyName("refresh_token")]
+    public string? RefreshToken { get; set; }
+
+    [Column("token_expired_at")]
+    [JsonPropertyName("token_expired_at")]
+    public DateTime? TokenExpiredAt { get; set; }
+
     public bool IsDeleted => DeletedAt.HasValue;
 
     // Reverse navigation
