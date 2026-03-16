@@ -47,8 +47,15 @@ public class CtraderHandler
 
     public async Task<IResult> GetAccountsForBridge()
     {
-        var accounts = await _usecase.GetAccountsForBridge();
-        return Response.Json(accounts);
+        try
+        {
+            var accounts = await _usecase.GetAccountsForBridge();
+            return Response.Json(accounts);
+        }
+        catch (Exception ex)
+        {
+            return Response.Json(TError.NewServer($"GetAccountsForBridge: {ex.Message}"));
+        }
     }
 
     public async Task<IResult> GetTokenForAccount(long accountId)

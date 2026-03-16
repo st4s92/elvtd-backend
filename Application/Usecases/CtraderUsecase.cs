@@ -215,26 +215,43 @@ public class CtraderUsecase
         var result = new List<object>();
         foreach (var account in accounts)
         {
-            var token = await _tradingRepository.GetToken(
-                _platformName,
-                account.AccountNumber.ToString()
-            );
+            string accessToken = "";
+            string refreshToken = "";
+            string expiredAt = "";
+
+            try
+            {
+                var token = await _tradingRepository.GetToken(
+                    _platformName,
+                    account.AccountNumber.ToString()
+                );
+                if (token != null)
+                {
+                    accessToken = token.AuthToken ?? "";
+                    refreshToken = token.RefreshToken ?? "";
+                    expiredAt = token.ExpiredAt.ToString("o");
+                }
+            }
+            catch
+            {
+                // Token not found — continue with empty values
+            }
 
             result.Add(new
             {
                 id = account.Id,
                 platform_name = account.PlatformName,
                 account_number = account.AccountNumber,
-                broker_name = account.BrokerName,
-                server_name = account.ServerName,
+                broker_name = account.BrokerName ?? "",
+                server_name = account.ServerName ?? "",
                 user_id = account.UserId,
-                role = account.Role,
-                balance = account.Balance,
-                equity = account.Equity,
+                role = account.Role ?? "",
+                balance = (double)account.Balance,
+                equity = (double)account.Equity,
                 status = (int)account.Status,
-                access_token = token?.AuthToken ?? "",
-                refresh_token = token?.RefreshToken ?? "",
-                expired_at = token?.ExpiredAt.ToString("o") ?? "",
+                access_token = accessToken,
+                refresh_token = refreshToken,
+                expired_at = expiredAt,
             });
         }
 
