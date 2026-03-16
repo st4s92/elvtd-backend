@@ -41,5 +41,14 @@ public static class CtraderRoutes
         {
             return await handler.GetAccountsForBridge();
         }).WithName("GetCtraderBridgeAccounts");
+
+        // Direct token save endpoint for cTrader accounts
+        group.MapPut("/ctrader/token/save", async (
+            [FromServices] CtraderHandler handler,
+            [FromBody] CtraderTokenPayload payload) =>
+        {
+            return await handler.SaveTokenDirect(payload);
+        }).WithName("SaveCtraderTokenDirect")
+        .WithTags("cTrader");
     }
 }
