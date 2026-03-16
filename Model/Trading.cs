@@ -38,6 +38,9 @@ public class ManualCtraderAccountPayload
     [JsonPropertyName("user_id")]
     public long UserId { get; set; }
 
+    [JsonPropertyName("account_number")]
+    public long AccountNumber { get; set; }
+
     [JsonPropertyName("access_token")]
     public string AccessToken { get; set; } = "";
 

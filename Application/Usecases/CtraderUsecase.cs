@@ -133,6 +133,11 @@ public class CtraderUsecase
 
     public async Task<(Account?, ITError?)> CreateAccountManual(ManualCtraderAccountPayload payload)
     {
+        if (payload.AccountNumber <= 0)
+        {
+            return (null, TError.NewClient("account_number is required"));
+        }
+
         // 1. Build token from manual input
         var tokenModel = new AppToken
         {
@@ -141,37 +146,46 @@ public class CtraderUsecase
             RefreshToken = payload.RefreshToken,
             ExpiredAt = DateTime.Parse(payload.ExpiryToken),
             UserID = payload.UserId,
+            PlatformId = payload.AccountNumber.ToString(),
         };
 
-        // 2. Get cTrader user info using the token
-        var (ctraderUser, terr) = await _ctraderRepository.GetUserByTokenAsync(tokenModel);
-        if (terr != null)
-        {
-            return (null, terr);
-        }
-
-        tokenModel.PlatformId = ctraderUser!.AccountId.ToString();
-
-        // 3. Save token to database
+        // 2. Save token to database
         await _tradingRepository.SaveToken(tokenModel);
+
+        // 3. Try to get cTrader user info (optional – use manual values as fallback)
+        decimal balance = 0;
+        decimal equity = 0;
+        try
+        {
+            var (ctraderUser, terr) = await _ctraderRepository.GetUserByTokenAsync(tokenModel);
+            if (terr == null && ctraderUser != null)
+            {
+                balance = (decimal)ctraderUser.Balance;
+                equity = (decimal)ctraderUser.Equity;
+            }
+        }
+        catch
+        {
+            // cTrader API unreachable – continue with defaults
+        }
 
         // 4. Create or update account
         var account = await _accountRepository.Save(
             new Account
             {
                 PlatformName = _platformName,
-                AccountNumber = ctraderUser.AccountId,
+                AccountNumber = payload.AccountNumber,
                 AccountPassword = "",
                 BrokerName = "cTrader",
                 ServerName = "demo",
                 UserId = payload.UserId,
-                Balance = (decimal)ctraderUser.Balance,
-                Equity = (decimal)ctraderUser.Equity,
+                Balance = balance,
+                Equity = equity,
                 Status = ConnectionStatus.None,
                 Role = payload.Role,
             },
             a => a.PlatformName == _platformName
-                && a.AccountNumber == ctraderUser.AccountId
+                && a.AccountNumber == payload.AccountNumber
                 && a.UserId == payload.UserId
         );
 
