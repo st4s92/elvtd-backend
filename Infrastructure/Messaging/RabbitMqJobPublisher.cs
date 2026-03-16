@@ -204,4 +204,44 @@ public class RabbitMqJobPublisher : IJobPublisher
         return Task.CompletedTask;
     }
 
+    public Task PublishCtraderManageAccount(Account account)
+    {
+        var exchange = "ctrader.exchange";
+        var routingKey = "ctrader.manage.account";
+
+        var envelope = new
+        {
+            type = "MANAGE_ACCOUNT",
+            data = new
+            {
+                id = account.Id,
+                platform_name = account.PlatformName,
+                account_number = account.AccountNumber,
+                account_password = account.AccountPassword,
+                broker_name = account.BrokerName,
+                server_name = account.ServerName,
+                user_id = account.UserId,
+                role = account.Role,
+                balance = account.Balance.ToString(),
+                equity = account.Equity.ToString(),
+                status = (int)account.Status,
+            }
+        };
+
+        Console.WriteLine($"exchange: {exchange}");
+        Console.WriteLine($"routingKey: {routingKey}");
+        Console.WriteLine($"payload: {JsonSerializer.Serialize(envelope)}");
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(envelope);
+
+        _channel.BasicPublish(
+            exchange: exchange,
+            routingKey: routingKey,
+            basicProperties: null,
+            body: body
+        );
+
+        return Task.CompletedTask;
+    }
+
 }

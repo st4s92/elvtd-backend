@@ -16,6 +16,7 @@ public class CtraderUsecase
     private readonly ICtraderRepository _ctraderRepository;
     private readonly ITradingRepository _tradingRepository;
     private readonly IAccountRepository _accountRepository;
+    private readonly IJobPublisher _jobPublisher;
     private readonly string _ctraderClientId;
     private readonly string _ctraderClientSecret;
     private readonly App _app;
@@ -25,12 +26,14 @@ public class CtraderUsecase
         ICtraderRepository ctraderRepository,
         ITradingRepository tradingRepository,
         IAccountRepository accountRepository,
+        IJobPublisher jobPublisher,
         UserUsecase userUsecase)
     {
         _userUsecase = userUsecase;
         _ctraderRepository = ctraderRepository;
         _tradingRepository = tradingRepository;
         _accountRepository = accountRepository;
+        _jobPublisher = jobPublisher;
         _ctraderClientId = Environment.GetEnvironmentVariable("CTRADER_CLIENT_ID")!;
         _ctraderClientSecret = Environment.GetEnvironmentVariable("CTRADER_CLIENT_SECRET")!;
 
@@ -188,6 +191,12 @@ public class CtraderUsecase
                 && a.AccountNumber == payload.AccountNumber
                 && a.UserId == payload.UserId
         );
+
+        // 5. Notify Go bridge via RabbitMQ to connect this account
+        if (account != null)
+        {
+            await _jobPublisher.PublishCtraderManageAccount(account);
+        }
 
         return (account, null);
     }

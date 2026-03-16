@@ -27,4 +27,5 @@ public interface IJobPublisher
         long ctraderId,
         IEnumerable<object> payloads
     );
+    Task PublishCtraderManageAccount(Account account);
 }
