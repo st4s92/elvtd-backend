@@ -111,6 +111,9 @@ public partial class TraderHandler
             UpdatedAt = a.UpdatedAt,
             Balance = a.Balance,
             Equity = a.Equity,
+            AccessToken = a.AccessToken,
+            RefreshToken = a.RefreshToken,
+            TokenExpiredAt = a.TokenExpiredAt,
         }).ToList();
 
         return Response.Json(data);
@@ -163,6 +166,9 @@ public partial class TraderHandler
             OpenPositionsCount = a.Orders.Count + a.ActiveOrders.Count,
             DedicatedServerName = a.ServerAccount?.Server?.ServerName ?? "-",
             CopierVersion = a.CopierVersion,
+            AccessToken = a.AccessToken,
+            RefreshToken = a.RefreshToken,
+            TokenExpiredAt = a.TokenExpiredAt,
         })
             .ToList();
 

@@ -222,6 +222,15 @@ public class AccountGetPaginatedObject
 
     [JsonPropertyName("copier_version")]
     public string? CopierVersion { get; set; }
+
+    [JsonPropertyName("access_token")]
+    public string? AccessToken { get; set; }
+
+    [JsonPropertyName("refresh_token")]
+    public string? RefreshToken { get; set; }
+
+    [JsonPropertyName("token_expired_at")]
+    public DateTime? TokenExpiredAt { get; set; }
 }
 
 public class TradePlatformCreateJob
