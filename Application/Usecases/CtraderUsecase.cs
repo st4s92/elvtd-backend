@@ -131,6 +131,53 @@ public class CtraderUsecase
         return (token, null);
     }
 
+    public async Task<(Account?, ITError?)> CreateAccountManual(ManualCtraderAccountPayload payload)
+    {
+        // 1. Build token from manual input
+        var tokenModel = new AppToken
+        {
+            Platform = _platformName,
+            AuthToken = payload.AccessToken,
+            RefreshToken = payload.RefreshToken,
+            ExpiredAt = DateTime.Parse(payload.ExpiryToken),
+            UserID = payload.UserId,
+        };
+
+        // 2. Get cTrader user info using the token
+        var (ctraderUser, terr) = await _ctraderRepository.GetUserByTokenAsync(tokenModel);
+        if (terr != null)
+        {
+            return (null, terr);
+        }
+
+        tokenModel.PlatformId = ctraderUser!.AccountId.ToString();
+
+        // 3. Save token to database
+        await _tradingRepository.SaveToken(tokenModel);
+
+        // 4. Create or update account
+        var account = await _accountRepository.Save(
+            new Account
+            {
+                PlatformName = _platformName,
+                AccountNumber = ctraderUser.AccountId,
+                AccountPassword = "",
+                BrokerName = "cTrader",
+                ServerName = "demo",
+                UserId = payload.UserId,
+                Balance = (decimal)ctraderUser.Balance,
+                Equity = (decimal)ctraderUser.Equity,
+                Status = ConnectionStatus.None,
+                Role = payload.Role,
+            },
+            a => a.PlatformName == _platformName
+                && a.AccountNumber == ctraderUser.AccountId
+                && a.UserId == payload.UserId
+        );
+
+        return (account, null);
+    }
+
     public async Task<(AppToken?, ITError?)> RefreshToken(AppToken token)
     {
         var (newToken, terr) = await _ctraderRepository.RefreshTokenAsync(token.RefreshToken);

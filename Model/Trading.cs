@@ -32,3 +32,21 @@ public class BridgeEnvelope<T>
     public string Type { get; set; } = "";
     public T Data { get; set; } = default!;
 }
+
+public class ManualCtraderAccountPayload
+{
+    [JsonPropertyName("user_id")]
+    public long UserId { get; set; }
+
+    [JsonPropertyName("access_token")]
+    public string AccessToken { get; set; } = "";
+
+    [JsonPropertyName("refresh_token")]
+    public string RefreshToken { get; set; } = "";
+
+    [JsonPropertyName("expiry_token")]
+    public string ExpiryToken { get; set; } = "";
+
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = "";
+}

@@ -1,5 +1,6 @@
 using Backend.Application.Usecases;
 using Backend.Helper;
+using Backend.Model;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Presentation.Handlers;
@@ -32,6 +33,16 @@ public class CtraderHandler
             return Response.Json(terr);
         }
         return Response.Json(res);
+    }
+
+    public async Task<IResult> CreateAccountManual(ManualCtraderAccountPayload payload)
+    {
+        var (account, terr) = await _usecase.CreateAccountManual(payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(account);
     }
 
     public async Task<IResult> GetTokenForAccount(long accountId)

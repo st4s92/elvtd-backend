@@ -21,6 +21,13 @@ public static class CtraderRoutes
             return await handler.ProcessAuthCallback(code, userId);
         }).WithName("GetCtraderAuthCallback");
 
+        group.MapPost("/ctrader/account/manual", async (
+            [FromServices] CtraderHandler handler,
+            [FromBody] ManualCtraderAccountPayload payload) =>
+        {
+            return await handler.CreateAccountManual(payload);
+        }).WithName("CreateCtraderAccountManual");
+
         group.MapGet("/ctrader/token/{accountId}", async (
             [FromServices] CtraderHandler handler,
             long accountId) =>
