@@ -27,7 +27,7 @@ public class TradingRepository : ITradingRepository
                 .FirstOrDefaultAsync(t =>
                     t.Platform == token.Platform &&
                     t.PlatformId == token.PlatformId &&
-                    !t.IsDeleted);
+                    t.DeletedAt == null);
 
             if (existing is not null)
             {
