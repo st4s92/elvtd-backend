@@ -153,7 +153,11 @@ public class CtraderUsecase
         };
 
         // 2. Save token to database
-        await _tradingRepository.SaveToken(tokenModel);
+        var (_, tokenErr) = await _tradingRepository.SaveToken(tokenModel);
+        if (tokenErr != null)
+        {
+            return (null, tokenErr);
+        }
 
         // 3. Try to get cTrader user info (optional – use manual values as fallback)
         decimal balance = 0;

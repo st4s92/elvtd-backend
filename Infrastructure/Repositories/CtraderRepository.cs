@@ -86,7 +86,7 @@ public class CtraderRepository : ICtraderRepository
 
             var appToken = new AppToken
             {
-                Platform = "CTRADER",
+                Platform = "cTrader",
                 AuthToken = token!.AccessToken,
                 RefreshToken = token!.refreshToken,
                 ExpiredAt = DateTime.UtcNow.AddSeconds(token.ExpiresIn)
