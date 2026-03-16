@@ -23,11 +23,11 @@ public class TradingRepository : ITradingRepository
         ITError? terr = null;
         try
         {
+            // Global query filter already applies DeletedAt == null
             var existing = await _context.AppTokens
                 .FirstOrDefaultAsync(t =>
                     t.Platform == token.Platform &&
-                    t.PlatformId == token.PlatformId &&
-                    t.DeletedAt == null);
+                    t.PlatformId == token.PlatformId);
 
             if (existing is not null)
             {

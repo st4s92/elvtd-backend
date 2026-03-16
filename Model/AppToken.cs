@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Model;
 
+[Table("app_tokens")]
 public class AppToken : IAuditableEntity
 {
     [Key]
