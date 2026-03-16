@@ -205,6 +205,42 @@ public class CtraderUsecase
         return (account, null);
     }
 
+    // GetAccountsForBridge returns all cTrader accounts with their tokens embedded
+    public async Task<List<object>> GetAccountsForBridge()
+    {
+        var accounts = await _accountRepository.GetMany(
+            a => a.PlatformName == _platformName
+        );
+
+        var result = new List<object>();
+        foreach (var account in accounts)
+        {
+            var token = await _tradingRepository.GetToken(
+                _platformName,
+                account.AccountNumber.ToString()
+            );
+
+            result.Add(new
+            {
+                id = account.Id,
+                platform_name = account.PlatformName,
+                account_number = account.AccountNumber,
+                broker_name = account.BrokerName,
+                server_name = account.ServerName,
+                user_id = account.UserId,
+                role = account.Role,
+                balance = account.Balance,
+                equity = account.Equity,
+                status = (int)account.Status,
+                access_token = token?.AuthToken ?? "",
+                refresh_token = token?.RefreshToken ?? "",
+                expired_at = token?.ExpiredAt.ToString("o") ?? "",
+            });
+        }
+
+        return result;
+    }
+
     public async Task<(AppToken?, ITError?)> RefreshToken(AppToken token)
     {
         var (newToken, terr) = await _ctraderRepository.RefreshTokenAsync(token.RefreshToken);

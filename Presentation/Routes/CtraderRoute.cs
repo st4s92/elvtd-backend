@@ -34,5 +34,12 @@ public static class CtraderRoutes
         {
             return await handler.GetTokenForAccount(accountId);
         }).WithName("GetCtraderTokenForAccount");
+
+        // Bridge endpoint: returns all cTrader accounts WITH tokens in one call
+        group.MapGet("/ctrader/bridge/accounts", async (
+            [FromServices] CtraderHandler handler) =>
+        {
+            return await handler.GetAccountsForBridge();
+        }).WithName("GetCtraderBridgeAccounts");
     }
 }
