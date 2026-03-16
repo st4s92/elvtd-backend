@@ -18,4 +18,13 @@ public interface IJobPublisher
         long account,
         IEnumerable<object> payloads
     );
+    Task PublishCtraderPacket(
+        long ctraderId,
+        string type,
+        object payload
+    );
+    Task PublishCtraderPacketBatch(
+        long ctraderId,
+        IEnumerable<object> payloads
+    );
 }

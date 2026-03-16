@@ -105,4 +105,43 @@ public class CtraderRepository : ICtraderRepository
             return (null, TError.NewServer(ex.Message));
         }
     }
+
+    public async Task<(AppToken?, ITError?)> RefreshTokenAsync(string refreshToken)
+    {
+        try
+        {
+            var url = $"{_baseUrl}/apps/token?grant_type=refresh_token&refresh_token={refreshToken}&client_secret={_clientSecret}&client_id={_clientId}";
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var response = await _http.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                return (null, TError.NewServer($"Token refresh failed: {err}"));
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var token = JsonSerializer.Deserialize<CtraderAppTokenResponse>(json);
+
+            if (token == null)
+            {
+                return (null, TError.NewNotFound("refresh token response empty"));
+            }
+
+            var appToken = new AppToken
+            {
+                Platform = "cTrader",
+                AuthToken = token.AccessToken,
+                RefreshToken = token.refreshToken,
+                ExpiredAt = DateTime.UtcNow.AddSeconds(token.ExpiresIn)
+            };
+
+            return (appToken, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, TError.NewServer(ex.Message));
+        }
+    }
 }

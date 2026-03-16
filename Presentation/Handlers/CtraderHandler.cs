@@ -24,14 +24,28 @@ public class CtraderHandler
         return Response.Json(res);
     }
 
-    public async Task<IResult> ProcessAuthCallback(string code)
+    public async Task<IResult> ProcessAuthCallback(string code, long userId)
     {
-        var (res, terr) = await _usecase.ProcessAuthCallback(code);
-        Console.WriteLine($"code: {code}");
+        var (res, terr) = await _usecase.ProcessAuthCallback(code, userId);
         if (terr != null)
         {
             return Response.Json(terr);
         }
         return Response.Json(res);
+    }
+
+    public async Task<IResult> GetTokenForAccount(long accountId)
+    {
+        var (token, terr) = await _usecase.GetTokenForAccount(accountId);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(new
+        {
+            token = token!.AuthToken,
+            refresh_token = token.RefreshToken,
+            expired_at = token.ExpiredAt.ToString("o")
+        });
     }
 }

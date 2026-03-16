@@ -20,6 +20,13 @@ public class RabbitMqJobPublisher : IJobPublisher
             autoDelete: false,
             arguments: null
         );
+        _channel.ExchangeDeclare(
+            exchange: "ctrader.exchange",
+            type: ExchangeType.Topic,
+            durable: true,
+            autoDelete: false,
+            arguments: null
+        );
     }
 
     public Task PublishCreateJob(TradePlatformCreateJob job)
@@ -119,6 +126,64 @@ public class RabbitMqJobPublisher : IJobPublisher
             throw new Exception("MT5_EXCHANGE not set");
 
         var routingKey = $"mt5.receive.packet.{server.Replace(" ", "_")}.{account}";
+
+        var bodyJson = JsonSerializer.Serialize(payloads);
+
+        Console.WriteLine($"exchange: {exchange}");
+        Console.WriteLine($"routingKey: {routingKey}");
+        Console.WriteLine($"batch-count: {payloads.Count()}");
+        Console.WriteLine($"payload: {bodyJson}");
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(payloads);
+
+        _channel.BasicPublish(
+            exchange: exchange,
+            routingKey: routingKey,
+            basicProperties: null,
+            body: body
+        );
+
+        return Task.CompletedTask;
+    }
+
+    public Task PublishCtraderPacket(
+        long ctraderId,
+        string type,
+        object payload
+    )
+    {
+        var exchange = "ctrader.exchange";
+        var routingKey = $"ctrader.receive.packet.{ctraderId}";
+
+        var envelope = new
+        {
+            type = type,
+            data = payload
+        };
+
+        Console.WriteLine($"exchange: {exchange}");
+        Console.WriteLine($"routingKey: {routingKey}");
+        Console.WriteLine($"payload: {JsonSerializer.Serialize(envelope)}");
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(envelope);
+
+        _channel.BasicPublish(
+            exchange: exchange,
+            routingKey: routingKey,
+            basicProperties: null,
+            body: body
+        );
+
+        return Task.CompletedTask;
+    }
+
+    public Task PublishCtraderPacketBatch(
+        long ctraderId,
+        IEnumerable<object> payloads
+    )
+    {
+        var exchange = "ctrader.exchange";
+        var routingKey = $"ctrader.receive.packet.{ctraderId}";
 
         var bodyJson = JsonSerializer.Serialize(payloads);
 

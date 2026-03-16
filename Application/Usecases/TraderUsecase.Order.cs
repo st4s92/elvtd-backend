@@ -954,11 +954,21 @@ public partial class TraderUsecase
                 {
                     _logger.Info("publish-mt5-batch", messages);
 
-                    await _jobPublisher.PublishMt5PacketBatch(
-                        item.SlaveAccount.ServerName,
-                        item.SlaveAccount.AccountNumber,
-                        messages
-                    );
+                    if (item.SlaveAccount.PlatformName == "cTrader")
+                    {
+                        await _jobPublisher.PublishCtraderPacketBatch(
+                            item.SlaveAccount.AccountNumber,
+                            messages
+                        );
+                    }
+                    else
+                    {
+                        await _jobPublisher.PublishMt5PacketBatch(
+                            item.SlaveAccount.ServerName,
+                            item.SlaveAccount.AccountNumber,
+                            messages
+                        );
+                    }
                 }
             }
 
@@ -1193,11 +1203,21 @@ public partial class TraderUsecase
                     }
 
                     // Push ALL close packets in ONE batch
-                    await _jobPublisher.PublishMt5PacketBatch(
-                        slaveAccount.ServerName,
-                        slaveAccount.AccountNumber,
-                        closeMessages.Cast<object>().ToList()
-                    );
+                    if (slaveAccount.PlatformName == "cTrader")
+                    {
+                        await _jobPublisher.PublishCtraderPacketBatch(
+                            slaveAccount.AccountNumber,
+                            closeMessages.Cast<object>().ToList()
+                        );
+                    }
+                    else
+                    {
+                        await _jobPublisher.PublishMt5PacketBatch(
+                            slaveAccount.ServerName,
+                            slaveAccount.AccountNumber,
+                            closeMessages.Cast<object>().ToList()
+                        );
+                    }
 
                     // Batch delete from ActiveOrder
                     var orphanIds = orphanActiveOrders.Select(o => o.Id).ToList();
@@ -1712,11 +1732,21 @@ public partial class TraderUsecase
                     CreatedAt = DateTime.UtcNow,
                 };
 
-                await _jobPublisher.PublishMt5PacketBatch(
-                    slaveAccount.ServerName,
-                    slaveAccount.AccountNumber,
-                    new List<object> { broadcastPayload }
-                );
+                if (slaveAccount.PlatformName == "cTrader")
+                {
+                    await _jobPublisher.PublishCtraderPacketBatch(
+                        slaveAccount.AccountNumber,
+                        new List<object> { broadcastPayload }
+                    );
+                }
+                else
+                {
+                    await _jobPublisher.PublishMt5PacketBatch(
+                        slaveAccount.ServerName,
+                        slaveAccount.AccountNumber,
+                        new List<object> { broadcastPayload }
+                    );
+                }
 
                 _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, lot={slaveLot}");
             }

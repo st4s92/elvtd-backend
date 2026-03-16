@@ -13,10 +13,19 @@ public static class CtraderRoutes
             return handler.GetAuthPage();
         }).WithName("GetCtraderAuthUrl");
 
-        group.MapGet("/ctrader/auth/callback", async ([FromServices] CtraderHandler handler, [FromQuery] string code) =>
+        group.MapGet("/ctrader/auth/callback", async (
+            [FromServices] CtraderHandler handler,
+            [FromQuery] string code,
+            [FromQuery] long userId) =>
         {
-            Console.WriteLine($"code1: {code}");
-            return await handler.ProcessAuthCallback(code);
+            return await handler.ProcessAuthCallback(code, userId);
         }).WithName("GetCtraderAuthCallback");
+
+        group.MapGet("/ctrader/token/{accountId}", async (
+            [FromServices] CtraderHandler handler,
+            long accountId) =>
+        {
+            return await handler.GetTokenForAccount(accountId);
+        }).WithName("GetCtraderTokenForAccount");
     }
 }

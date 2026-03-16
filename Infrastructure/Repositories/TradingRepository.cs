@@ -52,4 +52,12 @@ public class TradingRepository : ITradingRepository
         }
         return (res, terr);
     }
+
+    public async Task<AppToken?> GetToken(string platform, string platformId)
+    {
+        return await _context.AppTokens
+            .FirstOrDefaultAsync(t =>
+                t.Platform == platform &&
+                t.PlatformId == platformId);
+    }
 }
