@@ -9,6 +9,8 @@ public partial class TraderHandler
 {
     public async Task<IResult> AddAccount(AccountPayload accountPayload)
     {
+        var isCtrader = accountPayload.PlatformName == "cTrader";
+
         var account = new Account
         {
             PlatformName = accountPayload.PlatformName ?? "",
@@ -20,15 +22,26 @@ public partial class TraderHandler
             Role = accountPayload.Role ?? "SLAVE",
         };
 
-        if (
-            accountPayload.AccountNumber == 0
-            || accountPayload.ServerName == ""
-            || accountPayload.AccountPassword == ""
-        )
+        if (isCtrader)
         {
-            return Response.Json(
-                TError.NewClient("Account number, Server Name and Password should be filled")
-            );
+            // cTrader: nur Account Number ist Pflicht (kein Passwort, OAuth stattdessen)
+            if (accountPayload.AccountNumber == 0)
+            {
+                return Response.Json(TError.NewClient("Account number should be filled"));
+            }
+        }
+        else
+        {
+            if (
+                accountPayload.AccountNumber == 0
+                || accountPayload.ServerName == ""
+                || accountPayload.AccountPassword == ""
+            )
+            {
+                return Response.Json(
+                    TError.NewClient("Account number, Server Name and Password should be filled")
+                );
+            }
         }
         if (account.UserId == 0)
         {
@@ -43,6 +56,22 @@ public partial class TraderHandler
         {
             return Response.Json(terr);
         }
+
+        // cTrader: Token speichern falls mitgegeben
+        if (isCtrader && res != null && !string.IsNullOrEmpty(accountPayload.AccessToken))
+        {
+            var token = new AppToken
+            {
+                Platform = "cTrader",
+                PlatformId = account.AccountNumber.ToString(),
+                AuthToken = accountPayload.AccessToken ?? "",
+                RefreshToken = accountPayload.RefreshToken ?? "",
+                ExpiredAt = DateTime.TryParse(accountPayload.ExpiryToken, out var expiry) ? expiry : DateTime.UtcNow.AddDays(30),
+                UserID = account.UserId,
+            };
+            await _tradingRepository.SaveToken(token);
+        }
+
         return Response.Json(res);
     }
 
@@ -157,21 +186,40 @@ public partial class TraderHandler
 
     public async Task<IResult> UpdateAccount(long id, AccountPayload payload)
     {
+        Console.WriteLine($"[UpdateAccount] id={id}, platform={payload?.PlatformName}, accNum={payload?.AccountNumber}, accessToken={(!string.IsNullOrEmpty(payload?.AccessToken) ? "SET" : "EMPTY")}");
+
         if (id == 0)
         {
+            Console.WriteLine("[UpdateAccount] Error: id is 0");
             var terrs = TError.NewClient("Id should be filled");
             return Response.Json(terrs);
         }
         if (payload == null)
         {
+            Console.WriteLine("[UpdateAccount] Error: payload is null");
             var terrs = TError.NewClient("Invalid payload");
             return Response.Json(terrs);
         }
-        if (payload.AccountNumber == 0 || payload.ServerName == "" || payload.AccountPassword == "")
+
+        var isCtrader = payload.PlatformName == "cTrader";
+
+        if (isCtrader)
         {
-            return Response.Json(
-                TError.NewClient("Account number, Server Name and Password should be filled")
-            );
+            // cTrader: nur Account Number ist Pflicht
+            if (payload.AccountNumber == 0)
+            {
+                Console.WriteLine("[UpdateAccount] Error: cTrader account number is 0");
+                return Response.Json(TError.NewClient("Account number should be filled"));
+            }
+        }
+        else
+        {
+            if (payload.AccountNumber == 0 || payload.ServerName == "" || payload.AccountPassword == "")
+            {
+                return Response.Json(
+                    TError.NewClient("Account number, Server Name and Password should be filled")
+                );
+            }
         }
         if (payload.PlatformName == "")
         {
@@ -190,8 +238,36 @@ public partial class TraderHandler
         var (_, terr) = await _usecase.UpdateAccountById(id, account);
         if (terr != null)
         {
+            Console.WriteLine($"[UpdateAccount] UpdateAccountById failed: {terr}");
             return Response.Json(terr);
         }
+
+        Console.WriteLine($"[UpdateAccount] Account updated OK. isCtrader={isCtrader}, hasAccessToken={!string.IsNullOrEmpty(payload.AccessToken)}");
+
+        // cTrader: Token speichern/aktualisieren falls mitgegeben
+        if (isCtrader && !string.IsNullOrEmpty(payload.AccessToken))
+        {
+            Console.WriteLine($"[UpdateAccount] Saving cTrader token for platformId={payload.AccountNumber}");
+            var token = new AppToken
+            {
+                Platform = "cTrader",
+                PlatformId = (payload.AccountNumber ?? 0).ToString(),
+                AuthToken = payload.AccessToken ?? "",
+                RefreshToken = payload.RefreshToken ?? "",
+                ExpiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry) ? expiry : DateTime.UtcNow.AddDays(30),
+                UserID = payload.UserId ?? 0,
+            };
+            var (savedToken, tokenErr) = await _tradingRepository.SaveToken(token);
+            if (tokenErr != null)
+            {
+                Console.WriteLine($"[UpdateAccount] SaveToken FAILED: {tokenErr}");
+            }
+            else
+            {
+                Console.WriteLine($"[UpdateAccount] Token saved successfully for account {payload.AccountNumber}");
+            }
+        }
+
         return Response.Json("ok");
     }
 

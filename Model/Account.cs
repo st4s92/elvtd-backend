@@ -119,6 +119,16 @@ public class AccountPayload
 
     [JsonPropertyName("copier_version")]
     public string? CopierVersion { get; set; }
+
+    // cTrader token fields (optional, only used for cTrader accounts)
+    [JsonPropertyName("access_token")]
+    public string? AccessToken { get; set; }
+
+    [JsonPropertyName("refresh_token")]
+    public string? RefreshToken { get; set; }
+
+    [JsonPropertyName("expiry_token")]
+    public string? ExpiryToken { get; set; }
 }
 
 public class AccountGetPayload : AccountPayload
