@@ -233,6 +233,7 @@ public class CtraderUsecase
                 access_token = account.AccessToken ?? "",
                 refresh_token = account.RefreshToken ?? "",
                 expired_at = account.TokenExpiredAt?.ToString("o") ?? "",
+                ctid_trader_account_id = account.CtidTraderAccountId ?? 0,
             });
         }
 

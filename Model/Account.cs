@@ -86,6 +86,10 @@ public class Account : IAuditableEntity
     [JsonPropertyName("token_expired_at")]
     public DateTime? TokenExpiredAt { get; set; }
 
+    [Column("ctid_trader_account_id")]
+    [JsonPropertyName("ctid_trader_account_id")]
+    public long? CtidTraderAccountId { get; set; }
+
     public bool IsDeleted => DeletedAt.HasValue;
 
     // Reverse navigation
@@ -141,6 +145,9 @@ public class AccountPayload
 
     [JsonPropertyName("expiry_token")]
     public string? ExpiryToken { get; set; }
+
+    [JsonPropertyName("ctid_trader_account_id")]
+    public long? CtidTraderAccountId { get; set; }
 }
 
 public class AccountGetPayload : AccountPayload
@@ -231,6 +238,9 @@ public class AccountGetPaginatedObject
 
     [JsonPropertyName("token_expired_at")]
     public DateTime? TokenExpiredAt { get; set; }
+
+    [JsonPropertyName("ctid_trader_account_id")]
+    public long? CtidTraderAccountId { get; set; }
 }
 
 public class TradePlatformCreateJob

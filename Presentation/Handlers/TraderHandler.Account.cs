@@ -22,12 +22,16 @@ public partial class TraderHandler
             Role = accountPayload.Role ?? "SLAVE",
         };
 
-        // cTrader: Token-Felder direkt auf Account setzen
-        if (isCtrader && !string.IsNullOrEmpty(accountPayload.AccessToken))
+        // cTrader-spezifische Felder direkt auf Account setzen
+        if (isCtrader)
         {
-            account.AccessToken = accountPayload.AccessToken;
-            account.RefreshToken = accountPayload.RefreshToken ?? "";
-            account.TokenExpiredAt = DateTime.TryParse(accountPayload.ExpiryToken, out var addExpiry) ? addExpiry : DateTime.UtcNow.AddDays(30);
+            account.CtidTraderAccountId = accountPayload.CtidTraderAccountId;
+            if (!string.IsNullOrEmpty(accountPayload.AccessToken))
+            {
+                account.AccessToken = accountPayload.AccessToken;
+                account.RefreshToken = accountPayload.RefreshToken ?? "";
+                account.TokenExpiredAt = DateTime.TryParse(accountPayload.ExpiryToken, out var addExpiry) ? addExpiry : DateTime.UtcNow.AddDays(30);
+            }
         }
 
         if (isCtrader)
@@ -114,6 +118,7 @@ public partial class TraderHandler
             AccessToken = a.AccessToken,
             RefreshToken = a.RefreshToken,
             TokenExpiredAt = a.TokenExpiredAt,
+            CtidTraderAccountId = a.CtidTraderAccountId,
         }).ToList();
 
         return Response.Json(data);
@@ -169,6 +174,7 @@ public partial class TraderHandler
             AccessToken = a.AccessToken,
             RefreshToken = a.RefreshToken,
             TokenExpiredAt = a.TokenExpiredAt,
+            CtidTraderAccountId = a.CtidTraderAccountId,
         })
             .ToList();
 
@@ -234,12 +240,16 @@ public partial class TraderHandler
             AccountPassword = payload.AccountPassword ?? "",
         };
 
-        // cTrader: Token-Felder direkt im Account speichern
-        if (isCtrader && !string.IsNullOrEmpty(payload.AccessToken))
+        // cTrader-spezifische Felder direkt im Account speichern
+        if (isCtrader)
         {
-            account.AccessToken = payload.AccessToken;
-            account.RefreshToken = payload.RefreshToken ?? "";
-            account.TokenExpiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry) ? expiry : DateTime.UtcNow.AddDays(30);
+            account.CtidTraderAccountId = payload.CtidTraderAccountId;
+            if (!string.IsNullOrEmpty(payload.AccessToken))
+            {
+                account.AccessToken = payload.AccessToken;
+                account.RefreshToken = payload.RefreshToken ?? "";
+                account.TokenExpiredAt = DateTime.TryParse(payload.ExpiryToken, out var expiry) ? expiry : DateTime.UtcNow.AddDays(30);
+            }
         }
 
         var (_, terr) = await _usecase.UpdateAccountById(id, account);

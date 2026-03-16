@@ -284,7 +284,11 @@ public partial class TraderUsecase
                 existing.AccountPassword = param.AccountPassword;
             }
 
-            // cTrader token fields
+            // cTrader-spezifische Felder
+            if (param.CtidTraderAccountId.HasValue)
+            {
+                existing.CtidTraderAccountId = param.CtidTraderAccountId;
+            }
             if (!string.IsNullOrEmpty(param.AccessToken))
             {
                 existing.AccessToken = param.AccessToken;
