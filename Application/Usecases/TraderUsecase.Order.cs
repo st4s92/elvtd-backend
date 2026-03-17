@@ -681,6 +681,17 @@ public partial class TraderUsecase
                 message = String.Concat(message, " ", "no orders was deleted");
             }
 
+            // Update master account balance/equity from bridge payload
+            if (payload.Balance.HasValue && payload.Balance > 0)
+            {
+                account!.Balance = payload.Balance.Value;
+            }
+            if (payload.Equity.HasValue && payload.Equity > 0)
+            {
+                account!.Equity = payload.Equity.Value;
+            }
+            await _accountRepository.Save(account!, a => a.Id == account!.Id);
+
             await _orderRepository.CommitAsync();
 
             // 🔴 NEW: Copy each new master order to slaves
