@@ -205,6 +205,10 @@ public partial class TraderUsecase
                 x => x.AccountId == masAcc.AccountId
             );
 
+            // Load the dedicated server to get its IP for worker targeting
+            var server = await _serverRepository.Get(s => s.Id == masAcc.ServerId);
+            var serverIp = server?.ServerIp ?? "";
+
             var job = new TradePlatformCreateJob
             {
                 Id = accountID,
@@ -218,11 +222,13 @@ public partial class TraderUsecase
                 Status = (int)masAcc.Status,
                 Message = masAcc.Message,
                 Pid = masAcc.PlatformPid ?? 0,
+                ServerIp = serverIp,
             };
-            Console.WriteLine("try to publish event");
+            Console.WriteLine($"try to publish event (target server IP: {serverIp})");
 
             await _jobPublisher.PublishCreateJob(job);
-            await _systemLogUsecase.CreateLog("Account", "Install", accountID, $"Installation triggered for account {acc.AccountNumber}.");
+            await _systemLogUsecase.CreateLog("Account", "Install", accountID,
+                $"Installation triggered for account {acc.AccountNumber}. Target server: {server?.ServerName ?? "unknown"} ({serverIp})");
 
             return null;
         }
@@ -247,6 +253,10 @@ public partial class TraderUsecase
             if (terr != null)
                 return terr;
 
+            // Load the dedicated server to get its IP for worker targeting
+            var server = await _serverRepository.Get(s => s.Id == masAcc!.ServerId);
+            var serverIp = server?.ServerIp ?? "";
+
             var job = new TradePlatformCreateJob
             {
                 Id = accountID,
@@ -260,11 +270,13 @@ public partial class TraderUsecase
                 Status = (int)masAcc!.Status,
                 Message = masAcc.Message,
                 Pid = masAcc.PlatformPid ?? 0,
+                ServerIp = serverIp,
             };
-            Console.WriteLine("try to publish restart event");
+            Console.WriteLine($"try to publish restart event (target server IP: {serverIp})");
 
             await _jobPublisher.PublishRestartJob(job);
-            await _systemLogUsecase.CreateLog("Account", "Restart", accountID, $"Restart triggered for account {acc.AccountNumber}.");
+            await _systemLogUsecase.CreateLog("Account", "Restart", accountID,
+                $"Restart triggered for account {acc.AccountNumber}. Target server: {server?.ServerName ?? "unknown"} ({serverIp})");
 
             return null;
         }
@@ -334,6 +346,19 @@ public partial class TraderUsecase
                 }
             );
 
+            // Load server account to get the dedicated server IP for worker targeting
+            var (serverAccount, _) = await GetServerAccount(
+                new ServerAccount { AccountId = id }
+            );
+            var serverIp = "";
+            string serverName = "unknown";
+            if (serverAccount != null)
+            {
+                var server = await _serverRepository.Get(s => s.Id == serverAccount.ServerId);
+                serverIp = server?.ServerIp ?? "";
+                serverName = server?.ServerName ?? "unknown";
+            }
+
             // message to server
             var job = new TradePlatformCreateJob
             {
@@ -346,11 +371,13 @@ public partial class TraderUsecase
                 UserId = existing.UserId,
                 Role = "SLAVE",
                 Status = 100,
+                ServerIp = serverIp,
             };
-            Console.WriteLine("try to publish delete account event");
+            Console.WriteLine($"try to publish delete account event (target server IP: {serverIp})");
 
             await _jobPublisher.PublishDeleteJob(job);
-            await _systemLogUsecase.CreateLog("Account", "Delete", id, $"Account {existing.AccountNumber} soft deleted.");
+            await _systemLogUsecase.CreateLog("Account", "Delete", id,
+                $"Account {existing.AccountNumber} soft deleted. Target server: {serverName} ({serverIp})");
 
             return null;
         }
