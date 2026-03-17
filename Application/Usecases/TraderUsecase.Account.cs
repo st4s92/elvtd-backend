@@ -560,7 +560,7 @@ public partial class TraderUsecase
                         OrderType = o.OrderType,
                         OrderLot = o.OrderLot,
                         OrderTicket = o.OrderTicket,
-                        MasterOrderId = o.MasterOrderId,
+                        MasterOrderId = o.MasterOrderId ?? 0,
                         OrderMagic = o.OrderMagic,
                         CopyType = "MASTER_ORDER_DELETE",
                         CreatedAt = DateTime.UtcNow,

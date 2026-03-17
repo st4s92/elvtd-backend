@@ -253,7 +253,7 @@ public partial class TraderUsecase
                         o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
                     var activeSlaveStatsFromDb = await _activeOrderRepository.GetMany(
-                        o => o.MasterOrderId != 0 && masterIds.Contains(o.MasterOrderId)
+                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
 
                     // Slave-Statusmap aufbauen: orders-Tabelle als Basis, active_orders überschreiben
@@ -262,16 +262,18 @@ public partial class TraderUsecase
 
                     foreach (var s in slaveStatsFromDb)
                     {
+                        if (!s.MasterOrderId.HasValue) continue;
                         var key = $"{s.MasterOrderId}_{s.AccountId}";
-                        globalSlaveMap[key] = (s.MasterOrderId!.Value, s.AccountId, s.Status, s.CreatedAt);
+                        globalSlaveMap[key] = (s.MasterOrderId.Value, s.AccountId, s.Status, s.CreatedAt);
                     }
                     foreach (var ao in activeSlaveStatsFromDb)
                     {
+                        if (!ao.MasterOrderId.HasValue) continue;
                         var key = $"{ao.MasterOrderId}_{ao.AccountId}";
                         if (globalSlaveMap.TryGetValue(key, out var existing))
                             globalSlaveMap[key] = (existing.MasterOrderId, existing.AccountId, ao.Status, existing.CreatedAt);
                         else
-                            globalSlaveMap[key] = (ao.MasterOrderId, ao.AccountId, ao.Status, ao.CreatedAt);
+                            globalSlaveMap[key] = (ao.MasterOrderId.Value, ao.AccountId, ao.Status, ao.CreatedAt);
                     }
 
                     var statsMap = masterIds.ToDictionary(
@@ -356,23 +358,25 @@ public partial class TraderUsecase
                         o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
                     var activeSlaveStatsFromDb = await _activeOrderRepository.GetMany(
-                        o => o.MasterOrderId != 0 && masterIds.Contains(o.MasterOrderId)
+                        o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
 
                     var globalSlaveMap = new Dictionary<string, (long MasterOrderId, long AccountId, OrderStatus Status, DateTime CreatedAt)>();
 
                     foreach (var s in slaveStatsFromDb)
                     {
+                        if (!s.MasterOrderId.HasValue) continue;
                         var key = $"{s.MasterOrderId}_{s.AccountId}";
-                        globalSlaveMap[key] = (s.MasterOrderId!.Value, s.AccountId, s.Status, s.CreatedAt);
+                        globalSlaveMap[key] = (s.MasterOrderId.Value, s.AccountId, s.Status, s.CreatedAt);
                     }
                     foreach (var ao in activeSlaveStatsFromDb)
                     {
+                        if (!ao.MasterOrderId.HasValue) continue;
                         var key = $"{ao.MasterOrderId}_{ao.AccountId}";
                         if (globalSlaveMap.TryGetValue(key, out var existing))
                             globalSlaveMap[key] = (existing.MasterOrderId, existing.AccountId, ao.Status, existing.CreatedAt);
                         else
-                            globalSlaveMap[key] = (ao.MasterOrderId, ao.AccountId, ao.Status, ao.CreatedAt);
+                            globalSlaveMap[key] = (ao.MasterOrderId.Value, ao.AccountId, ao.Status, ao.CreatedAt);
                     }
 
                     var statsMap = masterIds.ToDictionary(
@@ -1192,7 +1196,8 @@ public partial class TraderUsecase
                 slaveActiveOrders ??= new List<ActiveOrder>();
 
                 var slaveActiveByMasterId = slaveActiveOrders
-                    .GroupBy(a => a.MasterOrderId)
+                    .Where(a => a.MasterOrderId.HasValue)
+                    .GroupBy(a => a.MasterOrderId!.Value)
                     .ToDictionary(g => g.Key, g => g.First());
 
                 // 4. CREATE or UPDATE missing active orders
@@ -1274,7 +1279,7 @@ public partial class TraderUsecase
 
                 // 5. BATCH PROCESSING: Close orphan active orders (master already closed)
                 var orphanActiveOrders = slaveActiveOrders
-                    .Where(a => !masterOrderIds.Contains(a.MasterOrderId))
+                    .Where(a => a.MasterOrderId.HasValue && !masterOrderIds.Contains(a.MasterOrderId.Value))
                     .ToList();
 
                 if (orphanActiveOrders.Any())
@@ -1291,7 +1296,7 @@ public partial class TraderUsecase
                             OrderType = orphan.OrderType,
                             OrderLot = orphan.OrderLot,
                             OrderTicket = orphan.OrderTicket,
-                            MasterOrderId = orphan.MasterOrderId,
+                            MasterOrderId = orphan.MasterOrderId ?? 0,
                             OrderMagic = orphan.OrderMagic,
                             CopyType = "MASTER_ORDER_DELETE",
                             CreatedAt = DateTime.UtcNow,
@@ -1730,7 +1735,7 @@ public partial class TraderUsecase
         catch (Exception ex)
         {
             _logger.Fail("SyncPositionHistory failed", ex);
-            return TError.NewInternal("position history sync failed");
+            return TError.NewServer("position history sync failed");
         }
     }
 
@@ -2088,7 +2093,7 @@ public partial class TraderUsecase
                     OrderType = existing.OrderType,
                     OrderLot = existing.OrderLot,
                     OrderTicket = existing.OrderTicket,
-                    MasterOrderId = existing.MasterOrderId,
+                    MasterOrderId = existing.MasterOrderId ?? 0,
                     OrderMagic = existing.OrderMagic,
                     CopyType = "MASTER_ORDER_DELETE",
                     CreatedAt = DateTime.UtcNow,
