@@ -20,6 +20,18 @@ public static class HealthRoutes
 
         group
             .MapMethods(
+                "/health/servers",
+                new[] { "GET", "HEAD" },
+                async (HealthHandler handler) =>
+                {
+                    return await handler.CheckAllServers();
+                }
+            )
+            .WithName("HealthCheckAllServers")
+            .WithTags("Health");
+
+        group
+            .MapMethods(
                 "/health/account/{id:int}",
                 new[] { "GET", "HEAD" },
                 async (int id, HealthHandler handler) =>

@@ -42,6 +42,79 @@ public class HealthHandler
         ), "text/html");
     }
 
+    public async Task<IResult> CheckAllServers()
+    {
+        var servers = await _serverRepository.GetMany(
+            s => s.DeletedAt == null && s.ServerIp != "ctrader-bridge"
+        );
+
+        if (servers == null || servers.Count == 0)
+            return Results.NotFound(new { status = false, message = "No MT5 servers found" });
+
+        var now = DateTime.Now;
+        var staleServers = servers
+            .Where(s => (now - s.UpdatedAt) > Threshold)
+            .ToList();
+
+        var isHealthy = staleServers.Count == 0;
+
+        if (!isHealthy)
+        {
+            var details = staleServers.Select(s => new
+            {
+                name = s.ServerName,
+                ip = s.ServerIp,
+                updated_at = s.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                age_seconds = (int)(now - s.UpdatedAt).TotalSeconds,
+                age = FormatAge(now - s.UpdatedAt)
+            });
+
+            return Results.Json(new
+            {
+                status = false,
+                message = $"{staleServers.Count} of {servers.Count} MT5 servers not responding",
+                stale_servers = details
+            }, statusCode: 500);
+        }
+
+        // All healthy — build HTML with all servers
+        var rows = string.Join("\n", servers.Select(s =>
+        {
+            var age = now - s.UpdatedAt;
+            return $@"
+    <div class=""row""><span class=""label"">{s.ServerName}</span><span class=""value"">{s.ServerIp}</span><span class=""value"">{FormatAge(age)}</span><span class=""value"">{s.ActiveTerminals} terminals</span></div>";
+        }));
+
+        var html = $@"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=""utf-8"">
+  <title>MT5 Servers - All Healthy</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }}
+    .card {{ background: #1e293b; border-radius: 12px; padding: 32px 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); min-width: 500px; }}
+    .status {{ display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }}
+    .dot {{ width: 14px; height: 14px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; }}
+    .status h1 {{ font-size: 22px; margin: 0; color: #22c55e; }}
+    .sub {{ color: #94a3b8; font-size: 13px; margin-bottom: 16px; }}
+    .row {{ display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid #334155; }}
+    .row:last-child {{ border-bottom: none; }}
+    .label {{ color: #94a3b8; font-size: 14px; min-width: 140px; }}
+    .value {{ color: #f1f5f9; font-size: 14px; font-weight: 500; }}
+  </style>
+</head>
+<body>
+  <div class=""card"">
+    <div class=""status""><div class=""dot""></div><h1>All MT5 Servers Healthy</h1></div>
+    <div class=""sub"">{servers.Count} servers reporting</div>
+{rows}
+  </div>
+</body>
+</html>";
+
+        return Results.Content(html, "text/html");
+    }
+
     public async Task<IResult> CheckAccount(int id)
     {
         var account = await _accountRepository.Get(a => a.Id == id);
