@@ -1643,9 +1643,9 @@ public partial class TraderUsecase
                         OrderType = o.OrderType,
                         OrderLot = o.OrderLot,
                         OrderPrice = o.OrderPrice,
-                        OrderProfit = o.OrderProfit,
+                        OrderProfit = o.OrderProfit ?? 0,
                         OrderSymbol = o.OrderSymbol,
-                        OrderOpenAt = o.OrderOpenAt,
+                        OrderOpenAt = o.OrderOpenAt ?? DateTime.MinValue,
                         Status = o.Status,
                     })
                     .ToList(),
