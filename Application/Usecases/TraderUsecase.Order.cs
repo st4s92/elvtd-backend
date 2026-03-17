@@ -181,8 +181,10 @@ public partial class TraderUsecase
 
                 foreach (var ao in activeAsOrders)
                 {
-                    // Active orders are always slaves.
-                    var key = $"s_{ao.AccountId}_{ao.MasterOrderId}";
+                    // External orders (MasterOrderId=null) use ticket for uniqueness
+                    var key = ao.MasterOrderId == null
+                        ? $"ext_{ao.AccountId}_{ao.OrderTicket}"
+                        : $"s_{ao.AccountId}_{ao.MasterOrderId}";
                     if (uniqueOrdersMap.TryGetValue(key, out var existing))
                     {
                         // Merge live data into existing DB record
