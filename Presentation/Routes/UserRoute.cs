@@ -42,6 +42,17 @@ public static class UserRoutes
             .WithTags("Users");
 
         group
+            .MapPut(
+                "/users/{id:int}",
+                async (int id, [FromBody] UserPayload payload, UserHandler handler) =>
+                {
+                    return await handler.UpdateUser(id, payload);
+                }
+            )
+            .WithName("UpdateUser")
+            .WithTags("Users");
+
+        group
             .MapPost(
                 "/users/signin",
                 async ([FromBody] LoginRequest payload, UserHandler handler) =>
