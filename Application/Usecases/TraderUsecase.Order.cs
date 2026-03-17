@@ -1540,23 +1540,31 @@ public partial class TraderUsecase
                 if (dbOrder == null)
                 {
                     // External position (no master) — create new ActiveOrder
-                    var newActiveOrder = new ActiveOrder
+                    try
                     {
-                        AccountId = account.Id,
-                        AccountNumber = payload.AccountNumber,
-                        ServerName = payload.ServerName,
-                        MasterOrderId = null,
-                        OrderTicket = mtPos.OrderTicket,
-                        OrderSymbol = mtPos.OrderSymbol,
-                        OrderMagic = mtPos.OrderMagic,
-                        OrderType = mtPos.OrderType,
-                        OrderLot = mtPos.OrderLot,
-                        OrderPrice = mtPos.OrderPrice,
-                        OrderOpenAt = mtPos.OrderOpenAt,
-                        OrderProfit = mtPos.OrderProfit,
-                        Status = OrderStatus.Success,
-                    };
-                    await _activeOrderRepository.Add(newActiveOrder);
+                        var newActiveOrder = new ActiveOrder
+                        {
+                            AccountId = account.Id,
+                            AccountNumber = payload.AccountNumber,
+                            ServerName = payload.ServerName,
+                            MasterOrderId = null,
+                            OrderTicket = mtPos.OrderTicket,
+                            OrderSymbol = mtPos.OrderSymbol,
+                            OrderMagic = mtPos.OrderMagic,
+                            OrderType = mtPos.OrderType,
+                            OrderLot = mtPos.OrderLot,
+                            OrderPrice = mtPos.OrderPrice,
+                            OrderOpenAt = mtPos.OrderOpenAt,
+                            OrderProfit = mtPos.OrderProfit,
+                            Status = OrderStatus.Success,
+                        };
+                        await _activeOrderRepository.Add(newActiveOrder);
+                        _logger.Info($"External ActiveOrder created: ticket={mtPos.OrderTicket} symbol={mtPos.OrderSymbol} account={account.Id}");
+                    }
+                    catch (Exception insertEx)
+                    {
+                        _logger.Fail($"INSERT external ActiveOrder FAILED: ticket={mtPos.OrderTicket} symbol={mtPos.OrderSymbol} account={account.Id}", insertEx);
+                    }
                     continue;
                 }
 
