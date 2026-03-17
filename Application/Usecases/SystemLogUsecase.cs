@@ -63,7 +63,7 @@ public class SystemLogUsecase
                 Action = l.Action,
                 AccountId = l.AccountId,
                 AccountNumber = l.Account?.AccountNumber,
-                ServerName = l.Account?.ServerName,
+                ServerName = l.Account?.ServerAccount?.Server?.ServerIp,
                 Message = l.Message,
                 Level = l.Level,
                 CreatedAt = l.CreatedAt

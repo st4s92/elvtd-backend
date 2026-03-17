@@ -30,7 +30,11 @@ public class SystemLogRepository : ISystemLogRepository
         int pageSize
     )
     {
-        var query = _context.SystemLogs.Include(l => l.Account).Where(a =>
+        var query = _context.SystemLogs
+            .Include(l => l.Account)
+                .ThenInclude(a => a!.ServerAccount)
+                    .ThenInclude(sa => sa!.Server)
+            .Where(a =>
                 (param.Id == 0 || a.Id == param.Id)
                 && (string.IsNullOrEmpty(param.Category) || a.Category == param.Category)
                 && (string.IsNullOrEmpty(param.Action) || a.Action == param.Action)
