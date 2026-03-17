@@ -1621,8 +1621,12 @@ public partial class TraderUsecase
             }
 
             // ------------------------------------
-            // 6. Build DELTA response
+            // 6. Build DELTA response (re-read from DB to include newly created orders)
             // ------------------------------------
+            var updatedActiveOrders = await _activeOrderRepository.GetMany(a =>
+                a.AccountId == account.Id
+            );
+
             var syncResponse = new PlatformActivePositionSyncPayload
             {
                 AccountNumber = payload.AccountNumber,
@@ -1631,16 +1635,17 @@ public partial class TraderUsecase
                 Balance = payload.Balance,
                 Equity = payload.Equity,
                 CopierVersion = account.CopierVersion,
-                PositionList = dbActiveOrders
+                PositionList = updatedActiveOrders
                     .Select(o => new PlatformPositionDto
                     {
-                        OrderTicket = 0,
+                        OrderTicket = o.OrderTicket,
                         OrderMagic = o.OrderMagic,
                         OrderType = o.OrderType,
                         OrderLot = o.OrderLot,
-                        OrderPrice = 0,
-                        OrderProfit = 0,
+                        OrderPrice = o.OrderPrice,
+                        OrderProfit = o.OrderProfit,
                         OrderSymbol = o.OrderSymbol,
+                        OrderOpenAt = o.OrderOpenAt,
                         Status = o.Status,
                     })
                     .ToList(),
