@@ -350,3 +350,52 @@ public class MasterOrderDeleteOrder
     [JsonPropertyName("order_ids")]
     public List<long>? OrderIds { get; set; }
 }
+
+// =============================================
+// POSITION HISTORY SYNC (cTrader Bridge)
+// =============================================
+
+public class PositionHistorySyncPayload
+{
+    [JsonPropertyName("account_number")]
+    public long AccountNumber { get; set; }
+
+    [JsonPropertyName("server_name")]
+    public string ServerName { get; set; } = null!;
+
+    [JsonPropertyName("positions")]
+    public List<HistoricalPositionDto> Positions { get; set; } = [];
+}
+
+public class HistoricalPositionDto
+{
+    [JsonPropertyName("position_id")]
+    public long PositionId { get; set; }
+
+    [JsonPropertyName("order_symbol")]
+    public string OrderSymbol { get; set; } = "";
+
+    [JsonPropertyName("order_type")]
+    public string OrderType { get; set; } = "";
+
+    [JsonPropertyName("order_lot")]
+    public decimal OrderLot { get; set; }
+
+    [JsonPropertyName("order_price")]
+    public decimal OrderPrice { get; set; }
+
+    [JsonPropertyName("close_price")]
+    public decimal? ClosePrice { get; set; }
+
+    [JsonPropertyName("order_profit")]
+    public decimal? OrderProfit { get; set; }
+
+    [JsonPropertyName("order_open_at")]
+    public DateTime? OrderOpenAt { get; set; }
+
+    [JsonPropertyName("order_close_at")]
+    public DateTime? OrderCloseAt { get; set; }
+
+    [JsonPropertyName("status")]
+    public int Status { get; set; } = 700; // Complete
+}

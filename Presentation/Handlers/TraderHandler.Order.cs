@@ -223,4 +223,19 @@ public partial class TraderHandler
 
         return Response.Json("ok");
     }
+
+    public async Task<IResult> HandlePositionHistorySync(PositionHistorySyncPayload payload)
+    {
+        if (payload == null)
+        {
+            return Response.Json(TError.NewClient("Invalid payload"));
+        }
+
+        var terr = await _usecase.SyncPositionHistory(payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json("ok");
+    }
 }

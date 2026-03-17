@@ -1531,7 +1531,27 @@ public partial class TraderUsecase
                 }
 
                 if (dbOrder == null)
+                {
+                    // External position (no master) — create new ActiveOrder
+                    var newActiveOrder = new ActiveOrder
+                    {
+                        AccountId = account.Id,
+                        AccountNumber = payload.AccountNumber,
+                        ServerName = payload.ServerName,
+                        MasterOrderId = null,
+                        OrderTicket = mtPos.OrderTicket,
+                        OrderSymbol = mtPos.OrderSymbol,
+                        OrderMagic = mtPos.OrderMagic,
+                        OrderType = mtPos.OrderType,
+                        OrderLot = mtPos.OrderLot,
+                        OrderPrice = mtPos.OrderPrice,
+                        OrderOpenAt = mtPos.OrderOpenAt,
+                        OrderProfit = mtPos.OrderProfit,
+                        Status = OrderStatus.Success,
+                    };
+                    await _activeOrderRepository.Add(newActiveOrder);
                     continue;
+                }
 
                 dbOrder.OrderTicket = mtPos.OrderTicket;
                 dbOrder.OrderProfit = mtPos.OrderProfit;
@@ -1543,9 +1563,43 @@ public partial class TraderUsecase
             }
 
             // ------------------------------------
-            // 5. Detect NEW orders (created by master)
+            // 5. Cleanup: finalize external ActiveOrders no longer open on platform
             // ------------------------------------
-            var mtMagicSet = payload.PositionList.Select(x => x.OrderMagic).ToHashSet();
+            var platformTickets = payload.PositionList.Select(x => x.OrderTicket).ToHashSet();
+
+            var externalActiveOrders = dbActiveOrders
+                .Where(a => a.MasterOrderId == null && a.OrderTicket != 0)
+                .ToList();
+
+            foreach (var staleOrder in externalActiveOrders)
+            {
+                if (platformTickets.Contains(staleOrder.OrderTicket))
+                    continue;
+
+                // Position was closed externally — move to orders table as Complete
+                var closedOrder = new Order
+                {
+                    AccountId = staleOrder.AccountId,
+                    MasterOrderId = null,
+                    OrderTicket = staleOrder.OrderTicket,
+                    OrderSymbol = staleOrder.OrderSymbol,
+                    OrderType = staleOrder.OrderType,
+                    OrderLot = staleOrder.OrderLot,
+                    OrderPrice = staleOrder.OrderPrice,
+                    OrderMagic = staleOrder.OrderMagic,
+                    OrderOpenAt = staleOrder.OrderOpenAt,
+                    OrderCloseAt = DateTime.UtcNow,
+                    OrderProfit = staleOrder.OrderProfit,
+                    Status = OrderStatus.Complete,
+                };
+                await _orderRepository.Save(
+                    closedOrder,
+                    o => o.OrderTicket == staleOrder.OrderTicket && o.AccountId == staleOrder.AccountId
+                );
+
+                // Remove from active_orders
+                await _activeOrderRepository.DeleteById(staleOrder.Id);
+            }
 
             // ------------------------------------
             // 6. Build DELTA response
@@ -1594,6 +1648,89 @@ public partial class TraderUsecase
             // FAIL-SAFE:
             // echo MT5 snapshot back unchanged
             return payload;
+        }
+    }
+
+    public async Task<ITError?> SyncPositionHistory(PositionHistorySyncPayload payload)
+    {
+        try
+        {
+            // ------------------------------------
+            // 1. Resolve account
+            // ------------------------------------
+            var (account, terr) = await GetAccount(
+                new Account
+                {
+                    AccountNumber = payload.AccountNumber,
+                    ServerName = payload.ServerName,
+                }
+            );
+
+            if (terr != null || account == null)
+            {
+                _logger.Warning(
+                    "Account not found for position history sync",
+                    new { payload.AccountNumber, payload.ServerName }
+                );
+                return TError.NewNotFound("account not found");
+            }
+
+            // ------------------------------------
+            // 2. Upsert each historical position into orders table
+            // ------------------------------------
+            foreach (var pos in payload.Positions)
+            {
+                var existingOrder = await _orderRepository.Get(
+                    o => o.OrderTicket == pos.PositionId && o.AccountId == account.Id
+                );
+
+                if (existingOrder != null)
+                {
+                    // Update existing order with latest data
+                    await _orderRepository.Update(
+                        o => o.Id == existingOrder.Id,
+                        o =>
+                        {
+                            o.OrderProfit = pos.OrderProfit;
+                            o.ClosePrice = pos.ClosePrice;
+                            o.OrderCloseAt = pos.OrderCloseAt;
+                            o.Status = (OrderStatus)pos.Status;
+                        }
+                    );
+                }
+                else
+                {
+                    // Create new order (external trade, no master)
+                    var newOrder = new Order
+                    {
+                        AccountId = account.Id,
+                        MasterOrderId = null,
+                        OrderTicket = pos.PositionId,
+                        OrderSymbol = pos.OrderSymbol,
+                        OrderType = pos.OrderType,
+                        OrderLot = pos.OrderLot,
+                        OrderPrice = pos.OrderPrice,
+                        ClosePrice = pos.ClosePrice,
+                        OrderProfit = pos.OrderProfit,
+                        OrderOpenAt = pos.OrderOpenAt,
+                        OrderCloseAt = pos.OrderCloseAt,
+                        Status = (OrderStatus)pos.Status,
+                    };
+                    await _orderRepository.Save(newOrder);
+                }
+            }
+
+            _logger.Info(
+                "Position history synced",
+                new { payload.AccountNumber, Count = payload.Positions.Count }
+            );
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Fail("SyncPositionHistory failed", ex);
+            return TError.NewInternal("position history sync failed");
         }
     }
 

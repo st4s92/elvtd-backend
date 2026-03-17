@@ -111,6 +111,20 @@ public static class TraderRoutes
             .WithTags("Orders");
 
         group
+            .MapPost(
+                "/trader/bridge/position-history/sync",
+                async (
+                    [FromBody] PositionHistorySyncPayload payload,
+                    TraderHandler handler
+                ) =>
+                {
+                    return await handler.HandlePositionHistorySync(payload);
+                }
+            )
+            .WithName("BridgePositionHistorySync")
+            .WithTags("Orders");
+
+        group
             .MapDelete(
                 "/trader/orders/active-order/{id:long}",
                 async (long id, TraderHandler handler) =>

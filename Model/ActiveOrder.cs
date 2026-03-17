@@ -39,7 +39,7 @@ public class ActiveOrder : IAuditableEntity
 
     [Column("master_order_id")]
     [JsonPropertyName("master_order_id")]
-    public long MasterOrderId { get; set; }
+    public long? MasterOrderId { get; set; }
 
     // -------------------------
     // EXECUTION DATA
