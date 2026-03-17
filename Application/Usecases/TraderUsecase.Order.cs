@@ -569,6 +569,19 @@ public partial class TraderUsecase
                 existingOrder.OrderLot = payload.Order.OrderLot;
                 existingOrder.Status = OrderStatus.Success;
 
+                // ALSO update the corresponding ActiveOrder to Success
+                var activeOrder = await _activeOrderRepository.Get(
+                    ao => ao.MasterOrderId == payload.Order.MasterOrderId && ao.AccountId == account.Id
+                );
+                if (activeOrder != null)
+                {
+                    activeOrder.OrderTicket = payload.Order.OrderTicket;
+                    activeOrder.OrderPrice = payload.Order.OrderPrice;
+                    activeOrder.OrderLot = payload.Order.OrderLot;
+                    activeOrder.Status = OrderStatus.Success;
+                    await _activeOrderRepository.Update(activeOrder);
+                }
+
                 await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
                     $"Slave OPEN confirmed: ticket={payload.Order.OrderTicket} symbol={payload.Order.OrderSymbol} type={payload.Order.OrderType} lot={payload.Order.OrderLot} price={payload.Order.OrderPrice} masterOrderId={payload.Order.MasterOrderId}");
             }
@@ -600,6 +613,15 @@ public partial class TraderUsecase
                 existingOrder.ClosePrice = payload.Order.OrderClosePrice;
                 existingOrder.Status = OrderStatus.Complete;
                 existingOrder.OrderProfit = payload.Order.OrderProfit;
+
+                // Remove the corresponding ActiveOrder (position is now closed)
+                var closedActiveOrder = await _activeOrderRepository.Get(
+                    ao => ao.MasterOrderId == payload.Order.MasterOrderId && ao.AccountId == account.Id
+                );
+                if (closedActiveOrder != null)
+                {
+                    await _activeOrderRepository.Delete(ao => ao.Id == closedActiveOrder.Id);
+                }
 
                 await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
                     $"Slave CLOSE confirmed: orderId={existingOrder.Id} ticket={existingOrder.OrderTicket} symbol={existingOrder.OrderSymbol} closePrice={payload.Order.OrderClosePrice} profit={payload.Order.OrderProfit} masterOrderId={payload.Order.MasterOrderId}");
@@ -1486,13 +1508,29 @@ public partial class TraderUsecase
             );
 
             var dbByMagic = dbActiveOrders.ToDictionary(a => a.OrderMagic);
+            // Also build a lookup by OrderTicket for cTrader (which sends OrderMagic=0)
+            var dbByTicket = dbActiveOrders
+                .Where(a => a.OrderTicket != 0)
+                .GroupBy(a => a.OrderTicket)
+                .ToDictionary(g => g.Key, g => g.First());
 
             // ------------------------------------
             // 4. Update EXISTING active orders
             // ------------------------------------
             foreach (var mtPos in payload.PositionList)
             {
-                if (!dbByMagic.TryGetValue(mtPos.OrderMagic, out var dbOrder))
+                ActiveOrder? dbOrder = null;
+                // Try matching by magic first (MT5), then by ticket (cTrader)
+                if (mtPos.OrderMagic != 0 && dbByMagic.TryGetValue(mtPos.OrderMagic, out dbOrder))
+                {
+                    // matched by magic
+                }
+                else if (mtPos.OrderTicket != 0 && dbByTicket.TryGetValue(mtPos.OrderTicket, out dbOrder))
+                {
+                    // matched by ticket (cTrader)
+                }
+
+                if (dbOrder == null)
                     continue;
 
                 dbOrder.OrderTicket = mtPos.OrderTicket;

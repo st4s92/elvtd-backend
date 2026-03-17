@@ -590,7 +590,7 @@ public partial class TraderUsecase
             {
                 var slaveOrders = await _activeOrderRepository.GetMany(
                     o => o.AccountId == account.Id
-                        && o.Status == OrderStatus.Success
+                        && (o.Status == OrderStatus.Progress || o.Status == OrderStatus.Success)
                 );
 
                 activeOrders = slaveOrders.Select(o => new ActiveOrderDto
