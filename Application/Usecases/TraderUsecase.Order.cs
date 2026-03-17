@@ -1941,6 +1941,45 @@ public partial class TraderUsecase
             var existing = await _activeOrderRepository.Get(o => o.Id == id);
             if (existing == null) return TError.NewNotFound("Active order not found");
 
+            // Get the slave account to send close command to the trading platform
+            var account = await _accountRepository.Get(a => a.Id == existing.AccountId);
+            if (account != null && existing.OrderTicket != 0)
+            {
+                var closePayload = new BridgeOrderBroadcastPayload
+                {
+                    SlavePair = existing.OrderSymbol,
+                    OrderType = existing.OrderType,
+                    OrderLot = existing.OrderLot,
+                    OrderTicket = existing.OrderTicket,
+                    MasterOrderId = existing.MasterOrderId,
+                    OrderMagic = existing.OrderMagic,
+                    CopyType = "MASTER_ORDER_DELETE",
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                if (account.PlatformName == "cTrader")
+                {
+                    await _jobPublisher.PublishCtraderPacketBatch(
+                        account.AccountNumber,
+                        new List<object> { closePayload }
+                    );
+                }
+                else
+                {
+                    await _jobPublisher.PublishMt5PacketBatch(
+                        account.ServerName,
+                        account.AccountNumber,
+                        new List<object> { closePayload }
+                    );
+                }
+
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveClose", account.Id,
+                    $"Close command sent for active order: id={id} ticket={existing.OrderTicket} symbol={existing.OrderSymbol} platform={account.PlatformName}");
+            }
+
+            // Also finalize the active order to the orders table before deleting
+            await FinalizeActiveOrderToOrder(existing);
+
             await _activeOrderRepository.Delete(o => o.Id == id);
             return null;
         }

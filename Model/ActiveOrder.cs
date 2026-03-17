@@ -151,6 +151,7 @@ public class PlatformPositionDto
 
 public class ActiveOrderDto
 {
+    public long Id { get; set; }
     public long AccountId { get; set; }
     public long OrderTicket { get; set; }
     public string OrderSymbol { get; set; } = "";

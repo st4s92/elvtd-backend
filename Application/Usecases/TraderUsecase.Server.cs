@@ -221,10 +221,13 @@ public partial class TraderUsecase
             if (server == null)
             {
                 // AUTO-REGISTER new server
+                var serverName = !string.IsNullOrEmpty(param.Name)
+                    ? param.Name
+                    : $"Worker_{param.Ip.Replace(".", "_")}";
                 var newServer = new Server
                 {
                     ServerIp = param.Ip,
-                    ServerName = $"Worker_{param.Ip.Replace(".", "_")}",
+                    ServerName = serverName,
                     Status = param.Status,
                     ServerOs = "Auto-Registered",
                     ActiveTerminals = param.ActiveTerminals,
@@ -242,6 +245,11 @@ public partial class TraderUsecase
             server.CpuUsage = param.CpuUsage;
             server.RamUsage = param.RamUsage;
             server.UptimeString = param.Uptime;
+            // Update server name if the worker sends one
+            if (!string.IsNullOrEmpty(param.Name))
+            {
+                server.ServerName = param.Name;
+            }
             var (_, terrs) = await UpdateServerById(server.Id, server);
             if (terrs != null)
             {

@@ -478,6 +478,7 @@ public partial class TraderUsecase
     {
         try
         {
+            // 1. Set flush flag for MT5 polling
             await _accountRepository.Update(
                 a => a.Id == accountId && a.DeletedAt == null,
                 a =>
@@ -485,6 +486,87 @@ public partial class TraderUsecase
                     a.IsFlushOrder = 1;
                 }
             );
+
+            var account = await _accountRepository.Get(a => a.Id == accountId && a.DeletedAt == null);
+            if (account == null) return null;
+
+            // 2. Close all master orders in DB
+            var masterOpenOrders = await _orderRepository.GetMany(o =>
+                o.AccountId == accountId && o.OrderCloseAt == null && o.DeletedAt == null
+            );
+            if (masterOpenOrders.Any())
+            {
+                var masterIds = masterOpenOrders.Select(o => o.Id).ToList();
+                await _orderRepository.UpdateMany(
+                    o => masterIds.Contains(o.Id),
+                    o =>
+                    {
+                        o.OrderCloseAt = DateTime.UtcNow;
+                        o.Status = OrderStatus.Complete;
+                    }
+                );
+            }
+
+            // 3. Find all connected slaves and send close commands for their active orders
+            var slaveRelations = await _masterSlaveRepository.GetMany(ms => ms.MasterId == accountId);
+            var slaveIds = slaveRelations.Select(r => r.SlaveId).Distinct().ToList();
+
+            if (slaveIds.Any())
+            {
+                var slaveAccounts = await _accountRepository.GetMany(a => slaveIds.Contains(a.Id) && a.DeletedAt == null);
+                var slaveActiveOrders = await _activeOrderRepository.GetMany(o => slaveIds.Contains(o.AccountId));
+
+                foreach (var slaveAccount in slaveAccounts)
+                {
+                    // Set flush flag on slave too
+                    await _accountRepository.Update(
+                        a => a.Id == slaveAccount.Id,
+                        a => { a.IsFlushOrder = 1; }
+                    );
+
+                    var ordersForSlave = slaveActiveOrders.Where(o => o.AccountId == slaveAccount.Id && o.OrderTicket != 0).ToList();
+                    if (!ordersForSlave.Any()) continue;
+
+                    var closeMessages = ordersForSlave.Select(o => (object)new BridgeOrderBroadcastPayload
+                    {
+                        SlavePair = o.OrderSymbol,
+                        OrderType = o.OrderType,
+                        OrderLot = o.OrderLot,
+                        OrderTicket = o.OrderTicket,
+                        MasterOrderId = o.MasterOrderId,
+                        OrderMagic = o.OrderMagic,
+                        CopyType = "MASTER_ORDER_DELETE",
+                        CreatedAt = DateTime.UtcNow,
+                    }).ToList();
+
+                    if (slaveAccount.PlatformName == "cTrader")
+                    {
+                        await _jobPublisher.PublishCtraderPacketBatch(slaveAccount.AccountNumber, closeMessages);
+                    }
+                    else
+                    {
+                        await _jobPublisher.PublishMt5PacketBatch(slaveAccount.ServerName, slaveAccount.AccountNumber, closeMessages);
+                    }
+
+                    await _systemLogUsecase.CreateLog("CopyTrade", "FlushSlave", slaveAccount.Id,
+                        $"Flush: sent {closeMessages.Count} close commands to slave account {slaveAccount.AccountNumber}");
+                }
+
+                // Finalize all slave active orders and clean up
+                foreach (var ao in slaveActiveOrders)
+                {
+                    await FinalizeActiveOrderToOrder(ao);
+                }
+                var aoIds = slaveActiveOrders.Select(o => o.Id).ToList();
+                if (aoIds.Any())
+                {
+                    await _activeOrderRepository.Delete(o => aoIds.Contains(o.Id));
+                }
+            }
+
+            await _systemLogUsecase.CreateLog("CopyTrade", "Flush", accountId,
+                $"Flush triggered: closed {masterOpenOrders.Count} master orders and sent close to {slaveIds.Count} slave accounts");
+
             return null;
         }
         catch (Exception ex)
@@ -585,6 +667,7 @@ public partial class TraderUsecase
 
                 activeOrders = masterOrders.Select(o => new ActiveOrderDto
                 {
+                    Id = o.Id,
                     AccountId = o.AccountId,
                     OrderTicket = o.OrderTicket,
                     OrderSymbol = o.OrderSymbol,
@@ -603,6 +686,7 @@ public partial class TraderUsecase
 
                 activeOrders = slaveOrders.Select(o => new ActiveOrderDto
                 {
+                    Id = o.Id,
                     AccountId = o.AccountId,
                     OrderTicket = o.OrderTicket,
                     OrderSymbol = o.OrderSymbol,

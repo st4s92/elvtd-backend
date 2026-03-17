@@ -146,6 +146,9 @@ public class ServerHeartbeatRequest
     [JsonPropertyName("ip")]
     public string Ip { get; set; } = "";
 
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
     [JsonPropertyName("status")]
     public ConnectionStatus Status { get; set; } = ConnectionStatus.None;
 
