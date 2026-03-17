@@ -312,12 +312,24 @@ public class ServerAccountPlatformUpdateRequest
 
 public class AccountDetailDto
 {
+    [JsonPropertyName("account")]
     public Account Account { get; set; } = null!;
+
+    [JsonPropertyName("user")]
     public User? User { get; set; }
+
+    [JsonPropertyName("serverAccount")]
     public ServerAccount? ServerAccount { get; set; }
+
+    [JsonPropertyName("server")]
     public Server? Server { get; set; }
+
+    [JsonPropertyName("orders")]
     public List<ActiveOrderDto> Orders { get; set; } = [];
 
+    [JsonPropertyName("orderLogs")]
     public List<OrderLog> OrderLogs { get; set; } = [];
+
+    [JsonPropertyName("accountLogs")]
     public List<AccountLog> AccountLogs { get; set; } = [];
 }

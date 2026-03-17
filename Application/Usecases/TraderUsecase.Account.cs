@@ -552,16 +552,9 @@ public partial class TraderUsecase
                         $"Flush: sent {closeMessages.Count} close commands to slave account {slaveAccount.AccountNumber}");
                 }
 
-                // Finalize all slave active orders and clean up
-                foreach (var ao in slaveActiveOrders)
-                {
-                    await FinalizeActiveOrderToOrder(ao);
-                }
-                var aoIds = slaveActiveOrders.Select(o => o.Id).ToList();
-                if (aoIds.Any())
-                {
-                    await _activeOrderRepository.Delete(o => aoIds.Contains(o.Id));
-                }
+                // Don't finalize or delete slave active orders here.
+                // Let ConfirmBridgeSlaveOrder handle DB cleanup when the
+                // trading platform confirms each close.
             }
 
             await _systemLogUsecase.CreateLog("CopyTrade", "Flush", accountId,

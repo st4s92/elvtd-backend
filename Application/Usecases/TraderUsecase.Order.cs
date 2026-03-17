@@ -1977,10 +1977,8 @@ public partial class TraderUsecase
                     $"Close command sent for active order: id={id} ticket={existing.OrderTicket} symbol={existing.OrderSymbol} platform={account.PlatformName}");
             }
 
-            // Also finalize the active order to the orders table before deleting
-            await FinalizeActiveOrderToOrder(existing);
-
-            await _activeOrderRepository.Delete(o => o.Id == id);
+            // Don't delete or finalize here — let ConfirmBridgeSlaveOrder handle
+            // the DB cleanup when the trading platform confirms the close.
             return null;
         }
         catch (Exception ex)
