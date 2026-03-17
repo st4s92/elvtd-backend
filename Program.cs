@@ -42,6 +42,7 @@ api.MapUserRoutes();
 api.MapCtraderRoutes();
 api.MapTraderRoutes();
 api.MapLogRoutes();
+api.MapHealthRoutes();
 
 // Socket.Init(app);
 

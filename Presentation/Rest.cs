@@ -66,6 +66,7 @@ public static class Rest
         builder.Services.AddScoped<CtraderHandler>();
         builder.Services.AddScoped<TraderHandler>();
         builder.Services.AddScoped<LogHandler>();
+        builder.Services.AddScoped<HealthHandler>();
 
         builder.Services.AddScoped<ServerHeartbeatHandler>();
         builder.Services.AddHostedService<ServerHeartbeatConsumer>();
