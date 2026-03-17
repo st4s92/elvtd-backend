@@ -1514,7 +1514,11 @@ public partial class TraderUsecase
                 a.AccountId == account.Id
             );
 
-            var dbByMagic = dbActiveOrders.ToDictionary(a => a.OrderMagic);
+            // Build lookup by magic (exclude magic=0, cTrader always sends 0)
+            var dbByMagic = dbActiveOrders
+                .Where(a => a.OrderMagic != 0)
+                .GroupBy(a => a.OrderMagic)
+                .ToDictionary(g => g.Key, g => g.First());
             // Also build a lookup by OrderTicket for cTrader (which sends OrderMagic=0)
             var dbByTicket = dbActiveOrders
                 .Where(a => a.OrderTicket != 0)
