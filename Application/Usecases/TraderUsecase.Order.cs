@@ -522,10 +522,18 @@ public partial class TraderUsecase
                 new Account { ServerName = payload.ServerName, AccountNumber = payload.AccountId }
             );
             if (accErr != null)
+            {
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", null,
+                    $"FAILED: account not found for server={payload.ServerName} account={payload.AccountId}", "Error");
                 return accErr;
+            }
 
             if (account == null)
+            {
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", null,
+                    $"FAILED: account is null for server={payload.ServerName} account={payload.AccountId}", "Error");
                 return TError.NewNotFound("account not found");
+            }
 
             Order? existingOrder = null;
             ITError? terr = null;
@@ -542,16 +550,27 @@ public partial class TraderUsecase
                     }
                 );
                 if (terr != null)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                        $"FAILED: order not found for masterOrderId={payload.Order.MasterOrderId} type={payload.Order.OrderType}", "Error");
                     return terr;
+                }
 
                 if (existingOrder == null)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                        $"FAILED: order is null for masterOrderId={payload.Order.MasterOrderId} type={payload.Order.OrderType}", "Error");
                     return TError.NewNotFound("order not found");
+                }
 
                 existingOrder.OrderOpenAt = DateTime.UtcNow;
                 existingOrder.OrderTicket = payload.Order.OrderTicket;
                 existingOrder.OrderPrice = payload.Order.OrderPrice;
                 existingOrder.OrderLot = payload.Order.OrderLot;
                 existingOrder.Status = OrderStatus.Success;
+
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                    $"Slave OPEN confirmed: ticket={payload.Order.OrderTicket} symbol={payload.Order.OrderSymbol} type={payload.Order.OrderType} lot={payload.Order.OrderLot} price={payload.Order.OrderPrice} masterOrderId={payload.Order.MasterOrderId}");
             }
             else if (payload.Order.OrderType == "DEAL_TYPE_DELETE")
             {
@@ -562,15 +581,26 @@ public partial class TraderUsecase
                     }
                 );
                 if (terr != null)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                        $"FAILED: close order not found for orderId={payload.Order.MasterOrderId}", "Error");
                     return terr;
+                }
 
                 if (existingOrder == null)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                        $"FAILED: close order is null for orderId={payload.Order.MasterOrderId}", "Error");
                     return TError.NewNotFound("order not found");
+                }
 
                 existingOrder.OrderCloseAt = DateTime.UtcNow;
                 existingOrder.ClosePrice = payload.Order.OrderClosePrice;
                 existingOrder.Status = OrderStatus.Complete;
                 existingOrder.OrderProfit = payload.Order.OrderProfit;
+
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                    $"Slave CLOSE confirmed: ticket={existingOrder.OrderTicket} symbol={existingOrder.OrderSymbol} closePrice={payload.Order.OrderClosePrice} profit={payload.Order.OrderProfit} masterOrderId={payload.Order.MasterOrderId}");
             }
 
             if (existingOrder == null)
@@ -578,12 +608,18 @@ public partial class TraderUsecase
 
             var (_, terrs) = await UpdateOrderById(existingOrder.Id, existingOrder);
             if (terrs != null)
+            {
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                    $"FAILED: could not update order id={existingOrder.Id} error={terrs.Message}", "Error");
                 return terrs;
+            }
 
             return null;
         }
         catch (Exception ex)
         {
+            await _systemLogUsecase.CreateLog("CopyTrade", "Error", null,
+                $"ConfirmBridgeSlaveOrder EXCEPTION: account={payload.AccountId} error={ex.Message}", "Error");
             return TError.NewServer(ex.Message);
         }
     }
@@ -642,7 +678,14 @@ public partial class TraderUsecase
 
                 var (newOdr, terr) = await CreateOrder(order);
                 if (terr != null)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "MasterOpen", account!.Id,
+                        $"FAILED to save master order: ticket={item.OrderTicket} symbol={item.OrderSymbol} type={item.OrderType} lot={item.OrderLot} error={terr.Message}", "Error");
                     return ("", terr);
+                }
+
+                await _systemLogUsecase.CreateLog("CopyTrade", "MasterOpen", account!.Id,
+                    $"Master position opened: ticket={item.OrderTicket} symbol={item.OrderSymbol} type={item.OrderType} lot={item.OrderLot} price={item.OrderPrice}");
             }
 
             var closeOrderAt = DateTime.UtcNow;
@@ -660,7 +703,7 @@ public partial class TraderUsecase
                     {
                         item.OrderCloseAt = closeOrderAt;
                         item.Status = OrderStatus.Complete;
-                        
+
                         // Capture PnL from the last known OrderLog
                         if (logMap.TryGetValue(item.OrderTicket, out var log) && log != null)
                         {
@@ -669,6 +712,12 @@ public partial class TraderUsecase
                         }
                     }
                 );
+
+                foreach (var del in deletedOrders)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "MasterClose", account!.Id,
+                        $"Master position closed: ticket={del.OrderTicket} symbol={del.OrderSymbol} type={del.OrderType} lot={del.OrderLot}");
+                }
             }
 
             string message = "";
@@ -712,6 +761,8 @@ public partial class TraderUsecase
         catch (Exception ex)
         {
             await _orderRepository.RollbackAsync();
+            await _systemLogUsecase.CreateLog("CopyTrade", "Error", null,
+                $"CreateBridgeMasterOrder failed: account={payload.AccountId} server={payload.ServerName} error={ex.Message}", "Error");
             return ("", TError.NewServer(ex.Message));
         }
     }
@@ -1050,7 +1101,12 @@ public partial class TraderUsecase
             // Load master account for balance ratio
             var masterAccount = await _accountRepository.Get(a => a.Id == masterAccountId);
             decimal masterBalance = masterAccount?.Balance ?? 0;
-            if (masterBalance <= 0) return null;
+            if (masterBalance <= 0)
+            {
+                await _systemLogUsecase.CreateLog("CopyTrade", "SyncActive", masterAccountId,
+                    $"SyncSlaveActiveOrders skipped: masterBalance={masterBalance} (must be > 0). ActiveOrders will NOT be created/checked.", "Warning");
+                return null;
+            }
 
             var slaves = await _accountRepository.GetMany(a => slaveIds.Contains(a.Id));
 
@@ -1145,6 +1201,8 @@ public partial class TraderUsecase
                     )
                     {
                         _logger.Info($"Skip stale master order {masterOrder.Id}");
+                        await _systemLogUsecase.CreateLog("CopyTrade", "SyncActive", slaveAccount.Id,
+                            $"Skipped stale master order: masterOrderId={masterOrder.Id} ticket={masterOrder.OrderTicket} age={(DateTime.UtcNow - masterOrder.OrderOpenAt)?.TotalSeconds:F0}s > tolerance={toleranceSeconds}s", "Warning");
                         continue;
                     }
 
@@ -1185,6 +1243,9 @@ public partial class TraderUsecase
                     };
 
                     await _activeOrderRepository.Add(activeOrder);
+
+                    await _systemLogUsecase.CreateLog("CopyTrade", "ActiveOrder", slaveAccount.Id,
+                        $"ActiveOrder created: masterOrderId={masterOrder.Id} ticket={masterOrder.OrderTicket} symbol={slavePair} type={masterOrder.OrderType} lot={finalLot}");
                 }
 
                 // 5. BATCH PROCESSING: Close orphan active orders (master already closed)
@@ -1235,6 +1296,12 @@ public partial class TraderUsecase
                     await _activeOrderRepository.Delete(o => orphanIds.Contains(o.Id));
 
                     _logger.Info($"BatchClose: slave={slaveAccount.Id}, count={orphanActiveOrders.Count}");
+
+                    foreach (var orphan in orphanActiveOrders)
+                    {
+                        await _systemLogUsecase.CreateLog("CopyTrade", "SlaveClose", slaveAccount.Id,
+                            $"Close signal sent (MASTER_ORDER_DELETE): masterOrderId={orphan.MasterOrderId} symbol={orphan.OrderSymbol} type={orphan.OrderType} lot={orphan.OrderLot} ticket={orphan.OrderTicket} platform={slaveAccount.PlatformName}");
+                    }
                 }
             }
 
@@ -1242,6 +1309,8 @@ public partial class TraderUsecase
         }
         catch (Exception ex)
         {
+            await _systemLogUsecase.CreateLog("CopyTrade", "Error", masterAccountId,
+                $"SyncSlaveActiveOrders EXCEPTION: error={ex.Message}", "Error");
             return TError.NewServer(ex.Message);
         }
     }
@@ -1667,7 +1736,11 @@ public partial class TraderUsecase
         {
             // 1. Validate Input
             if (masterBalance <= 0)
+            {
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
+                    $"Skipped copy: master balance is {masterBalance} (must be > 0) for ticket={masterOrder.OrderTicket} symbol={masterOrder.OrderSymbol}", "Warning");
                 return TError.NewClient("Master balance must be positive");
+            }
 
             // 2. Find Slaves
             var (slaves, terr) = await GetMasterSlaves(new MasterSlave { MasterId = masterAccount.Id });
@@ -1687,7 +1760,12 @@ public partial class TraderUsecase
 
                 // Load slave account to get balance for proportional lot calculation
                 var (slaveAccount, err) = await GetAccount(new Account { Id = slaveRelation.SlaveId });
-                if (err != null || slaveAccount == null || slaveAccount.Balance <= 0) continue;
+                if (err != null || slaveAccount == null || slaveAccount.Balance <= 0)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
+                        $"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0", "Warning");
+                    continue;
+                }
 
                 // BERECHNE LOT: (masterLot / masterBalance) * slaveBalance * multiplier
                 decimal riskRatio = masterOrder.OrderLot / masterBalance;
@@ -1728,7 +1806,12 @@ public partial class TraderUsecase
                 };
 
                 var (newSlaveOrder, saveErr) = await CreateOrder(slaveOrder);
-                if (saveErr != null || newSlaveOrder == null) continue;
+                if (saveErr != null || newSlaveOrder == null)
+                {
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                        $"FAILED to create slave order: masterTicket={masterOrder.OrderTicket} symbol={mappedSymbol} lot={slaveLot} error={saveErr?.Message}", "Error");
+                    continue;
+                }
 
                 // 4. Publish to RabbitMQ
                 var broadcastPayload = new BridgeOrderBroadcastPayload
@@ -1760,6 +1843,9 @@ public partial class TraderUsecase
                 }
 
                 _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, lot={slaveLot}");
+
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                    $"Copy trade sent: masterTicket={masterOrder.OrderTicket} symbol={masterOrder.OrderSymbol}->{mappedSymbol} type={masterOrder.OrderType} masterLot={masterOrder.OrderLot} slaveLot={slaveLot} platform={slaveAccount.PlatformName}");
             }
 
             return null;
@@ -1767,6 +1853,8 @@ public partial class TraderUsecase
         catch (Exception ex)
         {
             _logger.Fail("CopyMasterOrderToSlaves failed", ex);
+            await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
+                $"CopyMasterOrderToSlaves EXCEPTION: masterTicket={masterOrder.OrderTicket} error={ex.Message}", "Error");
             return TError.NewServer(ex.Message);
         }
     }
