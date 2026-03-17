@@ -50,7 +50,15 @@ public partial class TraderUsecase
     {
         try
         {
-            var data = await _accountRepository.GetMany(FilterAccount(param));
+            var data = await _accountRepository.GetMany(
+                FilterAccount(param),
+                query => query
+                    .Include(a => a.ServerAccount)
+                        .ThenInclude(sa => sa!.Server)
+                    .Include(a => a.Orders.Where(o => o.OrderCloseAt == null))
+                    .Include(a => a.ActiveOrders)
+            );
+            
             if (data == null)
                 return ([], TError.NewNotFound("account not found"));
             return (data, null);
