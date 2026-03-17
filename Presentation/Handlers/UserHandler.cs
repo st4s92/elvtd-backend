@@ -100,6 +100,32 @@ public class UserHandler
         return Response.Json(res);
     }
 
+    public async Task<IResult> UpdateUser(int id, UserPayload payload)
+    {
+        var (existingUser, terr) = await _usecase.GetUser(new User { Id = id });
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+
+        // Only update provided fields
+        existingUser!.Name = string.IsNullOrEmpty(payload.Name) ? existingUser.Name : payload.Name;
+        existingUser.Email = string.IsNullOrEmpty(payload.Email) ? existingUser.Email : payload.Email;
+        
+        if (!string.IsNullOrEmpty(payload.Password))
+        {
+            existingUser.Password = payload.Password;
+        }
+
+        var (res, updateErr) = await _usecase.UpdateUserById(id, existingUser);
+        if (updateErr != null)
+        {
+            return Response.Json(updateErr);
+        }
+
+        return Response.Json(res);
+    }
+
     public async Task<IResult> GetUsers(UserGetPayload query)
     {
         var userFilter = new User

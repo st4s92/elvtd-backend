@@ -574,23 +574,25 @@ public partial class TraderUsecase
             }
             else if (payload.Order.OrderType == "DEAL_TYPE_DELETE")
             {
+                // Find the slave order by MasterOrderId + AccountId (not by Id!)
                 (existingOrder, terr) = await GetOrder(
                     new Order
                     {
-                        Id = payload.Order.MasterOrderId, // use master order id? it should be order id, it just using same payload
+                        MasterOrderId = payload.Order.MasterOrderId,
+                        AccountId = account.Id,
                     }
                 );
                 if (terr != null)
                 {
                     await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
-                        $"FAILED: close order not found for orderId={payload.Order.MasterOrderId}", "Error");
+                        $"FAILED: close slave order not found for masterOrderId={payload.Order.MasterOrderId} accountId={account.Id}", "Error");
                     return terr;
                 }
 
                 if (existingOrder == null)
                 {
                     await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
-                        $"FAILED: close order is null for orderId={payload.Order.MasterOrderId}", "Error");
+                        $"FAILED: close slave order is null for masterOrderId={payload.Order.MasterOrderId} accountId={account.Id}", "Error");
                     return TError.NewNotFound("order not found");
                 }
 
@@ -600,7 +602,7 @@ public partial class TraderUsecase
                 existingOrder.OrderProfit = payload.Order.OrderProfit;
 
                 await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
-                    $"Slave CLOSE confirmed: ticket={existingOrder.OrderTicket} symbol={existingOrder.OrderSymbol} closePrice={payload.Order.OrderClosePrice} profit={payload.Order.OrderProfit} masterOrderId={payload.Order.MasterOrderId}");
+                    $"Slave CLOSE confirmed: orderId={existingOrder.Id} ticket={existingOrder.OrderTicket} symbol={existingOrder.OrderSymbol} closePrice={payload.Order.OrderClosePrice} profit={payload.Order.OrderProfit} masterOrderId={payload.Order.MasterOrderId}");
             }
 
             if (existingOrder == null)
