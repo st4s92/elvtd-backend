@@ -260,7 +260,7 @@ public partial class TraderHandler
             }
             catch (Exception ex)
             {
-                _logger.Log("BulkActivePositionSync", $"Failed for account {payload.AccountNumber}: {ex.Message}", "Error");
+                _logger.Fail($"BulkActivePositionSync failed for account {payload.AccountNumber}: {ex.Message}");
                 results.Add(new { account_number = payload.AccountNumber, error = ex.Message });
             }
         }
@@ -285,7 +285,7 @@ public partial class TraderHandler
             }
             catch (Exception ex)
             {
-                _logger.Log("BulkAccountStateSync", $"Failed for account {payload.AccountNumber}: {ex.Message}", "Error");
+                _logger.Fail($"BulkAccountStateSync failed for account {payload.AccountNumber}: {ex.Message}");
             }
         }
 
@@ -309,7 +309,7 @@ public partial class TraderHandler
             }
             catch (Exception ex)
             {
-                _logger.Log("BulkPositionHistorySync", $"Failed for account {payload.AccountNumber}: {ex.Message}", "Error");
+                _logger.Fail($"BulkPositionHistorySync failed for account {payload.AccountNumber}: {ex.Message}");
             }
         }
 
