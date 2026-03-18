@@ -57,16 +57,20 @@ public static class Rest
         builder.Services.AddScoped<ISymbolMapRepository, SymbolMapRepository>();
         builder.Services.AddScoped<ISystemLogRepository, SystemLogRepository>();
 
+        builder.Services.AddScoped<AiChatRepository>();
+
         builder.Services.AddScoped<CtraderUsecase>();
         builder.Services.AddScoped<UserUsecase>();
         builder.Services.AddScoped<TraderUsecase>();
         builder.Services.AddScoped<SystemLogUsecase>();
+        builder.Services.AddScoped<AiUsecase>();
 
         builder.Services.AddScoped<UserHandler>();
         builder.Services.AddScoped<CtraderHandler>();
         builder.Services.AddScoped<TraderHandler>();
         builder.Services.AddScoped<LogHandler>();
         builder.Services.AddScoped<HealthHandler>();
+        builder.Services.AddScoped<AiHandler>();
 
         builder.Services.AddScoped<ServerHeartbeatHandler>();
         builder.Services.AddHostedService<ServerHeartbeatConsumer>();

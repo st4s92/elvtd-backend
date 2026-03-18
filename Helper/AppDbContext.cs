@@ -22,6 +22,8 @@ public class AppDbContext : DbContext
     public DbSet<ActiveOrder> ActiveOrders => Set<ActiveOrder>();
     public DbSet<SymbolMap> SymbolMaps => Set<SymbolMap>();
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
+    public DbSet<AiChatSession> AiChatSessions => Set<AiChatSession>();
+    public DbSet<AiChatMessage> AiChatMessages => Set<AiChatMessage>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options) { }
@@ -139,6 +141,22 @@ public class AppDbContext : DbContext
             .HasOne(a => a.Server)
             .WithMany(s => s.ServerAccounts)
             .HasForeignKey(sa => sa.ServerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // AiChatSession → User
+        modelBuilder
+            .Entity<AiChatSession>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // AiChatMessage → AiChatSession
+        modelBuilder
+            .Entity<AiChatMessage>()
+            .HasOne(m => m.Session)
+            .WithMany(s => s.Messages)
+            .HasForeignKey(m => m.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 

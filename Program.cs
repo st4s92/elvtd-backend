@@ -43,6 +43,7 @@ api.MapCtraderRoutes();
 api.MapTraderRoutes();
 api.MapLogRoutes();
 api.MapHealthRoutes();
+api.MapAiRoutes();
 
 // Socket.Init(app);
 
