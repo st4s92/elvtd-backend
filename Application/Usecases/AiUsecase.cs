@@ -420,7 +420,7 @@ Score 1 = sehr sicher, 10 = sehr riskant.";
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.Error($"Gemini API error: {response.StatusCode} — {responseBody}");
+            _logger.Fail($"Gemini API error: {response.StatusCode} — {responseBody}");
             throw new Exception($"Gemini API returned {response.StatusCode}");
         }
 
@@ -459,7 +459,7 @@ Score 1 = sehr sicher, 10 = sehr riskant.";
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.Error($"Gemini API stream error: {response.StatusCode} — {errorBody}");
+            _logger.Fail($"Gemini API stream error: {response.StatusCode} — {errorBody}");
             yield return $"Error: Gemini API returned {response.StatusCode}";
             yield break;
         }
@@ -474,6 +474,7 @@ Score 1 = sehr sicher, 10 = sehr riskant.";
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
+            string? extracted = null;
 
             try
             {
@@ -485,21 +486,27 @@ Score 1 = sehr sicher, 10 = sehr riskant.";
                         .GetProperty("content")
                         .GetProperty("parts");
 
+                    var sb = new StringBuilder();
                     foreach (var part in parts.EnumerateArray())
                     {
                         if (part.TryGetProperty("text", out var text))
                         {
                             var textValue = text.GetString();
                             if (!string.IsNullOrEmpty(textValue))
-                                yield return textValue;
+                                sb.Append(textValue);
                         }
                     }
+                    if (sb.Length > 0)
+                        extracted = sb.ToString();
                 }
             }
             catch
             {
                 // Skip unparseable SSE events
             }
+
+            if (extracted != null)
+                yield return extracted;
         }
     }
 }
