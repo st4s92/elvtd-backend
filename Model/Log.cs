@@ -217,6 +217,24 @@ public class SystemLogGetPaginatedPayload : SystemLogGetPayload
     public int PerPage { get; set; } = 10;
 }
 
+public class SystemLogCreatePayload
+{
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = "";
+
+    [JsonPropertyName("action")]
+    public string Action { get; set; } = "";
+
+    [JsonPropertyName("account_id")]
+    public long? AccountId { get; set; }
+
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = "";
+
+    [JsonPropertyName("level")]
+    public string Level { get; set; } = "Info";
+}
+
 public class SystemLogDto
 {
     public long Id { get; set; }

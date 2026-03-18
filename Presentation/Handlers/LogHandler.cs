@@ -23,4 +23,20 @@ public class LogHandler
         }
         return Response.Json(res);
     }
+
+    public async Task<IResult> CreateLog(SystemLogCreatePayload payload)
+    {
+        var err = await _usecase.CreateLog(
+            payload.Category,
+            payload.Action,
+            payload.AccountId,
+            payload.Message,
+            payload.Level
+        );
+        if (err != null)
+        {
+            return Response.Json(err);
+        }
+        return Response.Json("Log created");
+    }
 }

@@ -1,5 +1,6 @@
 using Backend.Model;
 using Backend.Presentation.Handlers;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Presentation.Routes;
 
@@ -16,6 +17,17 @@ public static class LogRoutes
                 }
             )
             .WithName("GetSystemLogsPaginated")
+            .WithTags("Logs");
+
+        group
+            .MapPost(
+                "/logs",
+                async ([FromBody] SystemLogCreatePayload payload, LogHandler handler) =>
+                {
+                    return await handler.CreateLog(payload);
+                }
+            )
+            .WithName("CreateSystemLog")
             .WithTags("Logs");
     }
 }
