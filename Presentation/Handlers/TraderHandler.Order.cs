@@ -238,4 +238,81 @@ public partial class TraderHandler
         }
         return Response.Json("ok");
     }
+
+    // Bulk sync handlers — process all accounts in a single request
+
+    public async Task<IResult> HandleBulkActivePositionSync(
+        List<PlatformActivePositionSyncPayload> payloads
+    )
+    {
+        if (payloads == null || payloads.Count == 0)
+        {
+            return Response.Json(new List<object>());
+        }
+
+        var results = new List<object>();
+        foreach (var payload in payloads)
+        {
+            try
+            {
+                var result = await _usecase.SyncActiveOrdersFromPlatform(payload);
+                results.Add(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log("BulkActivePositionSync", $"Failed for account {payload.AccountNumber}: {ex.Message}", "Error");
+                results.Add(new { account_number = payload.AccountNumber, error = ex.Message });
+            }
+        }
+
+        return Response.Json(results);
+    }
+
+    public async Task<IResult> HandleBulkAccountStateSync(
+        List<SyncAccountStatePayload> payloads
+    )
+    {
+        if (payloads == null || payloads.Count == 0)
+        {
+            return Response.Json("ok");
+        }
+
+        foreach (var payload in payloads)
+        {
+            try
+            {
+                await _usecase.SyncAccountState(payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log("BulkAccountStateSync", $"Failed for account {payload.AccountNumber}: {ex.Message}", "Error");
+            }
+        }
+
+        return Response.Json("ok");
+    }
+
+    public async Task<IResult> HandleBulkPositionHistorySync(
+        List<PositionHistorySyncPayload> payloads
+    )
+    {
+        if (payloads == null || payloads.Count == 0)
+        {
+            return Response.Json("ok");
+        }
+
+        foreach (var payload in payloads)
+        {
+            try
+            {
+                await _usecase.SyncPositionHistory(payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log("BulkPositionHistorySync", $"Failed for account {payload.AccountNumber}: {ex.Message}", "Error");
+            }
+        }
+
+        return Response.Json("ok");
+    }
 }

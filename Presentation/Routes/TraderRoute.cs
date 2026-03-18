@@ -124,6 +124,49 @@ public static class TraderRoutes
             .WithName("BridgePositionHistorySync")
             .WithTags("Orders");
 
+        // Bulk sync endpoints (one request for all accounts)
+        group
+            .MapPost(
+                "/trader/bridge/active-position/bulk-sync",
+                async (
+                    [FromBody] List<PlatformActivePositionSyncPayload> payloads,
+                    TraderHandler handler
+                ) =>
+                {
+                    return await handler.HandleBulkActivePositionSync(payloads);
+                }
+            )
+            .WithName("BridgeBulkActivePositionSync")
+            .WithTags("Orders");
+
+        group
+            .MapPost(
+                "/trader/bridge/account-sync/bulk",
+                async (
+                    [FromBody] List<SyncAccountStatePayload> payloads,
+                    TraderHandler handler
+                ) =>
+                {
+                    return await handler.HandleBulkAccountStateSync(payloads);
+                }
+            )
+            .WithName("BridgeBulkAccountStateSync")
+            .WithTags("Orders");
+
+        group
+            .MapPost(
+                "/trader/bridge/position-history/bulk-sync",
+                async (
+                    [FromBody] List<PositionHistorySyncPayload> payloads,
+                    TraderHandler handler
+                ) =>
+                {
+                    return await handler.HandleBulkPositionHistorySync(payloads);
+                }
+            )
+            .WithName("BridgeBulkPositionHistorySync")
+            .WithTags("Orders");
+
         group
             .MapDelete(
                 "/trader/orders/active-order/{id:long}",
