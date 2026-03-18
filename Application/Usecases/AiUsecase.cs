@@ -17,7 +17,7 @@ public class AiUsecase
     private readonly AppLogger<AiUsecase> _logger;
 
     private static readonly string ApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? "";
-    private const string Model = "gemini-2.0-flash";
+    private const string Model = "gemini-2.0-flash-lite";
     private static readonly string BaseUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}";
 
     private const string SystemPromptChat = @"Du bist der KI-Assistent der ""elvtd"" Copy-Trading-Plattform. Du hilfst Benutzern, ihre Trading-Performance zu verstehen, Strategien zu analysieren und Copy-Trading zu optimieren.
