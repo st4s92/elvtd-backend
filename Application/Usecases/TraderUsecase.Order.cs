@@ -593,34 +593,39 @@ public partial class TraderUsecase
             }
             else if (payload.Order.OrderType == "DEAL_TYPE_DELETE")
             {
-                // Find the slave order by MasterOrderId + AccountId (not by Id!)
-                (existingOrder, terr) = await GetOrder(
-                    new Order
-                    {
-                        MasterOrderId = payload.Order.MasterOrderId,
-                        AccountId = account.Id,
-                    }
-                );
-                if (terr != null)
+                // Find the slave order — try MasterOrderId first, then OrderTicket
+                if (payload.Order.MasterOrderId != 0)
                 {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
-                        $"FAILED: close slave order not found for masterOrderId={payload.Order.MasterOrderId} accountId={account.Id}", "Error");
-                    return terr;
+                    (existingOrder, terr) = await GetOrder(
+                        new Order
+                        {
+                            MasterOrderId = payload.Order.MasterOrderId,
+                            AccountId = account.Id,
+                        }
+                    );
                 }
 
-                if (existingOrder == null)
+                // Fallback: find by OrderTicket if MasterOrderId=0 or not found
+                if (existingOrder == null && payload.Order.OrderTicket != 0)
                 {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
-                        $"FAILED: close slave order is null for masterOrderId={payload.Order.MasterOrderId} accountId={account.Id}", "Error");
-                    return TError.NewNotFound("order not found");
+                    (existingOrder, terr) = await GetOrder(
+                        new Order
+                        {
+                            OrderTicket = payload.Order.OrderTicket,
+                            AccountId = account.Id,
+                        }
+                    );
                 }
 
-                existingOrder.OrderCloseAt = DateTime.UtcNow;
-                existingOrder.ClosePrice = payload.Order.OrderClosePrice;
-                existingOrder.Status = OrderStatus.Complete;
-                existingOrder.OrderProfit = payload.Order.OrderProfit;
+                if (existingOrder != null)
+                {
+                    existingOrder.OrderCloseAt = DateTime.UtcNow;
+                    existingOrder.ClosePrice = payload.Order.OrderClosePrice;
+                    existingOrder.Status = OrderStatus.Complete;
+                    existingOrder.OrderProfit = payload.Order.OrderProfit;
+                }
 
-                // Remove ALL corresponding ActiveOrders (position is now closed)
+                // ALWAYS clean up ActiveOrders regardless of whether we found the order
                 // Match by MasterOrderId OR by OrderTicket to catch all cases
                 var closedActiveOrders = await _activeOrderRepository.GetMany(
                     ao => ao.AccountId == account.Id && (
@@ -632,6 +637,14 @@ public partial class TraderUsecase
                 {
                     await _activeOrderRepository.Delete(ao => ao.Id == closedAo.Id);
                     _logger.Info($"ActiveOrder removed on close confirm: id={closedAo.Id} ticket={closedAo.OrderTicket} masterOrderId={closedAo.MasterOrderId}");
+                }
+
+                if (existingOrder == null)
+                {
+                    // No order found but ActiveOrders cleaned up — not an error
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
+                        $"Close confirm: no order found for masterOrderId={payload.Order.MasterOrderId} ticket={payload.Order.OrderTicket} but ActiveOrders cleaned up");
+                    return null;
                 }
 
                 await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
