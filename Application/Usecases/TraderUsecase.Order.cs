@@ -1578,10 +1578,11 @@ public partial class TraderUsecase
                             OrderPrice = mtPos.OrderPrice,
                             OrderOpenAt = mtPos.OrderOpenAt,
                             OrderProfit = mtPos.OrderProfit,
+                            OrderLabel = mtPos.OrderLabel,
                             Status = OrderStatus.Success,
                         };
                         await _activeOrderRepository.Add(newActiveOrder);
-                        _logger.Info($"External ActiveOrder created: ticket={mtPos.OrderTicket} symbol={mtPos.OrderSymbol} account={account.Id}");
+                        _logger.Info($"External ActiveOrder created: ticket={mtPos.OrderTicket} symbol={mtPos.OrderSymbol} label={mtPos.OrderLabel ?? ""} account={account.Id}");
                     }
                     catch (Exception insertEx)
                     {
@@ -1594,6 +1595,7 @@ public partial class TraderUsecase
                 dbOrder.OrderProfit = mtPos.OrderProfit;
                 dbOrder.OrderPrice = mtPos.OrderPrice;
                 dbOrder.OrderOpenAt = mtPos.OrderOpenAt;
+                dbOrder.OrderLabel = mtPos.OrderLabel;
                 dbOrder.Status = OrderStatus.Success;
 
                 await _activeOrderRepository.Update(dbOrder);
@@ -1774,6 +1776,7 @@ public partial class TraderUsecase
                         OrderProfit = pos.OrderProfit,
                         OrderOpenAt = pos.OrderOpenAt,
                         OrderCloseAt = pos.OrderCloseAt,
+                        OrderLabel = pos.OrderLabel,
                         Status = (OrderStatus)pos.Status,
                     };
                     await _orderRepository.Save(newOrder);

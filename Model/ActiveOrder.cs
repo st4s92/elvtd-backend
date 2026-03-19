@@ -77,6 +77,9 @@ public class ActiveOrder : IAuditableEntity
     [JsonPropertyName("order_profit")]
     public decimal? OrderProfit { get; set; }
 
+    [Column("order_label"), MaxLength(100)]
+    [JsonPropertyName("order_label")]
+    public string? OrderLabel { get; set; }
 
     [Column("status")]
     [JsonPropertyName("status")]
@@ -144,6 +147,9 @@ public class PlatformPositionDto
 
     [JsonPropertyName("order_open_at")]
     public DateTime OrderOpenAt { get; set; }
+
+    [JsonPropertyName("order_label")]
+    public string? OrderLabel { get; set; }
 
     [JsonPropertyName("status")]
     public OrderStatus Status { get; set; } = OrderStatus.Progress;

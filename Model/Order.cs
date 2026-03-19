@@ -96,6 +96,10 @@ public class Order : IAuditableEntity
     [JsonPropertyName("order_profit")]
     public decimal? OrderProfit { get; set; }
 
+    [Column("order_label"), MaxLength(100)]
+    [JsonPropertyName("order_label")]
+    public string? OrderLabel { get; set; }
+
     [NotMapped]
     [JsonPropertyName("average_execution_lag")]
     public long? AverageExecutionLag { get; set; }
@@ -395,6 +399,9 @@ public class HistoricalPositionDto
 
     [JsonPropertyName("order_close_at")]
     public DateTime? OrderCloseAt { get; set; }
+
+    [JsonPropertyName("order_label")]
+    public string? OrderLabel { get; set; }
 
     [JsonPropertyName("status")]
     public int Status { get; set; } = 700; // Complete
