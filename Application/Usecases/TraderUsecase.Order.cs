@@ -1604,18 +1604,26 @@ public partial class TraderUsecase
             // ------------------------------------
             var platformTickets = payload.PositionList.Select(x => x.OrderTicket).ToHashSet();
 
+            // Re-fetch active orders FRESH after all updates above
+            var freshActiveOrders = await _activeOrderRepository.GetMany(a => a.AccountId == account.Id);
+
             // Cleanup ALL ActiveOrders that are no longer open on cTrader
             // Case 1: Has ticket but not on platform anymore
-            var staleWithTicket = dbActiveOrders
+            var staleWithTicket = freshActiveOrders
                 .Where(a => a.OrderTicket != 0 && !platformTickets.Contains(a.OrderTicket))
                 .ToList();
 
-            // Case 2: Has NO ticket (OrderTicket=0) and older than 5 minutes — phantom from CopyMasterOrderToSlaves
-            var staleNoTicket = dbActiveOrders
+            // Case 2: Has NO ticket (OrderTicket=0) and older than 5 minutes
+            var staleNoTicket = freshActiveOrders
                 .Where(a => a.OrderTicket == 0 && a.CreatedAt < DateTime.UtcNow.AddMinutes(-5))
                 .ToList();
 
             var allStale = staleWithTicket.Concat(staleNoTicket).ToList();
+
+            if (allStale.Count > 0)
+            {
+                _logger.Info($"Cleanup: account={account.Id} accountNumber={account.AccountNumber} platformPositions={platformTickets.Count} dbActive={freshActiveOrders.Count} staleWithTicket={staleWithTicket.Count} staleNoTicket={staleNoTicket.Count}");
+            }
 
             foreach (var staleOrder in allStale)
             {
