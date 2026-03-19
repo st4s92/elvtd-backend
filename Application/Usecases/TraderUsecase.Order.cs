@@ -575,6 +575,8 @@ public partial class TraderUsecase
                 existingOrder.OrderPrice = payload.Order.OrderPrice;
                 existingOrder.OrderLot = payload.Order.OrderLot;
                 existingOrder.Status = OrderStatus.Success;
+                if (!string.IsNullOrEmpty(payload.Order.OrderLabel))
+                    existingOrder.OrderLabel = payload.Order.OrderLabel;
 
                 // ALSO update the corresponding ActiveOrder to Success
                 var activeOrder = await _activeOrderRepository.Get(
@@ -2045,6 +2047,7 @@ public partial class TraderUsecase
                     OrderType = masterOrder.OrderType,
                     OrderLot = slaveLot,
                     OrderMagic = GenerateBridgeMagicNumber(masterOrder.Id, slaveAccount.Id),
+                    OrderLabel = $"copy_{masterOrder.Id}",
                     Status = OrderStatus.Progress,
                     CreatedAt = DateTime.UtcNow
                 };

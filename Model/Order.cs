@@ -215,6 +215,9 @@ public class BridgeOrderItem
 
     [JsonPropertyName("order_close_at")]
     public DateTime? OrderCloseAt { get; set; }
+
+    [JsonPropertyName("order_label")]
+    public string? OrderLabel { get; set; }
 }
 
 public class BridgeOrderBroadcastPayload
