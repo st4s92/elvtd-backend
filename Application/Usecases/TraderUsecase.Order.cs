@@ -1586,37 +1586,48 @@ public partial class TraderUsecase
             // ------------------------------------
             var platformTickets = payload.PositionList.Select(x => x.OrderTicket).ToHashSet();
 
-            // Cleanup ALL ActiveOrders that are no longer open on cTrader (external + copied)
-            var staleActiveOrders = dbActiveOrders
+            // Cleanup ALL ActiveOrders that are no longer open on cTrader
+            // Case 1: Has ticket but not on platform anymore
+            var staleWithTicket = dbActiveOrders
                 .Where(a => a.OrderTicket != 0 && !platformTickets.Contains(a.OrderTicket))
                 .ToList();
 
-            foreach (var staleOrder in staleActiveOrders)
+            // Case 2: Has NO ticket (OrderTicket=0) and older than 5 minutes — phantom from CopyMasterOrderToSlaves
+            var staleNoTicket = dbActiveOrders
+                .Where(a => a.OrderTicket == 0 && a.CreatedAt < DateTime.UtcNow.AddMinutes(-5))
+                .ToList();
+
+            var allStale = staleWithTicket.Concat(staleNoTicket).ToList();
+
+            foreach (var staleOrder in allStale)
             {
-                // Position was closed on cTrader — move to orders table as Complete
-                var closedOrder = new Order
+                // Move to orders table as Complete (only if has a ticket)
+                if (staleOrder.OrderTicket != 0)
                 {
-                    AccountId = staleOrder.AccountId,
-                    MasterOrderId = staleOrder.MasterOrderId,
-                    OrderTicket = staleOrder.OrderTicket,
-                    OrderSymbol = staleOrder.OrderSymbol,
-                    OrderType = staleOrder.OrderType,
-                    OrderLot = staleOrder.OrderLot,
-                    OrderPrice = staleOrder.OrderPrice,
-                    OrderMagic = staleOrder.OrderMagic,
-                    OrderOpenAt = staleOrder.OrderOpenAt,
-                    OrderCloseAt = DateTime.UtcNow,
-                    OrderProfit = staleOrder.OrderProfit,
-                    Status = OrderStatus.Complete,
-                };
-                await _orderRepository.Save(
-                    closedOrder,
-                    o => o.OrderTicket == staleOrder.OrderTicket && o.AccountId == staleOrder.AccountId
-                );
+                    var closedOrder = new Order
+                    {
+                        AccountId = staleOrder.AccountId,
+                        MasterOrderId = staleOrder.MasterOrderId,
+                        OrderTicket = staleOrder.OrderTicket,
+                        OrderSymbol = staleOrder.OrderSymbol,
+                        OrderType = staleOrder.OrderType,
+                        OrderLot = staleOrder.OrderLot,
+                        OrderPrice = staleOrder.OrderPrice,
+                        OrderMagic = staleOrder.OrderMagic,
+                        OrderOpenAt = staleOrder.OrderOpenAt,
+                        OrderCloseAt = DateTime.UtcNow,
+                        OrderProfit = staleOrder.OrderProfit,
+                        Status = OrderStatus.Complete,
+                    };
+                    await _orderRepository.Save(
+                        closedOrder,
+                        o => o.OrderTicket == staleOrder.OrderTicket && o.AccountId == staleOrder.AccountId
+                    );
+                }
 
                 await _activeOrderRepository.DeleteById(staleOrder.Id);
 
-                _logger.Info($"Stale ActiveOrder cleaned up: ticket={staleOrder.OrderTicket} symbol={staleOrder.OrderSymbol} account={staleOrder.AccountId} masterOrderId={staleOrder.MasterOrderId}");
+                _logger.Info($"Stale ActiveOrder cleaned up: ticket={staleOrder.OrderTicket} symbol={staleOrder.OrderSymbol} account={staleOrder.AccountId} masterOrderId={staleOrder.MasterOrderId} hadTicket={staleOrder.OrderTicket != 0}");
             }
 
             // ------------------------------------
