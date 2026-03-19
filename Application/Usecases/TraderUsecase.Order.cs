@@ -1578,7 +1578,7 @@ public partial class TraderUsecase
                             OrderPrice = mtPos.OrderPrice,
                             OrderOpenAt = mtPos.OrderOpenAt,
                             OrderProfit = mtPos.OrderProfit,
-                            OrderLabel = mtPos.OrderLabel,
+                            OrderLabel = string.IsNullOrEmpty(mtPos.OrderLabel) ? "manual" : mtPos.OrderLabel,
                             Status = OrderStatus.Success,
                         };
                         await _activeOrderRepository.Add(newActiveOrder);
@@ -1595,7 +1595,10 @@ public partial class TraderUsecase
                 dbOrder.OrderProfit = mtPos.OrderProfit;
                 dbOrder.OrderPrice = mtPos.OrderPrice;
                 dbOrder.OrderOpenAt = mtPos.OrderOpenAt;
-                dbOrder.OrderLabel = mtPos.OrderLabel;
+                if (!string.IsNullOrEmpty(mtPos.OrderLabel))
+                    dbOrder.OrderLabel = mtPos.OrderLabel;
+                else if (string.IsNullOrEmpty(dbOrder.OrderLabel))
+                    dbOrder.OrderLabel = "manual";
                 dbOrder.Status = OrderStatus.Success;
 
                 await _activeOrderRepository.Update(dbOrder);
@@ -1776,7 +1779,7 @@ public partial class TraderUsecase
                         OrderProfit = pos.OrderProfit,
                         OrderOpenAt = pos.OrderOpenAt,
                         OrderCloseAt = pos.OrderCloseAt,
-                        OrderLabel = pos.OrderLabel,
+                        OrderLabel = string.IsNullOrEmpty(pos.OrderLabel) ? "manual" : pos.OrderLabel,
                         Status = (OrderStatus)pos.Status,
                     };
                     await _orderRepository.Save(newOrder);
