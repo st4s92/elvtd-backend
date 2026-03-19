@@ -224,6 +224,12 @@ public partial class TraderHandler
         return Response.Json("ok");
     }
 
+    public async Task<IResult> HandleFindSlaveTicket(long masterTicket, long accountNumber)
+    {
+        var ticket = await _usecase.FindSlaveTicketByMaster(masterTicket, accountNumber);
+        return Response.Json(new { order_ticket = ticket });
+    }
+
     public async Task<IResult> HandlePositionHistorySync(PositionHistorySyncPayload payload)
     {
         if (payload == null)

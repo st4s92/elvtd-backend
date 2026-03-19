@@ -2134,6 +2134,34 @@ public partial class TraderUsecase
         }
     }
 
+    public async Task<long> FindSlaveTicketByMaster(long masterTicket, long accountNumber)
+    {
+        var account = await _accountRepository.Get(a => a.AccountNumber == accountNumber);
+        if (account == null) return 0;
+
+        // Look in active_orders first
+        var activeOrder = await _activeOrderRepository.Get(
+            o => o.AccountId == account.Id && o.MasterOrderId != null && o.OrderTicket != 0
+        );
+
+        // Find the master order by ticket
+        var masterOrder = await _orderRepository.Get(o => o.OrderTicket == masterTicket && o.MasterOrderId == null);
+        if (masterOrder == null) return 0;
+
+        // Find slave active order linked to this master
+        var slaveActive = await _activeOrderRepository.Get(
+            o => o.AccountId == account.Id && o.MasterOrderId == masterOrder.Id && o.OrderTicket != 0
+        );
+        if (slaveActive != null) return slaveActive.OrderTicket;
+
+        // Fallback: check orders table
+        var slaveOrder = await _orderRepository.Get(
+            o => o.AccountId == account.Id && o.MasterOrderId == masterOrder.Id
+                 && o.OrderTicket != 0 && o.Status == OrderStatus.Success
+        );
+        return slaveOrder?.OrderTicket ?? 0;
+    }
+
     public async Task<ITError?> DeleteActiveOrder(long id)
     {
         try

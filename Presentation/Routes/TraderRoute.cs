@@ -168,6 +168,21 @@ public static class TraderRoutes
             .WithTags("Orders");
 
         group
+            .MapGet(
+                "/trader/bridge/slave-ticket",
+                async (
+                    [FromQuery] long masterTicket,
+                    [FromQuery] long accountNumber,
+                    TraderHandler handler
+                ) =>
+                {
+                    return await handler.HandleFindSlaveTicket(masterTicket, accountNumber);
+                }
+            )
+            .WithName("BridgeFindSlaveTicket")
+            .WithTags("Orders");
+
+        group
             .MapDelete(
                 "/trader/orders/active-order/{id:long}",
                 async (long id, TraderHandler handler) =>
