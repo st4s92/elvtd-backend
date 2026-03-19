@@ -151,7 +151,8 @@ public partial class TraderUsecase
                     Status = ao.Status,
                     CreatedAt = ao.CreatedAt,
                     UpdatedAt = ao.UpdatedAt,
-                    OrderOpenAt = ao.OrderOpenAt ?? ao.CreatedAt, 
+                    OrderOpenAt = ao.OrderOpenAt ?? ao.CreatedAt,
+                    OrderLabel = ao.OrderLabel,
                 }).ToList();
 
                 // Hydrate Account for active orders
