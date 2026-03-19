@@ -1586,20 +1586,18 @@ public partial class TraderUsecase
             // ------------------------------------
             var platformTickets = payload.PositionList.Select(x => x.OrderTicket).ToHashSet();
 
-            var externalActiveOrders = dbActiveOrders
-                .Where(a => a.MasterOrderId == null && a.OrderTicket != 0)
+            // Cleanup ALL ActiveOrders that are no longer open on cTrader (external + copied)
+            var staleActiveOrders = dbActiveOrders
+                .Where(a => a.OrderTicket != 0 && !platformTickets.Contains(a.OrderTicket))
                 .ToList();
 
-            foreach (var staleOrder in externalActiveOrders)
+            foreach (var staleOrder in staleActiveOrders)
             {
-                if (platformTickets.Contains(staleOrder.OrderTicket))
-                    continue;
-
-                // Position was closed externally — move to orders table as Complete
+                // Position was closed on cTrader — move to orders table as Complete
                 var closedOrder = new Order
                 {
                     AccountId = staleOrder.AccountId,
-                    MasterOrderId = null,
+                    MasterOrderId = staleOrder.MasterOrderId,
                     OrderTicket = staleOrder.OrderTicket,
                     OrderSymbol = staleOrder.OrderSymbol,
                     OrderType = staleOrder.OrderType,
@@ -1616,8 +1614,9 @@ public partial class TraderUsecase
                     o => o.OrderTicket == staleOrder.OrderTicket && o.AccountId == staleOrder.AccountId
                 );
 
-                // Remove from active_orders
                 await _activeOrderRepository.DeleteById(staleOrder.Id);
+
+                _logger.Info($"Stale ActiveOrder cleaned up: ticket={staleOrder.OrderTicket} symbol={staleOrder.OrderSymbol} account={staleOrder.AccountId} masterOrderId={staleOrder.MasterOrderId}");
             }
 
             // ------------------------------------
