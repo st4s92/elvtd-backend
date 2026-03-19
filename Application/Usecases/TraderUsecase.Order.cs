@@ -620,13 +620,18 @@ public partial class TraderUsecase
                 existingOrder.Status = OrderStatus.Complete;
                 existingOrder.OrderProfit = payload.Order.OrderProfit;
 
-                // Remove the corresponding ActiveOrder (position is now closed)
-                var closedActiveOrder = await _activeOrderRepository.Get(
-                    ao => ao.MasterOrderId == payload.Order.MasterOrderId && ao.AccountId == account.Id
+                // Remove ALL corresponding ActiveOrders (position is now closed)
+                // Match by MasterOrderId OR by OrderTicket to catch all cases
+                var closedActiveOrders = await _activeOrderRepository.GetMany(
+                    ao => ao.AccountId == account.Id && (
+                        (payload.Order.MasterOrderId != 0 && ao.MasterOrderId == payload.Order.MasterOrderId) ||
+                        (payload.Order.OrderTicket != 0 && ao.OrderTicket == payload.Order.OrderTicket)
+                    )
                 );
-                if (closedActiveOrder != null)
+                foreach (var closedAo in closedActiveOrders)
                 {
-                    await _activeOrderRepository.Delete(ao => ao.Id == closedActiveOrder.Id);
+                    await _activeOrderRepository.Delete(ao => ao.Id == closedAo.Id);
+                    _logger.Info($"ActiveOrder removed on close confirm: id={closedAo.Id} ticket={closedAo.OrderTicket} masterOrderId={closedAo.MasterOrderId}");
                 }
 
                 await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
