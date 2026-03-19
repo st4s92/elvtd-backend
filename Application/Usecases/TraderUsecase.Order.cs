@@ -2104,7 +2104,7 @@ public partial class TraderUsecase
 
             // Get the slave account to send close command to the trading platform
             var account = await _accountRepository.Get(a => a.Id == existing.AccountId);
-            if (account != null && existing.OrderTicket != 0)
+            if (account != null)
             {
                 var closePayload = new BridgeOrderBroadcastPayload
                 {
