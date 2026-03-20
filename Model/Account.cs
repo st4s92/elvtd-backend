@@ -104,6 +104,7 @@ public class Account : IAuditableEntity
     public ICollection<ActiveOrder> ActiveOrders { get; set; } = new List<ActiveOrder>();
 
     [JsonPropertyName("server_account")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ServerAccount? ServerAccount { get; set; }
 }
 

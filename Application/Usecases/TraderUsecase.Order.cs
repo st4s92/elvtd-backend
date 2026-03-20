@@ -132,7 +132,7 @@ public partial class TraderUsecase
                     FilterOrderForMerge(param),
                     1, 2000, // Fetch more for combination
                     q => q.OrderByDescending(o => o.CreatedAt),
-                    q => q.Include(o => o.Account).ThenInclude(a => a != null ? a.ServerAccount : null).ThenInclude(sa => sa != null ? sa.Server : null)
+                    q => q.Include(o => o.Account)
                 );
 
                 // Fetch Slave Open Orders from active_orders table (ebenfalls ohne Status-Filter).
@@ -160,8 +160,7 @@ public partial class TraderUsecase
                 {
                     var accIds = activeAsOrders.Select(o => o.AccountId).Distinct().ToList();
                     var accounts = await _accountRepository.GetMany(
-                        a => accIds.Contains(a.Id),
-                        q => q.Include(a => a.ServerAccount).ThenInclude(sa => sa != null ? sa.Server : null)
+                        a => accIds.Contains(a.Id)
                     );
                     foreach (var o in activeAsOrders)
                     {
@@ -238,8 +237,7 @@ public partial class TraderUsecase
                 {
                     var missingAccounts = await _accountRepository.GetMany(
                         a => missingAccIds.Contains(a.Id),
-                        q => q.Include(a => a.ServerAccount).ThenInclude(sa => sa != null ? sa.Server : null)
-                    );
+                                            );
                     foreach (var o in data.Where(o => o.Account == null))
                     {
                         o.Account = missingAccounts.FirstOrDefault(a => a.Id == o.AccountId);
@@ -346,7 +344,7 @@ public partial class TraderUsecase
                             _ => q.OrderByDescending(o => o.CreatedAt)
                         };
                     },
-                    q => q.Include(o => o.Account).ThenInclude(a => a != null ? a.ServerAccount : null).ThenInclude(sa => sa != null ? sa.Server : null)
+                    q => q.Include(o => o.Account)
                 );
 
                 if (data == null)
@@ -430,8 +428,7 @@ public partial class TraderUsecase
                 {
                     var missingAccounts = await _accountRepository.GetMany(
                         a => missingAccIds.Contains(a.Id),
-                        q => q.Include(a => a.ServerAccount).ThenInclude(sa => sa != null ? sa.Server : null)
-                    );
+                                            );
                     foreach (var o in data.Where(o => o.Account == null))
                     {
                         o.Account = missingAccounts.FirstOrDefault(a => a.Id == o.AccountId);
