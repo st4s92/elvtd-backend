@@ -1867,6 +1867,36 @@ public partial class TraderUsecase
             }
 
             // ------------------------------------
+            // 5b. Detect closed positions: Orders with ticket that no longer exists on platform
+            // This handles MT5 close (reconcile_deletes closes position, backend never gets callback)
+            // ------------------------------------
+            if (platformTickets.Count > 0 || payload.PositionList.Count == 0)
+            {
+                var openOrdersWithTicket = await _orderRepository.GetMany(o =>
+                    o.AccountId == account.Id
+                    && o.OrderTicket != 0
+                    && o.OrderCloseAt == null
+                    && (o.Status == OrderStatus.Success || o.Status == OrderStatus.Progress)
+                );
+
+                foreach (var openOrder in openOrdersWithTicket)
+                {
+                    if (!platformTickets.Contains(openOrder.OrderTicket))
+                    {
+                        await _orderRepository.Update(
+                            o => o.Id == openOrder.Id,
+                            o =>
+                            {
+                                o.Status = OrderStatus.Complete;
+                                o.OrderCloseAt = DateTime.UtcNow;
+                            }
+                        );
+                        _logger.Info($"Order auto-closed (position gone from platform): orderId={openOrder.Id} ticket={openOrder.OrderTicket} symbol={openOrder.OrderSymbol} account={account.Id}");
+                    }
+                }
+            }
+
+            // ------------------------------------
             // 6. Build DELTA response (re-read from DB to include newly created orders)
             // ------------------------------------
             var updatedActiveOrders = await _activeOrderRepository.GetMany(a =>
