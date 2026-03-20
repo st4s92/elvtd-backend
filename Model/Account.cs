@@ -90,6 +90,14 @@ public class Account : IAuditableEntity
     [JsonPropertyName("ctid_trader_account_id")]
     public long? CtidTraderAccountId { get; set; }
 
+    [Column("server_status"), MaxLength(50)]
+    [JsonPropertyName("server_status")]
+    public string? ServerStatus { get; set; }
+
+    [Column("server_status_message"), MaxLength(500)]
+    [JsonPropertyName("server_status_message")]
+    public string? ServerStatusMessage { get; set; }
+
     public bool IsDeleted => DeletedAt.HasValue;
 
     // Reverse navigation
