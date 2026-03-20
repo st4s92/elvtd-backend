@@ -236,8 +236,8 @@ public partial class TraderUsecase
                 if (missingAccIds.Count > 0)
                 {
                     var missingAccounts = await _accountRepository.GetMany(
-                        a => missingAccIds.Contains(a.Id),
-                                            );
+                        a => missingAccIds.Contains(a.Id)
+                    );
                     foreach (var o in data.Where(o => o.Account == null))
                     {
                         o.Account = missingAccounts.FirstOrDefault(a => a.Id == o.AccountId);
@@ -427,8 +427,8 @@ public partial class TraderUsecase
                 if (missingAccIds.Count > 0)
                 {
                     var missingAccounts = await _accountRepository.GetMany(
-                        a => missingAccIds.Contains(a.Id),
-                                            );
+                        a => missingAccIds.Contains(a.Id)
+                    );
                     foreach (var o in data.Where(o => o.Account == null))
                     {
                         o.Account = missingAccounts.FirstOrDefault(a => a.Id == o.AccountId);
