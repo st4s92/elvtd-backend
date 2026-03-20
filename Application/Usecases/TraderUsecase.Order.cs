@@ -708,7 +708,7 @@ public partial class TraderUsecase
 
             var newOrders = payload
                 .Orders.Where(po => !existingOrderTickets.Contains(po.OrderTicket))
-                .Where(po => OrderTimeHelper.IsOrderFresh(po.OrderOpenAt, toleranceSeconds))
+                .Where(po => toleranceSeconds <= 0 || OrderTimeHelper.IsOrderFresh(po.OrderOpenAt, toleranceSeconds))
                 .ToList();
 
             foreach (var item in newOrders)
