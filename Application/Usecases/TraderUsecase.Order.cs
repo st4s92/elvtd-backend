@@ -1327,10 +1327,51 @@ public partial class TraderUsecase
 
                 if (orphanActiveOrders.Any())
                 {
-                    List<BridgeOrderBroadcastPayload> closeMessages = [];
-                    foreach (var orphan in orphanActiveOrders)
+                    // Split orphans: executed (has ticket) vs non-executed (ticket=0, never opened on platform)
+                    var executedOrphans = orphanActiveOrders.Where(o => o.OrderTicket != 0).ToList();
+                    var nonExecutedOrphans = orphanActiveOrders.Where(o => o.OrderTicket == 0).ToList();
+
+                    // --- Handle NON-EXECUTED orphans: mark as Failed, NO close signal needed ---
+                    foreach (var orphan in nonExecutedOrphans)
                     {
-                        // Finalize to Order (we can keep this for now or batch it if needed, but the push is critical)
+                        await FinalizeActiveOrderToOrder(orphan, asFailed: true);
+
+                        await _systemLogUsecase.CreateLog("CopyTrade", "SlaveClose", slaveAccount.Id,
+                            $"Non-executed intent marked as Failed: masterOrderId={orphan.MasterOrderId} symbol={orphan.OrderSymbol} type={orphan.OrderType} lot={orphan.OrderLot} platform={slaveAccount.PlatformName}");
+                    }
+
+                    // Also mark corresponding intent orders in orders table as Failed
+                    // (these were created by CopyMasterOrderToSlaves with ticket=0)
+                    var nonExecutedMasterOrderIds = nonExecutedOrphans
+                        .Where(o => o.MasterOrderId.HasValue)
+                        .Select(o => o.MasterOrderId!.Value)
+                        .ToList();
+                    if (nonExecutedMasterOrderIds.Any())
+                    {
+                        var intentOrders = await _orderRepository.GetMany(o =>
+                            o.AccountId == slaveAccountId
+                            && o.OrderTicket == 0
+                            && nonExecutedMasterOrderIds.Contains(o.MasterOrderId ?? 0)
+                            && (o.Status == OrderStatus.Progress || o.Status == OrderStatus.Success)
+                        );
+                        foreach (var intentOrder in intentOrders)
+                        {
+                            await _orderRepository.Update(
+                                o => o.Id == intentOrder.Id,
+                                o =>
+                                {
+                                    o.Status = OrderStatus.Failed;
+                                    o.OrderCloseAt = DateTime.UtcNow;
+                                    o.CopyMessage = "Never executed on slave platform";
+                                }
+                            );
+                        }
+                    }
+
+                    // --- Handle EXECUTED orphans: send close signal ---
+                    List<BridgeOrderBroadcastPayload> closeMessages = [];
+                    foreach (var orphan in executedOrphans)
+                    {
                         await FinalizeActiveOrderToOrder(orphan);
 
                         closeMessages.Add(new BridgeOrderBroadcastPayload
@@ -1346,30 +1387,33 @@ public partial class TraderUsecase
                         });
                     }
 
-                    // Push ALL close packets in ONE batch
-                    if (slaveAccount.PlatformName == "cTrader")
+                    if (closeMessages.Count > 0)
                     {
-                        await _jobPublisher.PublishCtraderPacketBatch(
-                            slaveAccount.AccountNumber,
-                            closeMessages.Cast<object>().ToList()
-                        );
-                    }
-                    else
-                    {
-                        await _jobPublisher.PublishMt5PacketBatch(
-                            slaveAccount.ServerName,
-                            slaveAccount.AccountNumber,
-                            closeMessages.Cast<object>().ToList()
-                        );
+                        // Push ALL close packets in ONE batch
+                        if (slaveAccount.PlatformName == "cTrader")
+                        {
+                            await _jobPublisher.PublishCtraderPacketBatch(
+                                slaveAccount.AccountNumber,
+                                closeMessages.Cast<object>().ToList()
+                            );
+                        }
+                        else
+                        {
+                            await _jobPublisher.PublishMt5PacketBatch(
+                                slaveAccount.ServerName,
+                                slaveAccount.AccountNumber,
+                                closeMessages.Cast<object>().ToList()
+                            );
+                        }
                     }
 
                     // Batch delete from ActiveOrder
                     var orphanIds = orphanActiveOrders.Select(o => o.Id).ToList();
                     await _activeOrderRepository.Delete(o => orphanIds.Contains(o.Id));
 
-                    _logger.Info($"BatchClose: slave={slaveAccount.Id}, count={orphanActiveOrders.Count}");
+                    _logger.Info($"BatchClose: slave={slaveAccount.Id}, executed={executedOrphans.Count}, nonExecuted(Failed)={nonExecutedOrphans.Count}");
 
-                    foreach (var orphan in orphanActiveOrders)
+                    foreach (var orphan in executedOrphans)
                     {
                         await _systemLogUsecase.CreateLog("CopyTrade", "SlaveClose", slaveAccount.Id,
                             $"Close signal sent (MASTER_ORDER_DELETE): masterOrderId={orphan.MasterOrderId} symbol={orphan.OrderSymbol} type={orphan.OrderType} lot={orphan.OrderLot} ticket={orphan.OrderTicket} platform={slaveAccount.PlatformName}");
@@ -1387,7 +1431,7 @@ public partial class TraderUsecase
         }
     }
 
-    private async Task FinalizeActiveOrderToOrder(ActiveOrder activeOrder)
+    private async Task FinalizeActiveOrderToOrder(ActiveOrder activeOrder, bool asFailed = false)
     {
         var order = new Order
         {
@@ -1400,8 +1444,9 @@ public partial class TraderUsecase
             OrderPrice = activeOrder.OrderPrice,
             OrderProfit = activeOrder.OrderProfit ?? 0,
             OrderMagic = activeOrder.OrderMagic,
-            Status = OrderStatus.Closed,
+            Status = asFailed ? OrderStatus.Failed : OrderStatus.Closed,
             OrderCloseAt = DateTime.UtcNow,
+            CopyMessage = asFailed ? "Never executed on slave platform" : null,
         };
 
         await _orderRepository.Save(order);
@@ -1630,6 +1675,44 @@ public partial class TraderUsecase
 
                 if (dbOrder == null)
                 {
+                    // CHECK: Is this a position that was already closed/finalized?
+                    // If a closed Order exists with the same magic or ticket, do NOT re-create the ActiveOrder.
+                    // This prevents MT5 positions from being "re-adopted" after SyncSlaveActiveOrders deleted them.
+                    bool alreadyClosed = false;
+                    if (mtPos.OrderMagic != 0)
+                    {
+                        var closedByMagic = await _orderRepository.Get(o =>
+                            o.AccountId == account.Id
+                            && o.OrderMagic == mtPos.OrderMagic
+                            && o.OrderCloseAt != null
+                        );
+                        if (closedByMagic != null)
+                        {
+                            alreadyClosed = true;
+                            _logger.Info($"Skipping re-creation of closed position: ticket={mtPos.OrderTicket} magic={mtPos.OrderMagic} symbol={mtPos.OrderSymbol} account={account.Id} (already closed as orderId={closedByMagic.Id})");
+                        }
+                    }
+
+                    if (!alreadyClosed && mtPos.OrderTicket != 0)
+                    {
+                        var closedByTicket = await _orderRepository.Get(o =>
+                            o.AccountId == account.Id
+                            && o.OrderTicket == mtPos.OrderTicket
+                            && o.OrderCloseAt != null
+                        );
+                        if (closedByTicket != null)
+                        {
+                            alreadyClosed = true;
+                            _logger.Info($"Skipping re-creation of closed position: ticket={mtPos.OrderTicket} symbol={mtPos.OrderSymbol} account={account.Id} (already closed as orderId={closedByTicket.Id})");
+                        }
+                    }
+
+                    if (alreadyClosed)
+                    {
+                        // Do NOT create ActiveOrder — MT5 reconcile_deletes will close this position
+                        continue;
+                    }
+
                     // External position (no master) — create new ActiveOrder
                     try
                     {
