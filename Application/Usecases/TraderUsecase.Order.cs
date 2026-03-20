@@ -1671,6 +1671,40 @@ public partial class TraderUsecase
                 dbOrder.Status = OrderStatus.Success;
 
                 await _activeOrderRepository.Update(dbOrder);
+
+                // ALSO update the corresponding Order in the orders table (for MT5 close flow)
+                // The orders table has intents with ticket=0 that need the real ticket
+                if (mtPos.OrderTicket != 0 && dbOrder.MasterOrderId.HasValue)
+                {
+                    try
+                    {
+                        var correspondingOrder = await _orderRepository.Get(
+                            o => o.AccountId == account.Id
+                                 && o.MasterOrderId == dbOrder.MasterOrderId
+                                 && o.OrderTicket == 0
+                                 && (o.Status == OrderStatus.Progress || o.Status == OrderStatus.Success)
+                        );
+                        if (correspondingOrder != null)
+                        {
+                            await _orderRepository.Update(
+                                o => o.Id == correspondingOrder.Id,
+                                o =>
+                                {
+                                    o.OrderTicket = mtPos.OrderTicket;
+                                    o.OrderPrice = mtPos.OrderPrice;
+                                    o.OrderOpenAt = mtPos.OrderOpenAt;
+                                    o.OrderProfit = mtPos.OrderProfit;
+                                    o.Status = OrderStatus.Success;
+                                }
+                            );
+                            _logger.Info($"Orders table synced: ticket={mtPos.OrderTicket} orderId={correspondingOrder.Id} masterOrderId={dbOrder.MasterOrderId} account={account.Id}");
+                        }
+                    }
+                    catch (Exception orderSyncEx)
+                    {
+                        _logger.Fail($"Orders table sync FAILED: ticket={mtPos.OrderTicket} masterOrderId={dbOrder.MasterOrderId} account={account.Id}", orderSyncEx);
+                    }
+                }
             }
 
             // ------------------------------------
