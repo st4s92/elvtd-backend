@@ -9,39 +9,31 @@ public class SymbolMap : IAuditableEntity
 {
     [Key]
     [Column("id")]
-    [JsonPropertyName("id")]
     public long Id { get; set; }
 
     [Required, MaxLength(100)]
     [Column("broker_name")]
-    [JsonPropertyName("broker_name")]
     public string BrokerName { get; set; } = "";
 
     [Required, MaxLength(100)]
     [Column("server_name")]
-    [JsonPropertyName("server_name")]
     public string ServerName { get; set; } = "";
 
     [Required, MaxLength(20)]
     [Column("broker_symbol")]
-    [JsonPropertyName("broker_symbol")]
     public string BrokerSymbol { get; set; } = "";
 
     [Required, MaxLength(20)]
     [Column("canonical_symbol")]
-    [JsonPropertyName("canonical_symbol")]
     public string CanonicalSymbol { get; set; } = "";
 
     [Column("created_at")]
-    [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
 
     [Column("updated_at")]
-    [JsonPropertyName("updated_at")]
     public DateTime UpdatedAt { get; set; }
 
     [Column("deleted_at")]
-    [JsonPropertyName("deleted_at")]
     public DateTime? DeletedAt { get; set; }
 
     public bool IsDeleted => DeletedAt.HasValue;
