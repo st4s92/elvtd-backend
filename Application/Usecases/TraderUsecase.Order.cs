@@ -1566,6 +1566,15 @@ public partial class TraderUsecase
                 .GroupBy(a => a.OrderTicket)
                 .ToDictionary(g => g.Key, g => g.First());
 
+            // Build lookup for intents (OrderTicket=0) by MasterOrderId for label-based matching
+            var dbIntentsByMasterOrderId = dbActiveOrders
+                .Where(a => a.OrderTicket == 0 && a.MasterOrderId.HasValue)
+                .GroupBy(a => a.MasterOrderId!.Value)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // Track which intents have been matched (to avoid double-matching)
+            var matchedIntentIds = new HashSet<long>();
+
             // ------------------------------------
             // 4. Update EXISTING active orders
             // ------------------------------------
@@ -1580,6 +1589,43 @@ public partial class TraderUsecase
                 else if (mtPos.OrderTicket != 0 && dbByTicket.TryGetValue(mtPos.OrderTicket, out dbOrder))
                 {
                     // matched by ticket (cTrader)
+                }
+
+                // FALLBACK: Match by OrderLabel → MasterOrderId (cTrader sends label "ELVTD_{masterOrderId}" or "copy_{masterOrderId}")
+                if (dbOrder == null && !string.IsNullOrEmpty(mtPos.OrderLabel))
+                {
+                    long? labelMasterOrderId = null;
+                    if (mtPos.OrderLabel.StartsWith("ELVTD_") && long.TryParse(mtPos.OrderLabel[6..], out var eid))
+                        labelMasterOrderId = eid;
+                    else if (mtPos.OrderLabel.StartsWith("copy_") && long.TryParse(mtPos.OrderLabel[5..], out var cid))
+                        labelMasterOrderId = cid;
+
+                    if (labelMasterOrderId.HasValue
+                        && dbIntentsByMasterOrderId.TryGetValue(labelMasterOrderId.Value, out var intentByLabel)
+                        && !matchedIntentIds.Contains(intentByLabel.Id))
+                    {
+                        dbOrder = intentByLabel;
+                        matchedIntentIds.Add(intentByLabel.Id);
+                        _logger.Info($"Matched by label: ticket={mtPos.OrderTicket} label={mtPos.OrderLabel} → intent id={dbOrder.Id} masterOrderId={labelMasterOrderId.Value} account={account.Id}");
+                    }
+                }
+
+                // FALLBACK 2: Match by symbol+type against unmatched intents (OrderTicket=0)
+                if (dbOrder == null)
+                {
+                    var intentBySymbol = dbActiveOrders.FirstOrDefault(a =>
+                        a.OrderTicket == 0
+                        && a.MasterOrderId.HasValue
+                        && a.OrderSymbol == mtPos.OrderSymbol
+                        && a.OrderType == mtPos.OrderType
+                        && !matchedIntentIds.Contains(a.Id)
+                    );
+                    if (intentBySymbol != null)
+                    {
+                        dbOrder = intentBySymbol;
+                        matchedIntentIds.Add(intentBySymbol.Id);
+                        _logger.Info($"Matched by symbol+type: ticket={mtPos.OrderTicket} symbol={mtPos.OrderSymbol} type={mtPos.OrderType} → intent id={dbOrder.Id} masterOrderId={dbOrder.MasterOrderId} account={account.Id}");
+                    }
                 }
 
                 if (dbOrder == null)
