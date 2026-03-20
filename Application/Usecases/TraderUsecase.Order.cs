@@ -2078,6 +2078,19 @@ public partial class TraderUsecase
             account.Status = ConnectionStatus.Success;
             account.CopierVersion = dto.CopierVersion;
 
+            // Update server status if reported by copier (e.g. 10017 Close-Only)
+            if (!string.IsNullOrEmpty(dto.ServerStatus))
+            {
+                account.ServerStatus = dto.ServerStatus;
+                account.ServerStatusMessage = dto.ServerStatusMessage;
+            }
+            else if (account.ServerStatus == "ERROR")
+            {
+                // Clear error when copier reports normal sync (no error status)
+                account.ServerStatus = null;
+                account.ServerStatusMessage = null;
+            }
+
             await _accountRepository.Save(account, a => a.Id == account.Id);
 
             // =========================

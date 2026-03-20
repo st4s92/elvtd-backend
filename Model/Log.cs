@@ -162,6 +162,12 @@ public class SyncAccountStatePayload
 
     [JsonPropertyName("copier_version")]
     public string? CopierVersion { get; set; }
+
+    [JsonPropertyName("server_status")]
+    public string? ServerStatus { get; set; }
+
+    [JsonPropertyName("server_status_message")]
+    public string? ServerStatusMessage { get; set; }
 }
 
 [Table("system_logs")]
