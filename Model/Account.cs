@@ -148,6 +148,9 @@ public class AccountPayload
 
     [JsonPropertyName("ctid_trader_account_id")]
     public long? CtidTraderAccountId { get; set; }
+
+    [JsonPropertyName("status")]
+    public ConnectionStatus? Status { get; set; }
 }
 
 public class AccountGetPayload : AccountPayload

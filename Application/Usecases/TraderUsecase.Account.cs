@@ -294,14 +294,24 @@ public partial class TraderUsecase
             if (terr != null || existing == null)
                 return (null, terr);
 
-            existing.PlatformName = param.PlatformName;
-            existing.AccountNumber = param.AccountNumber;
-            existing.BrokerName = param.BrokerName;
-            existing.ServerName = param.ServerName;
+            if (!string.IsNullOrEmpty(param.PlatformName))
+                existing.PlatformName = param.PlatformName;
+            if (param.AccountNumber != 0)
+                existing.AccountNumber = param.AccountNumber;
+            if (!string.IsNullOrEmpty(param.BrokerName))
+                existing.BrokerName = param.BrokerName;
+            if (!string.IsNullOrEmpty(param.ServerName))
+                existing.ServerName = param.ServerName;
 
             if (!string.IsNullOrWhiteSpace(param.AccountPassword))
             {
                 existing.AccountPassword = param.AccountPassword;
+            }
+
+            // Connection status
+            if (param.Status != ConnectionStatus.None && param.Status != ConnectionStatus.All)
+            {
+                existing.Status = param.Status;
             }
 
             // cTrader-spezifische Felder

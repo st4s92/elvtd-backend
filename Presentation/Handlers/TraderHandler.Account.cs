@@ -211,6 +211,19 @@ public partial class TraderHandler
             return Response.Json(terrs);
         }
 
+        // Status-only update: skip platform validation
+        if (payload.Status.HasValue && string.IsNullOrEmpty(payload.PlatformName))
+        {
+            var statusAccount = new Account { Status = payload.Status.Value };
+            var (_, terr) = await _usecase.UpdateAccountById(id, statusAccount);
+            if (terr != null)
+            {
+                Console.WriteLine($"[UpdateAccount] status update failed: {terr}");
+                return Response.Json(terr);
+            }
+            return Response.Json("ok");
+        }
+
         var isCtrader = payload.PlatformName == "cTrader";
 
         if (isCtrader)
@@ -244,6 +257,12 @@ public partial class TraderHandler
             ServerName = payload.ServerName ?? "",
             AccountPassword = payload.AccountPassword ?? "",
         };
+
+        // Update connection status if provided
+        if (payload.Status.HasValue)
+        {
+            account.Status = payload.Status.Value;
+        }
 
         // cTrader-spezifische Felder direkt im Account speichern
         if (isCtrader)
