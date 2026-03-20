@@ -1233,6 +1233,10 @@ public partial class TraderUsecase
                     continue; // jangan bikin ActiveOrder tanpa account
                 }
 
+                // Skip slaves with zero balance — no point creating intents with lot=0
+                if (slaveAccount.Balance <= 0)
+                    continue;
+
                 // 3. ambil active order slave existing
                 activeOrdersByAccountId.TryGetValue(slaveAccountId, out var slaveActiveOrders);
 
