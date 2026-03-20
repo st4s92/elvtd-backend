@@ -305,9 +305,6 @@ public class TradePlatformCreatedEvent
 
     [JsonPropertyName("pid")]
     public int Pid { get; set; }
-
-    [JsonPropertyName("server_ip")]
-    public string ServerIp { get; set; } = "";
 }
 
 public class ServerAccountPlatformUpdateRequest
