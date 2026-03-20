@@ -1635,25 +1635,44 @@ public partial class TraderUsecase
                 // Move to orders table as Complete (only if has a ticket)
                 if (staleOrder.OrderTicket != 0)
                 {
-                    var closedOrder = new Order
-                    {
-                        AccountId = staleOrder.AccountId,
-                        MasterOrderId = staleOrder.MasterOrderId,
-                        OrderTicket = staleOrder.OrderTicket,
-                        OrderSymbol = staleOrder.OrderSymbol,
-                        OrderType = staleOrder.OrderType,
-                        OrderLot = staleOrder.OrderLot,
-                        OrderPrice = staleOrder.OrderPrice,
-                        OrderMagic = staleOrder.OrderMagic,
-                        OrderOpenAt = staleOrder.OrderOpenAt,
-                        OrderCloseAt = DateTime.UtcNow,
-                        OrderProfit = staleOrder.OrderProfit,
-                        Status = OrderStatus.Complete,
-                    };
-                    await _orderRepository.Save(
-                        closedOrder,
+                    // Check if order already exists in orders table (avoid SetValues crash on PK)
+                    var existingOrder = await _orderRepository.Get(
                         o => o.OrderTicket == staleOrder.OrderTicket && o.AccountId == staleOrder.AccountId
                     );
+
+                    if (existingOrder != null)
+                    {
+                        // Update existing order
+                        await _orderRepository.Update(
+                            o => o.Id == existingOrder.Id,
+                            o =>
+                            {
+                                o.Status = OrderStatus.Complete;
+                                o.OrderCloseAt = DateTime.UtcNow;
+                                o.OrderProfit = staleOrder.OrderProfit;
+                            }
+                        );
+                    }
+                    else
+                    {
+                        // Insert new closed order
+                        var closedOrder = new Order
+                        {
+                            AccountId = staleOrder.AccountId,
+                            MasterOrderId = staleOrder.MasterOrderId,
+                            OrderTicket = staleOrder.OrderTicket,
+                            OrderSymbol = staleOrder.OrderSymbol,
+                            OrderType = staleOrder.OrderType,
+                            OrderLot = staleOrder.OrderLot,
+                            OrderPrice = staleOrder.OrderPrice,
+                            OrderMagic = staleOrder.OrderMagic,
+                            OrderOpenAt = staleOrder.OrderOpenAt,
+                            OrderCloseAt = DateTime.UtcNow,
+                            OrderProfit = staleOrder.OrderProfit,
+                            Status = OrderStatus.Complete,
+                        };
+                        await _orderRepository.Save(closedOrder);
+                    }
                 }
 
                 await _activeOrderRepository.DeleteById(staleOrder.Id);
