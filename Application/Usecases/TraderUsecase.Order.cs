@@ -319,6 +319,9 @@ public partial class TraderUsecase
                     }
                 }
 
+                // Strip sensitive account data before returning
+                SanitizeAccountsInOrders(data);
+
                 return (data, total, null);
             }
             else
@@ -435,12 +438,32 @@ public partial class TraderUsecase
                     }
                 }
 
+                // Strip sensitive account data before returning
+                SanitizeAccountsInOrders(data);
+
                 return (data, totalRes, null);
             }
         }
         catch (Exception ex)
         {
             return ([], 0, TError.NewServer("database error", ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// Removes sensitive fields (password, tokens) from Account objects in order list.
+    /// Only keeps: Id, PlatformName, AccountNumber, UserId, Equity, Balance, Status, Role.
+    /// </summary>
+    private static void SanitizeAccountsInOrders(List<Order> orders)
+    {
+        foreach (var order in orders)
+        {
+            if (order.Account == null) continue;
+            order.Account.AccountPassword = "";
+            order.Account.AccessToken = null;
+            order.Account.RefreshToken = null;
+            order.Account.TokenExpiredAt = null;
+            order.Account.CtidTraderAccountId = null;
         }
     }
 
