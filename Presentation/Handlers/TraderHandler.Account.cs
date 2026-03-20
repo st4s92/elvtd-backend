@@ -215,11 +215,11 @@ public partial class TraderHandler
         if (payload.Status.HasValue && string.IsNullOrEmpty(payload.PlatformName))
         {
             var statusAccount = new Account { Status = payload.Status.Value };
-            var (_, terr) = await _usecase.UpdateAccountById(id, statusAccount);
-            if (terr != null)
+            var (_, statusErr) = await _usecase.UpdateAccountById(id, statusAccount);
+            if (statusErr != null)
             {
-                Console.WriteLine($"[UpdateAccount] status update failed: {terr}");
-                return Response.Json(terr);
+                Console.WriteLine($"[UpdateAccount] status update failed: {statusErr}");
+                return Response.Json(statusErr);
             }
             return Response.Json("ok");
         }
