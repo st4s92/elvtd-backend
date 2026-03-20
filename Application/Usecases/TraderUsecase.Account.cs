@@ -156,6 +156,7 @@ public partial class TraderUsecase
                 UserId = data.UserId,
                 Role = data.Role,
                 Status = 100,
+                ServerIp = server.ServerIp,
             };
             Console.WriteLine("try to publish event");
 
