@@ -789,7 +789,7 @@ public partial class TraderUsecase
                 var slaveClosePrices = new Dictionary<long, decimal>();
                 foreach (var del in deletedOrders)
                 {
-                    var slaveWithPrice = await _orderRepository.GetOne(o =>
+                    var slaveWithPrice = await _orderRepository.Get(o =>
                         o.MasterOrderId == del.Id &&
                         o.ClosePrice != null &&
                         o.ClosePrice > 0
