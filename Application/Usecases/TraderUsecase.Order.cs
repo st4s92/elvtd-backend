@@ -597,11 +597,24 @@ public partial class TraderUsecase
                 existingOrder.OrderTicket = payload.Order.OrderTicket;
                 existingOrder.OrderPrice = payload.Order.OrderPrice;
                 existingOrder.OrderLot = payload.Order.OrderLot;
-                existingOrder.Status = OrderStatus.Success;
                 if (!string.IsNullOrEmpty(payload.Order.OrderLabel))
                     existingOrder.OrderLabel = payload.Order.OrderLabel;
 
-                // ALSO update the corresponding ActiveOrder to Success
+                // Set status based on what the copier reported
+                if (payload.Order.OrderStatus == "FAILED")
+                {
+                    existingOrder.Status = OrderStatus.Failed;
+                    existingOrder.CopyMessage = !string.IsNullOrEmpty(payload.Order.CopyMessage)
+                        ? payload.Order.CopyMessage
+                        : "Execution failed on slave platform";
+                }
+                else
+                {
+                    existingOrder.Status = OrderStatus.Success;
+                    existingOrder.CopyMessage = null;
+                }
+
+                // ALSO update the corresponding ActiveOrder
                 var activeOrder = await _activeOrderRepository.Get(
                     ao => ao.MasterOrderId == payload.Order.MasterOrderId && ao.AccountId == account.Id
                 );

@@ -218,6 +218,9 @@ public class BridgeOrderItem
 
     [JsonPropertyName("order_label")]
     public string? OrderLabel { get; set; }
+
+    [JsonPropertyName("copy_message")]
+    public string? CopyMessage { get; set; }
 }
 
 public class BridgeOrderBroadcastPayload
