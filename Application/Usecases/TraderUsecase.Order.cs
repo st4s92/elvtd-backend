@@ -247,9 +247,11 @@ public partial class TraderUsecase
                 // Populate SlaveCounts etc for masters.
                 // active_orders werden mit einbezogen (gleiche Merge-Logik wie oben),
                 // damit der angezeigte SlaveSuccessCount den tatsächlichen Live-Status widerspiegelt.
-                if (param.IsMasterOnly == true && data.Count > 0)
+                // Also populate when querying individual orders that happen to be masters.
+                var masterOrders = data.Where(o => o.MasterOrderId == null).ToList();
+                if ((param.IsMasterOnly == true || masterOrders.Any()) && data.Count > 0)
                 {
-                    var masterIds = data.Select(o => o.Id).ToList();
+                    var masterIds = (param.IsMasterOnly == true ? data : masterOrders).Select(o => o.Id).ToList();
                     var slaveStatsFromDb = await _orderRepository.GetMany(
                         o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
@@ -355,9 +357,10 @@ public partial class TraderUsecase
 
                 // Populate SlaveCounts if searching for master orders (PATH B – closed orders).
                 // Gleiche Merge-Logik wie PATH A: active_orders überschreiben den DB-Status.
-                if (param.IsMasterOnly == true && data.Count > 0)
+                var masterOrdersB = data.Where(o => o.MasterOrderId == null).ToList();
+                if ((param.IsMasterOnly == true || masterOrdersB.Any()) && data.Count > 0)
                 {
-                    var masterIds = data.Select(o => o.Id).ToList();
+                    var masterIds = (param.IsMasterOnly == true ? data : masterOrdersB).Select(o => o.Id).ToList();
                     var slaveStatsFromDb = await _orderRepository.GetMany(
                         o => o.MasterOrderId.HasValue && masterIds.Contains(o.MasterOrderId.Value)
                     );
@@ -768,6 +771,20 @@ public partial class TraderUsecase
                 var latestLogs = await _orderLogRepository.GetMany(log => log.AccountId == account!.Id && deletedTickets.Contains(log.OrderTicket));
                 var logMap = latestLogs.GroupBy(log => log.OrderTicket).ToDictionary(g => g.Key, g => g.OrderByDescending(log => log.CreatedAt).FirstOrDefault());
 
+                // Pre-fetch slave close prices: for each master order being closed,
+                // find any slave order that already has a close_price (from copier/bridge)
+                var slaveClosePrices = new Dictionary<long, decimal>();
+                foreach (var del in deletedOrders)
+                {
+                    var slaveWithPrice = await _orderRepository.GetOne(o =>
+                        o.MasterOrderId == del.Id &&
+                        o.ClosePrice != null &&
+                        o.ClosePrice > 0
+                    );
+                    if (slaveWithPrice?.ClosePrice != null)
+                        slaveClosePrices[del.Id] = slaveWithPrice.ClosePrice.Value;
+                }
+
                 await _orderRepository.UpdateMany(
                     o => deletedIds.Contains(o.Id),
                     item =>
@@ -780,6 +797,15 @@ public partial class TraderUsecase
                         {
                             item.OrderProfit = log.OrderProfit;
                             item.ClosePrice = log.LastPrice ?? log.OrderPrice;
+                        }
+
+                        // Fallback: if close_price is still missing (e.g. cTrader accounts
+                        // where OrderLog.LastPrice is never set), use the close_price from
+                        // an already-closed slave order
+                        if ((item.ClosePrice == null || item.ClosePrice == 0) &&
+                            slaveClosePrices.TryGetValue(item.Id, out var slaveClosePrice))
+                        {
+                            item.ClosePrice = slaveClosePrice;
                         }
                     }
                 );
