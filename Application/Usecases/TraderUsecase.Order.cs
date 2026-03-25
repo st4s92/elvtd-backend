@@ -2511,6 +2511,14 @@ public partial class TraderUsecase
             return TError.NewServer(ex.Message);
         }
     }
+
+    public async Task<bool> SoftDeleteOrder(long id)
+    {
+        return await _orderRepository.Update(
+            o => o.Id == id,
+            o => o.DeletedAt = DateTime.UtcNow
+        );
+    }
 }
 
 public class SlaveAccountOrdersDto
