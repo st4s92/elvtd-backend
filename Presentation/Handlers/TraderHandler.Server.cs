@@ -118,4 +118,13 @@ public partial class TraderHandler
         }
         return Response.Json("ok");
     }
+
+    public async Task<IResult> ReassignStaleAccounts(int minutes = 60)
+    {
+        var (count, terr) = await _usecase.ReassignStaleAccounts(minutes);
+        if (terr != null)
+            return Response.Json(terr);
+
+        return Response.Json(new { reassigned = count, message = $"Soft-deleted {count} stale server-account assignments (>{minutes}min)" });
+    }
 }

@@ -193,6 +193,17 @@ public static class TraderRoutes
             .WithName("DeleteSlaveActiveOrder")
             .WithTags("Orders");
 
+        group
+            .MapDelete(
+                "/trader/orders/soft-delete/{id:long}",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.SoftDeleteOrder(id);
+                }
+            )
+            .WithName("SoftDeleteOrder")
+            .WithTags("Orders");
+
         // account
         group
             .MapGet(
@@ -566,6 +577,17 @@ public static class TraderRoutes
                 }
             )
             .WithName("DeleteServer")
+            .WithTags("Server");
+
+        group
+            .MapPost(
+                "/trader/servers/reassign-stale",
+                async ([FromQuery] int minutes, TraderHandler handler) =>
+                {
+                    return await handler.ReassignStaleAccounts(minutes);
+                }
+            )
+            .WithName("ReassignStaleAccounts")
             .WithTags("Server");
 
         // =============================================
