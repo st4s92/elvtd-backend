@@ -2278,31 +2278,27 @@ public partial class TraderUsecase
                 return TError.NewClient("Master balance must be positive");
             }
 
-            // 2. Find Slaves with ALL related data in ONE query
-            var slaves = await _masterSlaveRepository.GetMany(
-                x => x.MasterId == masterAccount.Id && x.DeletedAt == null,
-                q => q
-                    .Include(ms => ms.MasterAccount)
-                    .Include(ms => ms.SlaveAccount)
-                    .Include(ms => ms.Configs)
-                    .Include(ms => ms.Pairs)
-            );
-            if (slaves == null || slaves.Count == 0)
+            // 2. Find Slaves (GetMasterSlaves now uses Include() for accounts)
+            var (slaves, terr) = await GetMasterSlaves(new MasterSlave { MasterId = masterAccount.Id });
+            if (terr != null || slaves.Count == 0)
                 return null; // Not an error, just no slaves
 
-            // 3. Preload symbol maps ONCE
+            // 3. Preload configs, pairs and symbol maps ONCE before the loop
+            var slaveIds = slaves.Select(s => s.Id).ToList();
+            var allConfigs = await _masterSlaveConfigRepository.GetMany(c => slaveIds.Contains(c.MasterSlaveId));
+            var allPairs = await _masterSlavePairRepository.GetMany(p => slaveIds.Contains(p.MasterSlaveId));
             var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
 
             // 4. Process each slave
             foreach (var slaveRelation in slaves)
             {
-                // Use eagerly loaded config from Include()
-                var config = slaveRelation.Configs?.FirstOrDefault();
+                // Use preloaded config
+                var config = allConfigs.FirstOrDefault(c => c.MasterSlaveId == slaveRelation.Id);
                 var multiplier = config?.Multiplier ?? 1.0m;
                 if (multiplier == 0) multiplier = 1.0m;
 
-                // Use eagerly loaded pairs from Include()
-                var pairs = slaveRelation.Pairs?.ToList() ?? new List<MasterSlavePair>();
+                // Use preloaded pairs
+                var pairs = allPairs.Where(p => p.MasterSlaveId == slaveRelation.Id).ToList();
 
                 // Use slave account already loaded by GetMasterSlaves()
                 var slaveAccount = slaveRelation.SlaveAccount;
