@@ -2281,26 +2281,28 @@ public partial class TraderUsecase
             if (terr != null || slaves.Count == 0)
                 return null; // Not an error, just no slaves
 
-            // 3. Preload symbol maps ONCE (not per slave)
+            // 3. Preload ALL data ONCE before the loop (not per slave)
             var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
+            var slaveIds = slaves.Select(s => s.Id).ToList();
+            var allConfigs = await _masterSlaveConfigRepository.GetMany(c => slaveIds.Contains(c.MasterSlaveId));
+            var allPairs = await _masterSlavePairRepository.GetMany(p => slaveIds.Contains(p.MasterSlaveId));
 
             // 4. Process each slave
             foreach (var slaveRelation in slaves)
             {
-                // Load config for this specific Master-Slave relation (MasterSlaveId is relation.Id)
-                var config = await _masterSlaveConfigRepository.Get(c => c.MasterSlaveId == slaveRelation.Id);
+                // Use preloaded config
+                var config = allConfigs.FirstOrDefault(c => c.MasterSlaveId == slaveRelation.Id);
                 var multiplier = config?.Multiplier ?? 1.0m;
                 if (multiplier == 0) multiplier = 1.0m;
 
-                // Load symbol pairs for mapping
-                var pairs = await _masterSlavePairRepository.GetMany(p => p.MasterSlaveId == slaveRelation.Id);
+                // Use preloaded pairs
+                var pairs = allPairs.Where(p => p.MasterSlaveId == slaveRelation.Id).ToList();
 
-                // Load slave account to get balance for proportional lot calculation
-                var (slaveAccount, err) = await GetAccount(new Account { Id = slaveRelation.SlaveId });
-                if (err != null || slaveAccount == null || slaveAccount.Balance <= 0)
+                // Use slave account already loaded by GetMasterSlaves()
+                var slaveAccount = slaveRelation.SlaveAccount;
+                if (slaveAccount == null || slaveAccount.Balance <= 0)
                 {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
-                        $"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0", "Warning");
+                    _logger.Info($"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0");
                     continue;
                 }
 
@@ -2379,10 +2381,7 @@ public partial class TraderUsecase
                     );
                 }
 
-                _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, lot={slaveLot}");
-
-                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
-                    $"Copy trade sent: masterTicket={masterOrder.OrderTicket} symbol={masterOrder.OrderSymbol}->{mappedSymbol} type={masterOrder.OrderType} masterLot={masterOrder.OrderLot} slaveLot={slaveLot} platform={slaveAccount.PlatformName}");
+                _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, symbol={mappedSymbol}, lot={slaveLot}");
             }
 
             return null;
