@@ -297,27 +297,32 @@ public partial class TraderUsecase
     {
         try
         {
-            // Use UpdateMany with tracked entities for reliable updates
-            int count;
+            // Hard-delete server_account entries so the account can be reassigned
+            List<ServerAccount> targets;
             if (accountId.HasValue && accountId.Value > 0)
             {
-                count = await _serverAccountRepository.UpdateMany(
-                    sa => sa.DeletedAt == null && sa.AccountId == accountId.Value,
-                    sa => sa.DeletedAt = DateTime.UtcNow
+                targets = await _serverAccountRepository.GetMany(
+                    sa => sa.AccountId == accountId.Value
                 );
             }
             else
             {
                 var threshold = DateTime.UtcNow.AddMinutes(-staleMinutes);
-                count = await _serverAccountRepository.UpdateMany(
-                    sa => sa.DeletedAt == null && sa.Account.UpdatedAt < threshold,
-                    sa => sa.DeletedAt = DateTime.UtcNow
+                targets = await _serverAccountRepository.GetMany(
+                    sa => sa.Account.UpdatedAt < threshold
                 );
             }
 
+            var count = 0;
+            foreach (var sa in targets)
+            {
+                await _serverAccountRepository.Delete(x => x.Id == sa.Id);
+                count++;
+            }
+
             var logMsg = accountId.HasValue
-                ? $"ReassignStaleAccounts: soft-deleted {count} server_account entries for accountId={accountId.Value}"
-                : $"ReassignStaleAccounts: soft-deleted {count} server_account entries (stale > {staleMinutes}min)";
+                ? $"ReassignStaleAccounts: deleted {count} server_account entries for accountId={accountId.Value}"
+                : $"ReassignStaleAccounts: deleted {count} server_account entries (stale > {staleMinutes}min)";
             _logger.Info(logMsg);
             return (count, null);
         }
