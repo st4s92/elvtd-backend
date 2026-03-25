@@ -864,8 +864,6 @@ public partial class TraderUsecase
                 }
             }
 
-            // SyncSlaveActiveOrders creates ActiveOrder intents that MT4 EAs poll for.
-            // This MUST run before returning — without it, MT4 slaves never see new orders.
             await SyncSlaveActiveOrders(account!.Id);
 
             return (message, null);
@@ -2278,33 +2276,31 @@ public partial class TraderUsecase
                 return TError.NewClient("Master balance must be positive");
             }
 
-            // 2. Find Slaves (GetMasterSlaves now uses Include() for accounts)
+            // 2. Find Slaves
             var (slaves, terr) = await GetMasterSlaves(new MasterSlave { MasterId = masterAccount.Id });
             if (terr != null || slaves.Count == 0)
                 return null; // Not an error, just no slaves
 
-            // 3. Preload configs, pairs and symbol maps ONCE before the loop
-            var slaveIds = slaves.Select(s => s.Id).ToList();
-            var allConfigs = await _masterSlaveConfigRepository.GetMany(c => slaveIds.Contains(c.MasterSlaveId));
-            var allPairs = await _masterSlavePairRepository.GetMany(p => slaveIds.Contains(p.MasterSlaveId));
+            // 3. Preload symbol maps ONCE (not per slave)
             var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
 
             // 4. Process each slave
             foreach (var slaveRelation in slaves)
             {
-                // Use preloaded config
-                var config = allConfigs.FirstOrDefault(c => c.MasterSlaveId == slaveRelation.Id);
+                // Load config for this specific Master-Slave relation (MasterSlaveId is relation.Id)
+                var config = await _masterSlaveConfigRepository.Get(c => c.MasterSlaveId == slaveRelation.Id);
                 var multiplier = config?.Multiplier ?? 1.0m;
                 if (multiplier == 0) multiplier = 1.0m;
 
-                // Use preloaded pairs
-                var pairs = allPairs.Where(p => p.MasterSlaveId == slaveRelation.Id).ToList();
+                // Load symbol pairs for mapping
+                var pairs = await _masterSlavePairRepository.GetMany(p => p.MasterSlaveId == slaveRelation.Id);
 
-                // Use slave account already loaded by GetMasterSlaves()
-                var slaveAccount = slaveRelation.SlaveAccount;
-                if (slaveAccount == null || slaveAccount.Balance <= 0)
+                // Load slave account to get balance for proportional lot calculation
+                var (slaveAccount, err) = await GetAccount(new Account { Id = slaveRelation.SlaveId });
+                if (err != null || slaveAccount == null || slaveAccount.Balance <= 0)
                 {
-                    _logger.Info($"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0");
+                    _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
+                        $"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0", "Warning");
                     continue;
                 }
 
@@ -2349,7 +2345,7 @@ public partial class TraderUsecase
                 var (newSlaveOrder, saveErr) = await CreateOrder(slaveOrder);
                 if (saveErr != null || newSlaveOrder == null)
                 {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                    _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
                         $"FAILED to create slave order: masterTicket={masterOrder.OrderTicket} symbol={mappedSymbol} lot={slaveLot} error={saveErr?.Message}", "Error");
                     continue;
                 }
@@ -2383,7 +2379,10 @@ public partial class TraderUsecase
                     );
                 }
 
-                _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, symbol={mappedSymbol}, lot={slaveLot}");
+                _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, lot={slaveLot}");
+
+                _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                    $"Copy trade sent: masterTicket={masterOrder.OrderTicket} symbol={masterOrder.OrderSymbol}->{mappedSymbol} type={masterOrder.OrderType} masterLot={masterOrder.OrderLot} slaveLot={slaveLot} platform={slaveAccount.PlatformName}");
             }
 
             return null;
@@ -2511,14 +2510,6 @@ public partial class TraderUsecase
         {
             return TError.NewServer(ex.Message);
         }
-    }
-
-    public async Task<bool> SoftDeleteOrder(long id)
-    {
-        return await _orderRepository.Update(
-            o => o.Id == id,
-            o => o.DeletedAt = DateTime.UtcNow
-        );
     }
 }
 
