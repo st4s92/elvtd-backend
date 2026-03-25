@@ -864,9 +864,9 @@ public partial class TraderUsecase
                 }
             }
 
-            // SyncSlaveActiveOrders SKIPPED here — CopyMasterOrderToSlaves already created
-            // all slave orders. Sync runs separately via periodic polling, not in the critical path.
-            // This saves 500-1000ms per master order.
+            // SyncSlaveActiveOrders creates ActiveOrder intents that MT4 EAs poll for.
+            // This MUST run before returning — without it, MT4 slaves never see new orders.
+            await SyncSlaveActiveOrders(account!.Id);
 
             return (message, null);
         }
