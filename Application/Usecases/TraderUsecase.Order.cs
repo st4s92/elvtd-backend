@@ -2299,7 +2299,7 @@ public partial class TraderUsecase
                 var (slaveAccount, err) = await GetAccount(new Account { Id = slaveRelation.SlaveId });
                 if (err != null || slaveAccount == null || slaveAccount.Balance <= 0)
                 {
-                    _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
                         $"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0", "Warning");
                     continue;
                 }
@@ -2345,7 +2345,7 @@ public partial class TraderUsecase
                 var (newSlaveOrder, saveErr) = await CreateOrder(slaveOrder);
                 if (saveErr != null || newSlaveOrder == null)
                 {
-                    _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
                         $"FAILED to create slave order: masterTicket={masterOrder.OrderTicket} symbol={mappedSymbol} lot={slaveLot} error={saveErr?.Message}", "Error");
                     continue;
                 }
@@ -2381,7 +2381,7 @@ public partial class TraderUsecase
 
                 _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, lot={slaveLot}");
 
-                _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
                     $"Copy trade sent: masterTicket={masterOrder.OrderTicket} symbol={masterOrder.OrderSymbol}->{mappedSymbol} type={masterOrder.OrderType} masterLot={masterOrder.OrderLot} slaveLot={slaveLot} platform={slaveAccount.PlatformName}");
             }
 
@@ -2510,6 +2510,14 @@ public partial class TraderUsecase
         {
             return TError.NewServer(ex.Message);
         }
+    }
+
+    public async Task<bool> SoftDeleteOrder(long id)
+    {
+        return await _orderRepository.Update(
+            o => o.Id == id,
+            o => o.DeletedAt = DateTime.UtcNow
+        );
     }
 }
 
