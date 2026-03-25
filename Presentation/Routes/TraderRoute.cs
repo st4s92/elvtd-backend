@@ -193,6 +193,17 @@ public static class TraderRoutes
             .WithName("DeleteSlaveActiveOrder")
             .WithTags("Orders");
 
+        group
+            .MapDelete(
+                "/trader/orders/soft-delete/{id:long}",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.SoftDeleteOrder(id);
+                }
+            )
+            .WithName("SoftDeleteOrder")
+            .WithTags("Orders");
+
         // account
         group
             .MapGet(

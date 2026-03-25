@@ -215,6 +215,15 @@ public partial class TraderHandler
         return Response.Json(res);
     }
 
+    public async Task<IResult> SoftDeleteOrder(long id)
+    {
+        var success = await _usecase.SoftDeleteOrder(id);
+        if (!success)
+            return Response.Json(TError.NewNotFound("Order not found"));
+
+        return Response.Json("ok");
+    }
+
     public async Task<IResult> DeleteActiveOrder(long id)
     {
         var terr = await _usecase.DeleteActiveOrder(id);
