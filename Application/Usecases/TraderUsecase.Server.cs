@@ -293,28 +293,42 @@ public partial class TraderUsecase
     /// within the given number of minutes. This frees them up for reassignment
     /// to a new server on next install/restart.
     /// </summary>
-    public async Task<(int count, ITError?)> ReassignStaleAccounts(int staleMinutes = 60)
+    public async Task<(int count, ITError?)> ReassignStaleAccounts(int staleMinutes = 60, long? accountId = null)
     {
         try
         {
-            var threshold = DateTime.UtcNow.AddMinutes(-staleMinutes);
+            List<ServerAccount> targets;
 
-            // Find all server_account entries where the linked account is stale
-            var staleServerAccounts = await _serverAccountRepository.GetMany(
-                sa => sa.DeletedAt == null && sa.Account.UpdatedAt < threshold
-            );
+            if (accountId.HasValue && accountId.Value > 0)
+            {
+                // Reassign a specific account
+                targets = await _serverAccountRepository.GetMany(
+                    sa => sa.DeletedAt == null && sa.AccountId == accountId.Value
+                );
+            }
+            else
+            {
+                // Reassign all stale accounts
+                var threshold = DateTime.UtcNow.AddMinutes(-staleMinutes);
+                targets = await _serverAccountRepository.GetMany(
+                    sa => sa.DeletedAt == null && sa.Account.UpdatedAt < threshold
+                );
+            }
 
-            if (staleServerAccounts.Count == 0)
+            if (targets.Count == 0)
                 return (0, null);
 
-            foreach (var sa in staleServerAccounts)
+            foreach (var sa in targets)
             {
                 sa.DeletedAt = DateTime.UtcNow;
                 await _serverAccountRepository.Save(sa, x => x.Id == sa.Id);
             }
 
-            _logger.Info($"ReassignStaleAccounts: soft-deleted {staleServerAccounts.Count} server_account entries (stale > {staleMinutes}min)");
-            return (staleServerAccounts.Count, null);
+            var logMsg = accountId.HasValue
+                ? $"ReassignStaleAccounts: soft-deleted {targets.Count} server_account entries for accountId={accountId.Value}"
+                : $"ReassignStaleAccounts: soft-deleted {targets.Count} server_account entries (stale > {staleMinutes}min)";
+            _logger.Info(logMsg);
+            return (targets.Count, null);
         }
         catch (Exception ex)
         {

@@ -582,9 +582,9 @@ public static class TraderRoutes
         group
             .MapPost(
                 "/trader/servers/reassign-stale",
-                async ([FromQuery] int minutes, TraderHandler handler) =>
+                async ([FromQuery] int minutes, [FromQuery] long? accountId, TraderHandler handler) =>
                 {
-                    return await handler.ReassignStaleAccounts(minutes);
+                    return await handler.ReassignStaleAccounts(minutes, accountId);
                 }
             )
             .WithName("ReassignStaleAccounts")
