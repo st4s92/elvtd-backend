@@ -297,38 +297,29 @@ public partial class TraderUsecase
     {
         try
         {
-            List<ServerAccount> targets;
-
+            // Use UpdateMany with tracked entities for reliable updates
+            int count;
             if (accountId.HasValue && accountId.Value > 0)
             {
-                // Reassign a specific account
-                targets = await _serverAccountRepository.GetMany(
-                    sa => sa.DeletedAt == null && sa.AccountId == accountId.Value
+                count = await _serverAccountRepository.UpdateMany(
+                    sa => sa.DeletedAt == null && sa.AccountId == accountId.Value,
+                    sa => sa.DeletedAt = DateTime.UtcNow
                 );
             }
             else
             {
-                // Reassign all stale accounts
                 var threshold = DateTime.UtcNow.AddMinutes(-staleMinutes);
-                targets = await _serverAccountRepository.GetMany(
-                    sa => sa.DeletedAt == null && sa.Account.UpdatedAt < threshold
+                count = await _serverAccountRepository.UpdateMany(
+                    sa => sa.DeletedAt == null && sa.Account.UpdatedAt < threshold,
+                    sa => sa.DeletedAt = DateTime.UtcNow
                 );
             }
 
-            if (targets.Count == 0)
-                return (0, null);
-
-            foreach (var sa in targets)
-            {
-                sa.DeletedAt = DateTime.UtcNow;
-                await _serverAccountRepository.Save(sa, x => x.Id == sa.Id);
-            }
-
             var logMsg = accountId.HasValue
-                ? $"ReassignStaleAccounts: soft-deleted {targets.Count} server_account entries for accountId={accountId.Value}"
-                : $"ReassignStaleAccounts: soft-deleted {targets.Count} server_account entries (stale > {staleMinutes}min)";
+                ? $"ReassignStaleAccounts: soft-deleted {count} server_account entries for accountId={accountId.Value}"
+                : $"ReassignStaleAccounts: soft-deleted {count} server_account entries (stale > {staleMinutes}min)";
             _logger.Info(logMsg);
-            return (targets.Count, null);
+            return (count, null);
         }
         catch (Exception ex)
         {
