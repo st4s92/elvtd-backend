@@ -2281,7 +2281,10 @@ public partial class TraderUsecase
             if (terr != null || slaves.Count == 0)
                 return null; // Not an error, just no slaves
 
-            // 3. Process each slave
+            // 3. Preload symbol maps ONCE (not per slave)
+            var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
+
+            // 4. Process each slave
             foreach (var slaveRelation in slaves)
             {
                 // Load config for this specific Master-Slave relation (MasterSlaveId is relation.Id)
@@ -2296,7 +2299,7 @@ public partial class TraderUsecase
                 var (slaveAccount, err) = await GetAccount(new Account { Id = slaveRelation.SlaveId });
                 if (err != null || slaveAccount == null || slaveAccount.Balance <= 0)
                 {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
+                    _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", masterAccount.Id,
                         $"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0", "Warning");
                     continue;
                 }
@@ -2314,8 +2317,7 @@ public partial class TraderUsecase
                 if (slaveLot < 0.01m) slaveLot = 0.01m; // Minimum lot size
                 if (slaveLot > 100.0m) slaveLot = 100.0m; // Safety cap
 
-                // Symbol-Mapping using standard helper
-                var allSymbolMaps = await _symbolMapRepository.GetMany(x => x.DeletedAt == null);
+                // Symbol-Mapping using preloaded symbol maps
                 var relationPairs = pairs.ToDictionary(x => x.MasterPair, x => x.SlavePair);
                 
                 var mappedSymbol = ResolveSymbol(
@@ -2343,7 +2345,7 @@ public partial class TraderUsecase
                 var (newSlaveOrder, saveErr) = await CreateOrder(slaveOrder);
                 if (saveErr != null || newSlaveOrder == null)
                 {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                    _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
                         $"FAILED to create slave order: masterTicket={masterOrder.OrderTicket} symbol={mappedSymbol} lot={slaveLot} error={saveErr?.Message}", "Error");
                     continue;
                 }
@@ -2379,7 +2381,7 @@ public partial class TraderUsecase
 
                 _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, lot={slaveLot}");
 
-                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
+                _ = _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
                     $"Copy trade sent: masterTicket={masterOrder.OrderTicket} symbol={masterOrder.OrderSymbol}->{mappedSymbol} type={masterOrder.OrderType} masterLot={masterOrder.OrderLot} slaveLot={slaveLot} platform={slaveAccount.PlatformName}");
             }
 
