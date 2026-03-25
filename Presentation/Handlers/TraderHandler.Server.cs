@@ -126,8 +126,8 @@ public partial class TraderHandler
             return Response.Json(terr);
 
         var msg = accountId.HasValue
-            ? $"Deleted {count} server-account assignments for accountId={accountId.Value}"
-            : $"Deleted {count} stale server-account assignments (>{minutes}min)";
+            ? $"Reassigned {count} accounts for accountId={accountId.Value}"
+            : $"Reassigned {count} stale accounts (>{minutes}min)";
         return Response.Json(new { reassigned = count, message = msg });
     }
 }

@@ -313,16 +313,37 @@ public partial class TraderUsecase
                 );
             }
 
+            if (targets.Count == 0)
+                return (0, null);
+
+            var maxAccountPerServer = int.Parse(
+                Environment.GetEnvironmentVariable("MAX_SERVER_ACCOUNTS") ?? "10"
+            );
+
             var count = 0;
             foreach (var sa in targets)
             {
+                // Delete old assignment
                 await _serverAccountRepository.Delete(x => x.Id == sa.Id);
+
+                // Assign to a new available server
+                var newServer = await _serverRepository.GetFirstAvailableServer(maxAccountPerServer);
+                if (newServer != null)
+                {
+                    var newSa = new ServerAccount
+                    {
+                        ServerId = newServer.Id,
+                        AccountId = sa.AccountId
+                    };
+                    await _serverAccountRepository.Save(newSa);
+                    _logger.Info($"ReassignStaleAccounts: accountId={sa.AccountId} moved from serverId={sa.ServerId} to serverId={newServer.Id} ({newServer.ServerIp})");
+                }
                 count++;
             }
 
             var logMsg = accountId.HasValue
-                ? $"ReassignStaleAccounts: deleted {count} server_account entries for accountId={accountId.Value}"
-                : $"ReassignStaleAccounts: deleted {count} server_account entries (stale > {staleMinutes}min)";
+                ? $"Reassigned {count} server-account entries for accountId={accountId.Value}"
+                : $"Reassigned {count} stale server-account entries (>{staleMinutes}min)";
             _logger.Info(logMsg);
             return (count, null);
         }
