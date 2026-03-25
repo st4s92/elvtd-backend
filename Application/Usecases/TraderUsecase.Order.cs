@@ -593,7 +593,7 @@ public partial class TraderUsecase
                     return TError.NewNotFound("order not found");
                 }
 
-                existingOrder.OrderOpenAt = DateTime.UtcNow;
+                existingOrder.OrderOpenAt = payload.Order.OrderOpenAt ?? DateTime.UtcNow;
                 existingOrder.OrderTicket = payload.Order.OrderTicket;
                 existingOrder.OrderPrice = payload.Order.OrderPrice;
                 existingOrder.OrderLot = payload.Order.OrderLot;
