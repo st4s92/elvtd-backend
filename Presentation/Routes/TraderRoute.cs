@@ -579,6 +579,17 @@ public static class TraderRoutes
             .WithName("DeleteServer")
             .WithTags("Server");
 
+        group
+            .MapPost(
+                "/trader/servers/reassign-stale",
+                async ([FromQuery] int minutes, TraderHandler handler) =>
+                {
+                    return await handler.ReassignStaleAccounts(minutes);
+                }
+            )
+            .WithName("ReassignStaleAccounts")
+            .WithTags("Server");
+
         // =============================================
         // SYMBOL MAP ROUTES
         // =============================================

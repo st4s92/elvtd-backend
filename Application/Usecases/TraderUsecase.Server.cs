@@ -287,4 +287,38 @@ public partial class TraderUsecase
             return TError.NewServer("database error", ex.Message);
         }
     }
+
+    /// <summary>
+    /// Removes server assignments for all accounts that haven't been updated
+    /// within the given number of minutes. This frees them up for reassignment
+    /// to a new server on next install/restart.
+    /// </summary>
+    public async Task<(int count, ITError?)> ReassignStaleAccounts(int staleMinutes = 60)
+    {
+        try
+        {
+            var threshold = DateTime.UtcNow.AddMinutes(-staleMinutes);
+
+            // Find all server_account entries where the linked account is stale
+            var staleServerAccounts = await _serverAccountRepository.GetMany(
+                sa => sa.DeletedAt == null && sa.Account.UpdatedAt < threshold
+            );
+
+            if (staleServerAccounts.Count == 0)
+                return (0, null);
+
+            foreach (var sa in staleServerAccounts)
+            {
+                sa.DeletedAt = DateTime.UtcNow;
+                await _serverAccountRepository.Save(sa, x => x.Id == sa.Id);
+            }
+
+            _logger.Info($"ReassignStaleAccounts: soft-deleted {staleServerAccounts.Count} server_account entries (stale > {staleMinutes}min)");
+            return (staleServerAccounts.Count, null);
+        }
+        catch (Exception ex)
+        {
+            return (0, TError.NewServer("database error", ex.Message));
+        }
+    }
 }
