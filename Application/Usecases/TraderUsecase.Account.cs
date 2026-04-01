@@ -523,7 +523,7 @@ public partial class TraderUsecase
                         OrderSymbol = o.OrderSymbol,
                         OrderType = o.OrderType,
                         OrderLot = o.OrderLot,
-                        OrderMagic = o.OrderMagic,
+                        OrderMagic = o.OrderMagic ?? 0,
                         OrderPrice = o.OrderPrice ?? 0,
                         OrderOpenAt = o.OrderOpenAt ?? DateTime.UtcNow,
                         Status = o.Status,
