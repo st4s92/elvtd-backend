@@ -37,7 +37,7 @@ public partial class TraderUsecase
             UpdatedAt = DateTime.UtcNow,
         };
 
-        var saved = await _activeOrderRepository.Save(activeOrder);
+        var saved = await _activeOrderRepository.Add(activeOrder);
 
         return (new
         {
