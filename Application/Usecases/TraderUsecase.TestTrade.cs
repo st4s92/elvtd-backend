@@ -11,35 +11,38 @@ public partial class TraderUsecase
         if (account == null)
             return (null, TError.NewNotFound("Account not found"));
 
-        // Create an order in the DB that the slave-copier will pick up
-        // on its next sync poll (via /api/trader/bridge/account-sync).
-        // The slave-copier reads orders with OrderCloseAt == null as intents.
         var magic = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var order = new Order
+        var orderType = payload.OrderType.ToUpper() switch
+        {
+            "BUY" => "DEAL_TYPE_BUY",
+            "SELL" => "DEAL_TYPE_SELL",
+            _ => payload.OrderType,
+        };
+
+        // The slave-copier reads from the active_orders table (via /api/trader/bridge/active-position/sync),
+        // NOT from the orders table. We must insert into active_orders for the intent to appear.
+        var activeOrder = new ActiveOrder
         {
             AccountId = account.Id,
+            AccountNumber = account.AccountNumber,
+            ServerName = account.ServerName,
             OrderTicket = 0,
             OrderSymbol = payload.Symbol,
-            // Python slave-copier expects DEAL_TYPE_BUY / DEAL_TYPE_SELL
-            OrderType = payload.OrderType.ToUpper() switch
-            {
-                "BUY" => "DEAL_TYPE_BUY",
-                "SELL" => "DEAL_TYPE_SELL",
-                _ => payload.OrderType,
-            },
+            OrderType = orderType,
             OrderLot = payload.Lot,
             OrderMagic = magic,
             Status = OrderStatus.Success,
-            CopyMessage = "Test trade",
             OrderLabel = "test",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
         };
 
-        var saved = await _orderRepository.Save(order);
+        var saved = await _activeOrderRepository.Save(activeOrder);
 
         return (new
         {
             status = true,
-            message = $"Test trade created for {account.PlatformName} account {account.AccountNumber}: {payload.OrderType} {payload.Lot} {payload.Symbol} (Order ID: {saved.Id}, Magic: {magic})",
+            message = $"Test trade created for {account.PlatformName} account {account.AccountNumber}: {orderType} {payload.Lot} {payload.Symbol} (ActiveOrder ID: {saved.Id}, Magic: {magic})",
             order_id = saved.Id,
             magic = magic,
         }, null);
