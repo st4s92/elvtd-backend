@@ -250,6 +250,18 @@ public class BridgeOrderBroadcastPayload
     public DateTime CreatedAt { get; set; }
 }
 
+public class TestTradePayload
+{
+    [JsonPropertyName("symbol")]
+    public string Symbol { get; set; } = "EURUSD";
+
+    [JsonPropertyName("order_type")]
+    public string OrderType { get; set; } = "BUY";
+
+    [JsonPropertyName("lot")]
+    public decimal Lot { get; set; } = 0.01m;
+}
+
 public class OrderQuery
 {
     [JsonPropertyName("id")]

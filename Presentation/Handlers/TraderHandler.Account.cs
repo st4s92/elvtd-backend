@@ -334,6 +334,21 @@ public partial class TraderHandler
         return Response.Json("ok");
     }
 
+    public async Task<IResult> SendTestTrade(long id, TestTradePayload payload)
+    {
+        if (id == 0)
+        {
+            return Response.Json(TError.NewClient("Account ID is required"));
+        }
+
+        var (res, terr) = await _usecase.SendTestTrade(id, payload);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+        return Response.Json(res);
+    }
+
     public async Task<IResult> GetMasterOrderStatus(BridgeListCreateOrderPayload payload)
     {
         if (payload.AccountId == 0 || payload.ServerName == "")

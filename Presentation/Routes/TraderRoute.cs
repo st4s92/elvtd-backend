@@ -282,6 +282,17 @@ public static class TraderRoutes
             .WithTags("Account");
 
         group
+            .MapPost(
+                "/trader/account/{id:long}/test-trade",
+                async (long id, TestTradePayload payload, TraderHandler handler) =>
+                {
+                    return await handler.SendTestTrade(id, payload);
+                }
+            )
+            .WithName("SendTestTrade")
+            .WithTags("Account");
+
+        group
             .MapGet(
                 "/trader/account",
                 async ([AsParameters] AccountGetPayload query, TraderHandler handler) =>
