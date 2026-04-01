@@ -11,7 +11,6 @@ public partial class TraderUsecase
         if (account == null)
             return (null, TError.NewNotFound("Account not found"));
 
-        var magic = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var orderType = payload.OrderType.ToUpper() switch
         {
             "BUY" => "DEAL_TYPE_BUY",
@@ -19,8 +18,29 @@ public partial class TraderUsecase
             _ => payload.OrderType,
         };
 
-        // The slave-copier reads from the active_orders table (via /api/trader/bridge/active-position/sync),
-        // NOT from the orders table. We must insert into active_orders for the intent to appear.
+        // Generate a unique magic number (same logic as CopyMasterOrderToSlaves)
+        var magic = GenerateBridgeMagicNumber(0, account.Id);
+
+        // 1. Create Order in orders table (same as CopyMasterOrderToSlaves line 2334)
+        var order = new Order
+        {
+            AccountId = account.Id,
+            OrderTicket = 0,
+            OrderSymbol = payload.Symbol,
+            OrderType = orderType,
+            OrderLot = payload.Lot,
+            OrderMagic = magic,
+            Status = OrderStatus.Progress,
+            OrderLabel = "test_trade",
+            CopyMessage = "Test trade",
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        var (savedOrder, saveErr) = await CreateOrder(order);
+        if (saveErr != null || savedOrder == null)
+            return (null, TError.NewServer($"Failed to create order: {saveErr?.Message}"));
+
+        // 2. Create ActiveOrder (this is what the slave-copier reads via sync)
         var activeOrder = new ActiveOrder
         {
             AccountId = account.Id,
@@ -32,18 +52,18 @@ public partial class TraderUsecase
             OrderLot = payload.Lot,
             OrderMagic = magic,
             Status = OrderStatus.Success,
-            OrderLabel = "test",
+            OrderLabel = "test_trade",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
 
-        var saved = await _activeOrderRepository.Add(activeOrder);
+        await _activeOrderRepository.Add(activeOrder);
 
         return (new
         {
             status = true,
-            message = $"Test trade created for {account.PlatformName} account {account.AccountNumber}: {orderType} {payload.Lot} {payload.Symbol} (ActiveOrder ID: {saved.Id}, Magic: {magic})",
-            order_id = saved.Id,
+            message = $"Test trade sent to {account.PlatformName} account {account.AccountNumber}: {orderType} {payload.Lot} {payload.Symbol} (Order: {savedOrder.Id}, Magic: {magic})",
+            order_id = savedOrder.Id,
             magic = magic,
         }, null);
     }
