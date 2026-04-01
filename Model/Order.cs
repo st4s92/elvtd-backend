@@ -258,8 +258,11 @@ public class TestTradePayload
     [JsonPropertyName("order_type")]
     public string OrderType { get; set; } = "BUY";
 
-    [JsonPropertyName("lot")]
-    public decimal Lot { get; set; } = 0.01m;
+    [JsonPropertyName("master_lot")]
+    public decimal MasterLot { get; set; } = 0.01m;
+
+    [JsonPropertyName("master_balance")]
+    public decimal MasterBalance { get; set; } = 100000m;
 }
 
 public class OrderQuery
