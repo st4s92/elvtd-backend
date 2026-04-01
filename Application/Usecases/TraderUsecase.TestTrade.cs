@@ -7,9 +7,9 @@ public partial class TraderUsecase
 {
     public async Task<(object?, ITError?)> SendTestTrade(long accountId, TestTradePayload payload)
     {
-        var account = await _accountRepository.Get<Account>(a => a.Id == accountId);
+        var account = await _accountRepository.Get(a => a.Id == accountId);
         if (account == null)
-            return (null, new ITError { Status = 404, Message = "Account not found" });
+            return (null, TError.NewNotFound("Account not found"));
 
         var broadcastPayload = new BridgeOrderBroadcastPayload
         {
