@@ -20,7 +20,13 @@ public partial class TraderUsecase
             AccountId = account.Id,
             OrderTicket = 0,
             OrderSymbol = payload.Symbol,
-            OrderType = payload.OrderType,
+            // Python slave-copier expects DEAL_TYPE_BUY / DEAL_TYPE_SELL
+            OrderType = payload.OrderType.ToUpper() switch
+            {
+                "BUY" => "DEAL_TYPE_BUY",
+                "SELL" => "DEAL_TYPE_SELL",
+                _ => payload.OrderType,
+            },
             OrderLot = payload.Lot,
             OrderMagic = magic,
             Status = OrderStatus.Success,
