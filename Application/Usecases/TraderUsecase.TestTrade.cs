@@ -11,42 +11,31 @@ public partial class TraderUsecase
         if (account == null)
             return (null, TError.NewNotFound("Account not found"));
 
-        var broadcastPayload = new BridgeOrderBroadcastPayload
+        // Create an order in the DB that the slave-copier will pick up
+        // on its next sync poll (via /api/trader/bridge/account-sync).
+        // The slave-copier reads orders with OrderCloseAt == null as intents.
+        var magic = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var order = new Order
         {
-            SlavePair = payload.Symbol,
+            AccountId = account.Id,
+            OrderTicket = 0,
+            OrderSymbol = payload.Symbol,
             OrderType = payload.OrderType,
             OrderLot = payload.Lot,
-            OrderTicket = 0,
-            MasterOrderId = 0,
-            OrderMagic = 999999,
-            CopyType = "MASTER_ORDER_UPDATE",
-            CreatedAt = DateTime.UtcNow,
+            OrderMagic = magic,
+            Status = OrderStatus.Success,
+            CopyMessage = "Test trade",
+            OrderLabel = "test",
         };
 
-        var platform = account.PlatformName?.ToLower() ?? "";
-
-        if (platform.Contains("ctrader"))
-        {
-            await _jobPublisher.PublishCtraderPacket(
-                account.AccountNumber,
-                "trade",
-                broadcastPayload
-            );
-        }
-        else
-        {
-            await _jobPublisher.PublishMt5Packet(
-                account.ServerName ?? "",
-                account.AccountNumber,
-                "trade",
-                broadcastPayload
-            );
-        }
+        var saved = await _orderRepository.Save(order);
 
         return (new
         {
             status = true,
-            message = $"Test trade sent to {account.PlatformName} account {account.AccountNumber}: {payload.OrderType} {payload.Lot} {payload.Symbol}"
+            message = $"Test trade created for {account.PlatformName} account {account.AccountNumber}: {payload.OrderType} {payload.Lot} {payload.Symbol} (Order ID: {saved.Id}, Magic: {magic})",
+            order_id = saved.Id,
+            magic = magic,
         }, null);
     }
 }
