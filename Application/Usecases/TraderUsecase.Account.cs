@@ -471,6 +471,43 @@ public partial class TraderUsecase
                 o.AccountId == account.Id && o.OrderCloseAt == null
             );
 
+            // Filter out slave orders whose master is already closed.
+            // These should not be sent as intents — the slave should never open them.
+            var masterIds = activeOrders
+                .Where(o => o.MasterOrderId.HasValue && o.MasterOrderId.Value > 0)
+                .Select(o => o.MasterOrderId!.Value)
+                .Distinct()
+                .ToList();
+
+            var closedMasterIds = new HashSet<long>();
+            if (masterIds.Count > 0)
+            {
+                var closedMasters = await _orderRepository.GetMany(o =>
+                    masterIds.Contains(o.Id) && o.OrderCloseAt != null
+                );
+                closedMasterIds = closedMasters.Select(o => o.Id).ToHashSet();
+
+                // Auto-close orphaned slave orders whose master is already closed
+                foreach (var orphan in activeOrders.Where(o =>
+                    o.MasterOrderId.HasValue && closedMasterIds.Contains(o.MasterOrderId.Value) && o.OrderTicket == 0))
+                {
+                    await _orderRepository.Update(
+                        o => o.Id == orphan.Id,
+                        o =>
+                        {
+                            o.OrderCloseAt = DateTime.UtcNow;
+                            o.CopyMessage = "Master already closed (auto-cleanup)";
+                        }
+                    );
+                }
+            }
+
+            var filteredOrders = activeOrders
+                .Where(o => !o.MasterOrderId.HasValue
+                    || o.MasterOrderId.Value == 0
+                    || !closedMasterIds.Contains(o.MasterOrderId.Value))
+                .ToList();
+
             var payload = new PlatformActivePositionSyncPayload
             {
                 AccountNumber = account.AccountNumber,
@@ -479,7 +516,7 @@ public partial class TraderUsecase
                 Balance = account.Balance,
                 Equity = account.Equity,
                 CopierVersion = account.CopierVersion,
-                PositionList = activeOrders
+                PositionList = filteredOrders
                     .Select(o => new PlatformPositionDto
                     {
                         OrderTicket = o.OrderTicket,
@@ -488,6 +525,7 @@ public partial class TraderUsecase
                         OrderLot = o.OrderLot,
                         OrderPrice = o.OrderPrice ?? 0,
                         OrderOpenAt = o.OrderOpenAt ?? DateTime.UtcNow,
+                        Status = o.Status,
                     })
                     .ToList(),
             };
