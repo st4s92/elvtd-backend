@@ -1611,7 +1611,6 @@ public partial class TraderUsecase
                 new Account
                 {
                     AccountNumber = payload.AccountNumber,
-                    ServerName = payload.ServerName,
                 }
             );
 
@@ -2021,7 +2020,6 @@ public partial class TraderUsecase
                 new Account
                 {
                     AccountNumber = payload.AccountNumber,
-                    ServerName = payload.ServerName,
                 }
             );
 
@@ -2102,7 +2100,7 @@ public partial class TraderUsecase
             // 1. Resolve account
             // ------------------------------------
             var (account, terr) = await GetAccount(
-                new Account { AccountNumber = dto.AccountNumber, ServerName = dto.ServerName }
+                new Account { AccountNumber = dto.AccountNumber }
             );
 
             if (terr != null || account == null)
