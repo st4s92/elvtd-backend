@@ -2507,8 +2507,18 @@ public partial class TraderUsecase
                     $"Close command sent for active order: id={id} ticket={existing.OrderTicket} symbol={existing.OrderSymbol} platform={account.PlatformName}");
             }
 
-            // Don't delete or finalize here — let ConfirmBridgeSlaveOrder handle
+            // For MT4/MT5 EA-based accounts: delete the ActiveOrder immediately.
+            // The EA uses HTTP sync reconciliation (not RabbitMQ) — it closes
+            // positions that are no longer in the position_list.
+            if (account != null && (account.PlatformName == "Metatrader 4" || account.PlatformName == "Metatrader 5"))
+            {
+                await _activeOrderRepository.Delete(o => o.Id == id);
+                await _systemLogUsecase.CreateLog("CopyTrade", "SlaveClose", account.Id,
+                    $"ActiveOrder deleted for EA reconciliation: id={id} ticket={existing.OrderTicket}");
+            }
+            // For cTrader: don't delete — let ConfirmBridgeSlaveOrder handle
             // the DB cleanup when the trading platform confirms the close.
+
             return null;
         }
         catch (Exception ex)
