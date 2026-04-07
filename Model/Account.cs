@@ -98,6 +98,10 @@ public class Account : IAuditableEntity
     [JsonPropertyName("server_status_message")]
     public string? ServerStatusMessage { get; set; }
 
+    [Column("expert_log", TypeName = "MEDIUMTEXT")]
+    [JsonPropertyName("expert_log")]
+    public string? ExpertLog { get; set; }
+
     public bool IsDeleted => DeletedAt.HasValue;
 
     // Reverse navigation

@@ -2134,6 +2134,12 @@ public partial class TraderUsecase
                 account.ServerStatusMessage = null;
             }
 
+            // Update expert log if provided (sent every 5 minutes by EA)
+            if (!string.IsNullOrEmpty(dto.ExpertLog))
+            {
+                account.ExpertLog = dto.ExpertLog;
+            }
+
             await _accountRepository.Save(account, a => a.Id == account.Id);
 
             // =========================

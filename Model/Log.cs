@@ -168,6 +168,9 @@ public class SyncAccountStatePayload
 
     [JsonPropertyName("server_status_message")]
     public string? ServerStatusMessage { get; set; }
+
+    [JsonPropertyName("expert_log")]
+    public string? ExpertLog { get; set; }
 }
 
 [Table("system_logs")]
