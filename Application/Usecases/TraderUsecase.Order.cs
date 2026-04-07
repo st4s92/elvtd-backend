@@ -1617,12 +1617,28 @@ public partial class TraderUsecase
 
             if (terr != null || account == null)
             {
+                // Check if account was deleted — tell EA to flush and stop
+                var deletedAccount = await _accountRepository.Get(
+                    a => a.AccountNumber == payload.AccountNumber && a.DeletedAt != null);
+                if (deletedAccount != null)
+                {
+                    await _telegram.SendAlertThrottled(
+                        $"deleted-{payload.AccountNumber}",
+                        $"🗑️ Deleted account still running!\n" +
+                        $"Account: {payload.AccountNumber}\n" +
+                        $"Server: {payload.ServerName}\n" +
+                        $"Version: {payload.CopierVersion}",
+                        TimeSpan.FromHours(1));
+
+                    payload.IsFlushOrder = 1;
+                    return payload;
+                }
+
                 _logger.Warning(
                     "Account not found for MT5 sync",
                     new { payload.AccountNumber, payload.ServerName }
                 );
 
-                // FAIL-SAFE: do nothing on MT5
                 return payload;
             }
 

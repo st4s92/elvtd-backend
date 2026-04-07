@@ -1,5 +1,6 @@
 using Backend.Application.Interfaces;
 using Backend.Helper;
+using Backend.Infrastructure.Messaging;
 using Backend.Model;
 
 namespace Backend.Application.Usecases;
@@ -23,6 +24,7 @@ public partial class TraderUsecase
     private readonly IJobPublisher _jobPublisher;
     private readonly ISymbolMapRepository _symbolMapRepository;
     private readonly SystemLogUsecase _systemLogUsecase;
+    private readonly ITelegramNotifier _telegram;
     public TraderUsecase(
         ITradingRepository tradingRepository,
         IAccountRepository accountRepository,
@@ -40,7 +42,8 @@ public partial class TraderUsecase
         WebSocketServer wsServer,
         IJobPublisher jobPublisher,
         ISymbolMapRepository symbolMapRepository,
-        SystemLogUsecase systemLogUsecase
+        SystemLogUsecase systemLogUsecase,
+        ITelegramNotifier telegram
     )
     {
         _tradingRepository = tradingRepository;
@@ -60,5 +63,6 @@ public partial class TraderUsecase
         _jobPublisher = jobPublisher;
         _symbolMapRepository = symbolMapRepository;
         _systemLogUsecase = systemLogUsecase;
+        _telegram = telegram;
     }
 }

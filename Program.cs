@@ -15,6 +15,7 @@ builder.Services.AddSwaggerGen();
 Rest.Init(builder);
 
 builder.Services.AddSingleton<WebSocketServer>();
+builder.Services.AddSingleton<Backend.Infrastructure.Messaging.ITelegramNotifier, Backend.Infrastructure.Messaging.TelegramNotifier>();
 
 builder.Services.AddCors(options =>
 {
