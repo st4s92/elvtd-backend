@@ -26,7 +26,7 @@ services:
       message:
         condition: service_healthy
       database:
-        condition: service_started
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:
@@ -63,6 +63,12 @@ services:
     volumes:
       - database_mysql:/var/lib/mysql
     command: --binlog_expire_logs_seconds=259200 --max_connections=500 --innodb_buffer_pool_size=2G
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DOC_DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
