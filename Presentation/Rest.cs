@@ -23,7 +23,8 @@ public static class Rest
         var pass = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
         var connectionString =
-            $"Host={host};Port={port};Database={db};Username={user};Password={pass}";
+            $"Host={host};Port={port};Database={db};Username={user};Password={pass}"
+            + ";Max Pool Size=200;Min Pool Size=10;Connection Timeout=30";
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
         );

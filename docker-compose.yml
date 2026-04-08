@@ -62,7 +62,7 @@ services:
       - MYSQL_ROOT_PASSWORD=${DOC_DB_PASSWORD}
     volumes:
       - database_mysql:/var/lib/mysql
-    command: --binlog_expire_logs_seconds=259200
+    command: --binlog_expire_logs_seconds=259200 --max_connections=500 --innodb_buffer_pool_size=2G
     logging:
       driver: "json-file"
       options:

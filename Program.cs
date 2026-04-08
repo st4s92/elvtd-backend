@@ -8,6 +8,15 @@ Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Kestrel: allow more concurrent connections for bridge traffic
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxConcurrentConnections = 500;
+    options.Limits.MaxConcurrentUpgradedConnections = 500;
+    options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
+});
+
 // Add Swagger services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
