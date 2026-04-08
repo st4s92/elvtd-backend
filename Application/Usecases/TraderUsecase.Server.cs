@@ -303,6 +303,7 @@ public partial class TraderUsecase
             {
                 targets = await _serverAccountRepository.GetMany(
                     sa => sa.AccountId == accountId.Value
+                        && sa.Account.PlatformName != "cTrader"
                 );
             }
             else
@@ -310,6 +311,7 @@ public partial class TraderUsecase
                 var threshold = DateTime.UtcNow.AddMinutes(-staleMinutes);
                 targets = await _serverAccountRepository.GetMany(
                     sa => sa.Account.UpdatedAt < threshold
+                        && sa.Account.PlatformName != "cTrader"
                 );
             }
 

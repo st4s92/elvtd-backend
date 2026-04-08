@@ -124,6 +124,21 @@ public partial class TraderUsecase
 
         try
         {
+            var isCtrader = account.PlatformName == "cTrader";
+
+            var data = await _accountRepository.Save(account);
+            if (data == null)
+                return (null, TError.NewServer("cannot create new account"));
+
+            if (isCtrader)
+            {
+                // cTrader: no server assignment needed, notify cTrader bridge directly
+                await _jobPublisher.PublishCtraderManageAccount(data);
+                await _systemLogUsecase.CreateLog("Account", "Create", data.Id, $"cTrader account {data.AccountNumber} created, notified cTrader bridge.");
+                return (data, null);
+            }
+
+            // MT4/MT5: assign to available server
             var maxAccountPerServer = int.Parse(
                 Environment.GetEnvironmentVariable("MAX_SERVER_ACCOUNTS") ?? "10"
             );
@@ -132,19 +147,11 @@ public partial class TraderUsecase
             if (server == null)
                 return (null, TError.NewServer("no available server"));
 
-            Console.WriteLine("available server:");
-            Console.WriteLine(server);
-
-            var data = await _accountRepository.Save(account);
-            if (data == null)
-                return (null, TError.NewServer("cannot create new account"));
-
             var serverAccount = new ServerAccount { ServerId = server.Id, AccountId = data.Id };
             serverAccount = await _serverAccountRepository.Save(serverAccount);
             if (serverAccount == null)
                 return (null, TError.NewServer("cannot create new server account"));
 
-            // message to server
             var job = new TradePlatformCreateJob
             {
                 Id = data.Id,
@@ -158,7 +165,6 @@ public partial class TraderUsecase
                 Status = 100,
                 ServerIp = server.ServerIp,
             };
-            Console.WriteLine("try to publish event");
 
             await _jobPublisher.PublishCreateJob(job);
             await _systemLogUsecase.CreateLog("Account", "Create", data.Id, $"Account {data.AccountNumber} created on server {server.ServerName}.");
