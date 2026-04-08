@@ -24,12 +24,6 @@ x-backend: &backend-common
     database:
       condition: service_healthy
   restart: unless-stopped
-  healthcheck:
-    test: ["CMD-SHELL", "wget -qO- http://localhost:5021/api/health || exit 1"]
-    interval: 5s
-    timeout: 5s
-    retries: 10
-    start_period: 15s
   logging:
     driver: "json-file"
     options:
@@ -57,12 +51,9 @@ services:
     volumes:
       - ./nginx-lb.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      app1:
-        condition: service_healthy
-      app2:
-        condition: service_healthy
-      app3:
-        condition: service_healthy
+      - app1
+      - app2
+      - app3
     restart: unless-stopped
     logging:
       driver: "json-file"
