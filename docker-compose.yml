@@ -1,32 +1,60 @@
 version: '3.8'
 
+x-backend: &backend-common
+  build: .
+  env_file:
+    - .env
+  environment:
+    - DB_DRIVER=${DOC_DB_DRIVER}
+    - DB_HOST=${DOC_DB_HOST}
+    - DB_PORT=${DOC_DB_PORT}
+    - DB_NAME=${DOC_DB_NAME}
+    - DB_USER=${DOC_DB_USER}
+    - DB_PASSWORD=${DOC_DB_PASSWORD}
+    - COPY_TOLERANCE_SECOND=${COPY_TOLERANCE_SECOND}
+    - MAX_SERVER_ACCOUNTS=${MAX_SERVER_ACCOUNTS}
+    - RABBITMQ_HOST=${RABBITMQ_HOST}
+    - RABBITMQ_PORT=${RABBITMQ_PORT}
+    - RABBITMQ_USER=${RABBITMQ_USER}
+    - RABBITMQ_PASS=${RABBITMQ_PASS}
+    - GEMINI_API_KEY=${GEMINI_API_KEY}
+  depends_on:
+    message:
+      condition: service_healthy
+    database:
+      condition: service_healthy
+  restart: unless-stopped
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
-  app:
-    build: .
-    container_name: elvtd_backend
+  app1:
+    <<: *backend-common
+    container_name: elvtd_backend_1
+
+  app2:
+    <<: *backend-common
+    container_name: elvtd_backend_2
+
+  app3:
+    <<: *backend-common
+    container_name: elvtd_backend_3
+
+  loadbalancer:
+    image: nginx:alpine
+    container_name: elvtd_lb
     ports:
       - "5021:5021"
-    env_file:
-      - .env
-    environment:
-      - DB_DRIVER=${DOC_DB_DRIVER}
-      - DB_HOST=${DOC_DB_HOST}
-      - DB_PORT=${DOC_DB_PORT}
-      - DB_NAME=${DOC_DB_NAME}
-      - DB_USER=${DOC_DB_USER}
-      - DB_PASSWORD=${DOC_DB_PASSWORD}
-      - COPY_TOLERANCE_SECOND=${COPY_TOLERANCE_SECOND}
-      - MAX_SERVER_ACCOUNTS=${MAX_SERVER_ACCOUNTS}
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASS=${RABBITMQ_PASS}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./nginx-lb.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      message:
-        condition: service_healthy
-      database:
-        condition: service_healthy
+      - app1
+      - app2
+      - app3
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:
@@ -52,9 +80,9 @@ services:
     platform: linux/x86_64
     image: mysql:8.0.28
     container_name: elvtd_mysql
-    ports: 
+    ports:
       - "${DOC_DB_PORT}:3306"
-    environment: 
+    environment:
       - MYSQL_ROOT_HOST=${DOC_DB_HOST}
       - MYSQL_USER=${DOC_DB_USER}
       - MYSQL_PASSWORD=${DOC_DB_PASSWORD}
@@ -79,19 +107,15 @@ services:
     image: rabbitmq:3.13-management
     container_name: elvtd_rabbitmq
     restart: unless-stopped
-
     ports:
-      - "5672:5672"     # AMQP (client Go)
-      - "15672:15672"   # Management UI
-
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
       RABBITMQ_DEFAULT_VHOST: /
-
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
