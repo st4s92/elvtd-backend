@@ -34,50 +34,24 @@ public class ServerPlatformCreatedConsumer : BackgroundService
 
         consumer.Received += async (_, ea) =>
         {
-            Console.WriteLine("📩 Message RECEIVED");
-
-            Console.WriteLine($"   DeliveryTag: {ea.DeliveryTag}");
-            Console.WriteLine($"   Exchange   : {ea.Exchange}");
-            Console.WriteLine($"   RoutingKey: {ea.RoutingKey}");
-
-            var json = Encoding.UTF8.GetString(ea.Body.ToArray());
-
-            Console.WriteLine("Raw payload:");
-            Console.WriteLine(json);
-
-            TradePlatformCreatedEvent? payload;
-
             try
             {
-                payload = JsonSerializer.Deserialize<TradePlatformCreatedEvent>(
-                    json,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    }
-                );
+                var json = Encoding.UTF8.GetString(ea.Body.ToArray());
+                var payload = JsonSerializer.Deserialize<TradePlatformCreatedEvent>(
+                    json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (payload == null) { _channel.BasicAck(ea.DeliveryTag, false); return; }
+
+                using var scope = _scopeFactory.CreateScope();
+                var handler = scope.ServiceProvider.GetRequiredService<ServerPlatformCreatedHandler>();
+                await handler.HandleAsync(payload);
+                _channel.BasicAck(ea.DeliveryTag, false);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("❌ Deserialize error");
-                Console.WriteLine(ex);
-                _channel.BasicAck(ea.DeliveryTag, false);
-                return;
+                Console.WriteLine($"[PlatformCreatedConsumer] error: {ex.Message}");
+                try { _channel.BasicNack(ea.DeliveryTag, false, true); } catch { }
             }
-
-            if (payload == null)
-            {
-                _channel.BasicAck(ea.DeliveryTag, false);
-                return;
-            }
-
-            using var scope = _scopeFactory.CreateScope();
-            var handler = scope.ServiceProvider
-                .GetRequiredService<ServerPlatformCreatedHandler>();
-
-            await handler.HandleAsync(payload);
-
-            _channel.BasicAck(ea.DeliveryTag, false);
         };
 
         _channel.BasicConsume(

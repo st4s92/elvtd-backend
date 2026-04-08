@@ -37,33 +37,29 @@ public class ServerHeartbeatConsumer : BackgroundService
 
         consumer.Received += async (_, ea) =>
         {
-            Console.WriteLine("📩 Message RECEIVED");
-
-            Console.WriteLine($"   DeliveryTag: {ea.DeliveryTag}");
-            Console.WriteLine($"   Exchange   : {ea.Exchange}");
-            Console.WriteLine($"   RoutingKey: {ea.RoutingKey}");
-
-            var json = Encoding.UTF8.GetString(ea.Body.ToArray());
-
-            Console.WriteLine("Raw payload:");
-            Console.WriteLine(json);
-
-            var payload = JsonSerializer.Deserialize<ServerHeartbeatRequest>(json);
-
-            if (payload == null)
+            try
             {
+                var json = Encoding.UTF8.GetString(ea.Body.ToArray());
+                var payload = JsonSerializer.Deserialize<ServerHeartbeatRequest>(json);
+
+                if (payload == null)
+                {
+                    _channel.BasicAck(ea.DeliveryTag, false);
+                    return;
+                }
+
+                using var scope = _scopeFactory.CreateScope();
+                var handler = scope.ServiceProvider
+                    .GetRequiredService<ServerHeartbeatHandler>();
+
+                await handler.HandleAsync(payload);
                 _channel.BasicAck(ea.DeliveryTag, false);
-                return;
             }
-
-            using var scope = _scopeFactory.CreateScope();
-            var handler = scope.ServiceProvider
-                .GetRequiredService<ServerHeartbeatHandler>();
-
-            Console.WriteLine("➡️ Calling ServerHeartbeatHandler");
-            await handler.HandleAsync(payload);
-
-            _channel.BasicAck(ea.DeliveryTag, false);
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HeartbeatConsumer] error: {ex.Message}");
+                try { _channel.BasicNack(ea.DeliveryTag, false, true); } catch { }
+            }
         };
 
         _channel.BasicConsume(

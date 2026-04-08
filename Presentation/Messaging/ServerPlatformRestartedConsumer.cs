@@ -36,38 +36,24 @@ public class ServerPlatformRestartedConsumer : BackgroundService
 
         consumer.Received += async (_, ea) =>
         {
-            var json = Encoding.UTF8.GetString(ea.Body.ToArray());
-            TradePlatformCreatedEvent? payload;
-
             try
             {
-                payload = JsonSerializer.Deserialize<TradePlatformCreatedEvent>(
-                    json,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    }
-                );
-            }
-            catch (Exception)
-            {
+                var json = Encoding.UTF8.GetString(ea.Body.ToArray());
+                var payload = JsonSerializer.Deserialize<TradePlatformCreatedEvent>(
+                    json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (payload == null) { _channel.BasicAck(ea.DeliveryTag, false); return; }
+
+                using var scope = _scopeFactory.CreateScope();
+                var handler = scope.ServiceProvider.GetRequiredService<ServerPlatformCreatedHandler>();
+                await handler.HandleAsync(payload);
                 _channel.BasicAck(ea.DeliveryTag, false);
-                return;
             }
-
-            if (payload == null)
+            catch (Exception ex)
             {
-                _channel.BasicAck(ea.DeliveryTag, false);
-                return;
+                Console.WriteLine($"[PlatformRestartedConsumer] error: {ex.Message}");
+                try { _channel.BasicNack(ea.DeliveryTag, false, true); } catch { }
             }
-
-            using var scope = _scopeFactory.CreateScope();
-            var handler = scope.ServiceProvider
-                .GetRequiredService<ServerPlatformCreatedHandler>();
-
-            await handler.HandleAsync(payload);
-
-            _channel.BasicAck(ea.DeliveryTag, false);
         };
 
         _channel.BasicConsume(
