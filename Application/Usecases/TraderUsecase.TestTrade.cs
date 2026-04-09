@@ -82,6 +82,33 @@ public partial class TraderUsecase
 
         await _activeOrderRepository.Add(activeOrder);
 
+        // v3: Push trade command via RabbitMQ for instant execution
+        var broadcastPayload = new BridgeOrderBroadcastPayload
+        {
+            SlavePair = mappedSymbol,
+            OrderType = orderType,
+            OrderLot = slaveLot,
+            OrderTicket = 0,
+            MasterOrderID = savedOrder.Id,
+            OrderMagic = magic,
+            CopyType = "MASTER_ORDER_UPDATE",
+            CreatedAt = DateTime.UtcNow.ToString("o"),
+        };
+
+        if (account.PlatformName == "cTrader")
+        {
+            await _jobPublisher.PublishCtraderPacketBatch(
+                account.AccountNumber,
+                new List<object> { broadcastPayload });
+        }
+        else
+        {
+            await _jobPublisher.PublishMt5PacketBatch(
+                account.ServerName,
+                account.AccountNumber,
+                new List<object> { broadcastPayload });
+        }
+
         return (new
         {
             status = true,
