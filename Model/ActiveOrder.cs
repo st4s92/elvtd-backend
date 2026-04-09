@@ -120,6 +120,9 @@ public class PlatformActivePositionSyncPayload
 
     [JsonPropertyName("copier_version")]
     public string? CopierVersion { get; set; }
+
+    [JsonIgnore]
+    public string SourceIp { get; set; } = "";
 }
 
 public class PlatformPositionDto

@@ -171,6 +171,9 @@ public class SyncAccountStatePayload
 
     [JsonPropertyName("expert_log")]
     public string? ExpertLog { get; set; }
+
+    [JsonIgnore]
+    public string SourceIp { get; set; } = "";
 }
 
 [Table("system_logs")]

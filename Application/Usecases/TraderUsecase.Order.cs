@@ -1658,7 +1658,8 @@ public partial class TraderUsecase
                     $"Account: {payload.AccountNumber}\n" +
                     $"Expected version: {account.CopierVersion}\n" +
                     $"Received version: {payload.CopierVersion}\n" +
-                    $"Server: {payload.ServerName}\n" +
+                    $"Broker Server: {payload.ServerName}\n" +
+                    $"Source IP: {payload.SourceIp}\n" +
                     $"⚠️ Old terminal still running somewhere — kill it!",
                     TimeSpan.FromMinutes(5));
             }
@@ -2162,7 +2163,8 @@ public partial class TraderUsecase
                     $"Account: {dto.AccountNumber}\n" +
                     $"Expected version: {account.CopierVersion}\n" +
                     $"Received version: {dto.CopierVersion}\n" +
-                    $"Server: {dto.ServerName}\n" +
+                    $"Broker Server: {dto.ServerName}\n" +
+                    $"Source IP: {dto.SourceIp}\n" +
                     $"⚠️ Old terminal still running somewhere — kill it!",
                     TimeSpan.FromMinutes(5));
             }

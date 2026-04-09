@@ -101,9 +101,11 @@ public static class TraderRoutes
                 "/trader/bridge/active-position/sync",
                 async (
                     [FromBody] PlatformActivePositionSyncPayload payload,
-                    TraderHandler handler
+                    TraderHandler handler,
+                    HttpContext ctx
                 ) =>
                 {
+                    payload.SourceIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "";
                     return await handler.HandlePlatformActivePositionSync(payload);
                 }
             )
@@ -339,8 +341,9 @@ public static class TraderRoutes
         group
             .MapPost(
                 "/trader/bridge/account-sync",
-                async ([FromBody] SyncAccountStatePayload payload, TraderHandler handler) =>
+                async ([FromBody] SyncAccountStatePayload payload, TraderHandler handler, HttpContext ctx) =>
                 {
+                    payload.SourceIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "";
                     return await handler.HandleBridgeSyncAccountState(payload);
                 }
             )
