@@ -1652,6 +1652,14 @@ public partial class TraderUsecase
                 && account.CopierVersion != payload.CopierVersion
                 && string.Compare(payload.CopierVersion, account.CopierVersion, StringComparison.Ordinal) < 0)
             {
+                // Lookup assigned server IP from ServerAccount
+                var serverAccount = await _serverAccountRepository.Get(
+                    sa => sa.AccountId == account.Id);
+                var assignedServer = serverAccount != null
+                    ? await _serverRepository.Get(s => s.Id == serverAccount.ServerId)
+                    : null;
+                var assignedIp = assignedServer?.ServerIp ?? "unknown";
+
                 await _telegram.SendAlertThrottled(
                     $"ghost-{payload.AccountNumber}",
                     $"👻 Ghost terminal detected!\n" +
@@ -1659,8 +1667,8 @@ public partial class TraderUsecase
                     $"Expected version: {account.CopierVersion}\n" +
                     $"Received version: {payload.CopierVersion}\n" +
                     $"Broker Server: {payload.ServerName}\n" +
-                    $"Source IP: {payload.SourceIp}\n" +
-                    $"⚠️ Old terminal still running somewhere — kill it!",
+                    $"Assigned VM: {assignedIp}\n" +
+                    $"⚠️ Old terminal still running on a different VM — kill it!",
                     TimeSpan.FromMinutes(5));
             }
 
@@ -2157,6 +2165,13 @@ public partial class TraderUsecase
                 && account.CopierVersion != dto.CopierVersion
                 && string.Compare(dto.CopierVersion, account.CopierVersion, StringComparison.Ordinal) < 0)
             {
+                var serverAccount2 = await _serverAccountRepository.Get(
+                    sa => sa.AccountId == account.Id);
+                var assignedServer2 = serverAccount2 != null
+                    ? await _serverRepository.Get(s => s.Id == serverAccount2.ServerId)
+                    : null;
+                var assignedIp2 = assignedServer2?.ServerIp ?? "unknown";
+
                 await _telegram.SendAlertThrottled(
                     $"ghost-{dto.AccountNumber}",
                     $"👻 Ghost terminal detected!\n" +
@@ -2164,8 +2179,8 @@ public partial class TraderUsecase
                     $"Expected version: {account.CopierVersion}\n" +
                     $"Received version: {dto.CopierVersion}\n" +
                     $"Broker Server: {dto.ServerName}\n" +
-                    $"Source IP: {dto.SourceIp}\n" +
-                    $"⚠️ Old terminal still running somewhere — kill it!",
+                    $"Assigned VM: {assignedIp2}\n" +
+                    $"⚠️ Old terminal still running on a different VM — kill it!",
                     TimeSpan.FromMinutes(5));
             }
 
@@ -2585,6 +2600,14 @@ public partial class TraderUsecase
         return await _orderRepository.Update(
             o => o.Id == id,
             o => o.DeletedAt = DateTime.UtcNow
+        );
+    }
+
+    public async Task<bool> SetAccountRole(long id, string role)
+    {
+        return await _accountRepository.Update(
+            a => a.Id == id,
+            a => a.Role = role.ToUpper()
         );
     }
 }
