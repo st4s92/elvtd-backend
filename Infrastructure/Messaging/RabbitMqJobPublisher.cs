@@ -244,4 +244,26 @@ public class RabbitMqJobPublisher : IJobPublisher
         return Task.CompletedTask;
     }
 
+    public Task PublishBridgeKillTerminal(long accountNumber)
+    {
+        var payload = new
+        {
+            command = "kill_terminal",
+            account_number = accountNumber,
+        };
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(payload);
+
+        _channel.ExchangeDeclare("bridge.command", "fanout", true, false, null);
+        _channel.BasicPublish(
+            exchange: "bridge.command",
+            routingKey: "",
+            basicProperties: null,
+            body: body
+        );
+
+        Console.WriteLine($"[BRIDGE_CMD] kill_terminal broadcast for account {accountNumber}");
+        return Task.CompletedTask;
+    }
+
 }

@@ -1660,15 +1660,18 @@ public partial class TraderUsecase
                     : null;
                 var assignedIp = assignedServer?.ServerIp ?? "unknown";
 
+                // Auto-kill: broadcast kill command to ALL bridges
+                await _jobPublisher.PublishBridgeKillTerminal(payload.AccountNumber);
+
                 await _telegram.SendAlertThrottled(
                     $"ghost-{payload.AccountNumber}",
-                    $"👻 Ghost terminal detected!\n" +
+                    $"👻 Ghost terminal auto-killed!\n" +
                     $"Account: {payload.AccountNumber}\n" +
                     $"Expected version: {account.CopierVersion}\n" +
-                    $"Received version: {payload.CopierVersion}\n" +
+                    $"Ghost version: {payload.CopierVersion}\n" +
                     $"Broker Server: {payload.ServerName}\n" +
                     $"Assigned VM: {assignedIp}\n" +
-                    $"⚠️ Old terminal still running on a different VM — kill it!",
+                    $"Kill command sent to all bridges.",
                     TimeSpan.FromMinutes(5));
             }
 
@@ -2172,15 +2175,17 @@ public partial class TraderUsecase
                     : null;
                 var assignedIp2 = assignedServer2?.ServerIp ?? "unknown";
 
+                await _jobPublisher.PublishBridgeKillTerminal(dto.AccountNumber);
+
                 await _telegram.SendAlertThrottled(
                     $"ghost-{dto.AccountNumber}",
-                    $"👻 Ghost terminal detected!\n" +
+                    $"👻 Ghost terminal auto-killed!\n" +
                     $"Account: {dto.AccountNumber}\n" +
                     $"Expected version: {account.CopierVersion}\n" +
-                    $"Received version: {dto.CopierVersion}\n" +
+                    $"Ghost version: {dto.CopierVersion}\n" +
                     $"Broker Server: {dto.ServerName}\n" +
                     $"Assigned VM: {assignedIp2}\n" +
-                    $"⚠️ Old terminal still running on a different VM — kill it!",
+                    $"Kill command sent to all bridges.",
                     TimeSpan.FromMinutes(5));
             }
 

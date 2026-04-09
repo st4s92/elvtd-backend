@@ -28,4 +28,5 @@ public interface IJobPublisher
         IEnumerable<object> payloads
     );
     Task PublishCtraderManageAccount(Account account);
+    Task PublishBridgeKillTerminal(long accountNumber);
 }
