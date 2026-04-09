@@ -89,10 +89,10 @@ public partial class TraderUsecase
             OrderType = orderType,
             OrderLot = slaveLot,
             OrderTicket = 0,
-            MasterOrderID = savedOrder.Id,
+            MasterOrderId = savedOrder.Id,
             OrderMagic = magic,
             CopyType = "MASTER_ORDER_UPDATE",
-            CreatedAt = DateTime.UtcNow.ToString("o"),
+            CreatedAt = DateTime.UtcNow,
         };
 
         if (account.PlatformName == "cTrader")
