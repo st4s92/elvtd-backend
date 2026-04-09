@@ -150,6 +150,18 @@ public partial class TraderUsecase
             return (null, TError.NewClient("failed. check whether master id is not registered as slave before and vice versa for slave id"));
         }
 
+        // A slave can only belong to one master — remove any existing connections for this slave
+        var existingSlaveConnections = await _masterSlaveRepository.GetMany(
+            ms => ms.SlaveId == masterSlave.SlaveId);
+        foreach (var old in existingSlaveConnections)
+        {
+            await _masterSlaveRepository.Delete(x => x.Id == old.Id);
+            await _systemLogUsecase.CreateLog(
+                "MasterSlave", "AutoDelete", old.SlaveId,
+                $"Auto-removed old Master-Slave: Master {old.MasterId} -> Slave {old.SlaveId} (slave reassigned to Master {masterSlave.MasterId})",
+                "Warning");
+        }
+
         try
         {
             var data = await _masterSlaveRepository.Save(masterSlave);
