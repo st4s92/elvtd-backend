@@ -130,4 +130,17 @@ public partial class TraderHandler
             : $"Reassigned {count} stale accounts (>{minutes}min)";
         return Response.Json(new { reassigned = count, message = msg });
     }
+
+    // HTTP heartbeat for services without RabbitMQ (e.g. ctrader-copier)
+    public async Task HandleHttpHeartbeat(Backend.Model.ServerHeartbeatRequest payload)
+    {
+        try
+        {
+            await _usecase.UpdateHealthCheck(payload);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[HttpHeartbeat] error: {ex.Message}");
+        }
+    }
 }

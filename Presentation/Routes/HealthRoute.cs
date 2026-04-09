@@ -41,5 +41,21 @@ public static class HealthRoutes
             )
             .WithName("HealthCheckAccount")
             .WithTags("Health");
+
+        // HTTP heartbeat endpoint for ctrader-copier (no RabbitMQ access)
+        group
+            .MapPost(
+                "/health/heartbeat",
+                async (
+                    [Microsoft.AspNetCore.Mvc.FromBody] Backend.Model.ServerHeartbeatRequest payload,
+                    TraderHandler handler
+                ) =>
+                {
+                    await handler.HandleHttpHeartbeat(payload);
+                    return Results.Ok(new { status = true });
+                }
+            )
+            .WithName("HttpHeartbeat")
+            .WithTags("Health");
     }
 }
