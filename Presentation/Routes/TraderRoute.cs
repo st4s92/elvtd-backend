@@ -105,7 +105,7 @@ public static class TraderRoutes
                     HttpContext ctx
                 ) =>
                 {
-                    payload.SourceIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "";
+                    payload.SourceIp = ctx.Request.Headers["X-Real-IP"].FirstOrDefault() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "";
                     return await handler.HandlePlatformActivePositionSync(payload);
                 }
             )
@@ -205,6 +205,17 @@ public static class TraderRoutes
             )
             .WithName("SoftDeleteOrder")
             .WithTags("Orders");
+
+        group
+            .MapPatch(
+                "/trader/account/{id:long}/set-role/{role}",
+                async (long id, string role, TraderHandler handler) =>
+                {
+                    return await handler.SetAccountRole(id, role);
+                }
+            )
+            .WithName("SetAccountRole")
+            .WithTags("Accounts");
 
         // account
         group
@@ -343,7 +354,7 @@ public static class TraderRoutes
                 "/trader/bridge/account-sync",
                 async ([FromBody] SyncAccountStatePayload payload, TraderHandler handler, HttpContext ctx) =>
                 {
-                    payload.SourceIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "";
+                    payload.SourceIp = ctx.Request.Headers["X-Real-IP"].FirstOrDefault() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "";
                     return await handler.HandleBridgeSyncAccountState(payload);
                 }
             )
