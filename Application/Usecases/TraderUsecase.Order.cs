@@ -1644,6 +1644,25 @@ public partial class TraderUsecase
             // ------------------------------------
             // 2. UPDATE ACCOUNT RUNTIME STATE
             // ------------------------------------
+
+            // v3: Detect ghost terminals — version downgrade means a stale terminal
+            // is still running somewhere after reinstall
+            if (!string.IsNullOrEmpty(account.CopierVersion)
+                && !string.IsNullOrEmpty(payload.CopierVersion)
+                && account.CopierVersion != payload.CopierVersion
+                && string.Compare(payload.CopierVersion, account.CopierVersion, StringComparison.Ordinal) < 0)
+            {
+                await _telegram.SendAlertThrottled(
+                    $"ghost-{payload.AccountNumber}",
+                    $"👻 Ghost terminal detected!\n" +
+                    $"Account: {payload.AccountNumber}\n" +
+                    $"Expected version: {account.CopierVersion}\n" +
+                    $"Received version: {payload.CopierVersion}\n" +
+                    $"Server: {payload.ServerName}\n" +
+                    $"⚠️ Old terminal still running somewhere — kill it!",
+                    TimeSpan.FromMinutes(5));
+            }
+
             account.Balance = payload.Balance;
             account.Equity = payload.Equity;
             account.Status = ConnectionStatus.Success;
@@ -2130,6 +2149,24 @@ public partial class TraderUsecase
             // =========================
             // 3. ACCOUNT UPDATE LATEST DATA
             // =========================
+
+            // v3: Detect ghost terminals
+            if (!string.IsNullOrEmpty(account.CopierVersion)
+                && !string.IsNullOrEmpty(dto.CopierVersion)
+                && account.CopierVersion != dto.CopierVersion
+                && string.Compare(dto.CopierVersion, account.CopierVersion, StringComparison.Ordinal) < 0)
+            {
+                await _telegram.SendAlertThrottled(
+                    $"ghost-{dto.AccountNumber}",
+                    $"👻 Ghost terminal detected!\n" +
+                    $"Account: {dto.AccountNumber}\n" +
+                    $"Expected version: {account.CopierVersion}\n" +
+                    $"Received version: {dto.CopierVersion}\n" +
+                    $"Server: {dto.ServerName}\n" +
+                    $"⚠️ Old terminal still running somewhere — kill it!",
+                    TimeSpan.FromMinutes(5));
+            }
+
             account.Balance = dto.Balance;
             account.Equity = dto.Equity;
             account.Status = ConnectionStatus.Success;
