@@ -28,6 +28,7 @@ public partial class TraderUsecase
                 )
                 && (param.UserId == 0 || a.UserId == param.UserId)
                 && (string.IsNullOrEmpty(param.Role) || a.Role.ToLower().Contains(param.Role.ToLower()))
+                && (param.Id != 0 || a.DeletedAt == null)
         );
     }
 
@@ -313,6 +314,12 @@ public partial class TraderUsecase
             if (!string.IsNullOrWhiteSpace(param.AccountPassword))
             {
                 existing.AccountPassword = param.AccountPassword;
+            }
+
+            // Role (MASTER/SLAVE)
+            if (!string.IsNullOrEmpty(param.Role))
+            {
+                existing.Role = param.Role;
             }
 
             // Connection status
