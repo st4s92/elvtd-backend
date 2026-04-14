@@ -2032,6 +2032,70 @@ public partial class TraderUsecase
                 }
             }
 
+            // ------------------------------------
+            // 6c. Purge "external" ActiveOrders (master_order_id=NULL) whose ticket
+            //     belongs to a slave order with a closed master. These are created when
+            //     the EA reports a position that the backend didn't recognize (e.g. due
+            //     to the ServerName mismatch bug), and should be cleaned up when the
+            //     master trade closes.
+            // ------------------------------------
+            var externalWithTicket = updatedActiveOrders
+                .Where(a => !a.MasterOrderId.HasValue && a.OrderTicket > 0)
+                .ToList();
+
+            if (externalWithTicket.Any())
+            {
+                var externalTickets = externalWithTicket.Select(a => a.OrderTicket).ToList();
+                var closedSlaveTickets = (await _orderRepository.GetMany(o =>
+                    o.AccountId == account.Id
+                    && externalTickets.Contains(o.OrderTicket)
+                    && o.MasterOrderId.HasValue
+                    && o.OrderCloseAt != null
+                )).Select(o => o.OrderTicket).ToHashSet();
+
+                // Also check: slave order exists with same magic and master is closed
+                var externalMagics = externalWithTicket
+                    .Where(a => a.OrderMagic > 0)
+                    .Select(a => a.OrderMagic)
+                    .ToList();
+                if (externalMagics.Any())
+                {
+                    var closedByMagic = (await _orderRepository.GetMany(o =>
+                        o.AccountId == account.Id
+                        && o.MasterOrderId.HasValue
+                        && externalMagics.Contains(o.OrderMagic)
+                    )).Where(o => o.MasterOrderId.HasValue).ToList();
+
+                    foreach (var slaveOrder in closedByMagic)
+                    {
+                        var master = await _orderRepository.Get(o => o.Id == slaveOrder.MasterOrderId!.Value);
+                        if (master?.OrderCloseAt != null)
+                        {
+                            // Find the external ActiveOrder with this magic
+                            var staleExt = externalWithTicket.FirstOrDefault(a => a.OrderMagic == slaveOrder.OrderMagic);
+                            if (staleExt != null) closedSlaveTickets.Add(staleExt.OrderTicket);
+                        }
+                    }
+                }
+
+                if (closedSlaveTickets.Any())
+                {
+                    var staleExternals = externalWithTicket
+                        .Where(a => closedSlaveTickets.Contains(a.OrderTicket))
+                        .ToList();
+
+                    foreach (var stale in staleExternals)
+                    {
+                        _logger.Info($"Purging external ActiveOrder for closed master: activeOrderId={stale.Id} ticket={stale.OrderTicket} magic={stale.OrderMagic} account={account.Id}");
+                        await _activeOrderRepository.DeleteById(stale.Id);
+                    }
+
+                    updatedActiveOrders = updatedActiveOrders
+                        .Where(a => a.MasterOrderId.HasValue || !closedSlaveTickets.Contains(a.OrderTicket))
+                        .ToList();
+                }
+            }
+
             var syncResponse = new PlatformActivePositionSyncPayload
             {
                 AccountNumber = payload.AccountNumber,
