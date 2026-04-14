@@ -1992,6 +1992,41 @@ public partial class TraderUsecase
                 a.AccountId == account.Id
             );
 
+            // ------------------------------------
+            // 6b. Purge stale ActiveOrders whose master trade is already closed
+            //     Prevents slave EA from reopening positions on re-attach
+            // ------------------------------------
+            var masterOrderIds = updatedActiveOrders
+                .Where(a => a.MasterOrderId.HasValue)
+                .Select(a => a.MasterOrderId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (masterOrderIds.Any())
+            {
+                var closedMasterIds = (await _orderRepository.GetMany(o =>
+                    masterOrderIds.Contains(o.Id) && o.OrderCloseAt != null
+                )).Select(o => o.Id).ToHashSet();
+
+                if (closedMasterIds.Any())
+                {
+                    var staleForClosedMaster = updatedActiveOrders
+                        .Where(a => a.MasterOrderId.HasValue && closedMasterIds.Contains(a.MasterOrderId.Value))
+                        .ToList();
+
+                    foreach (var stale in staleForClosedMaster)
+                    {
+                        _logger.Info($"Purging stale ActiveOrder for closed master: activeOrderId={stale.Id} masterOrderId={stale.MasterOrderId} magic={stale.OrderMagic} account={account.Id}");
+                        await FinalizeActiveOrderToOrder(stale, asFailed: true);
+                        await _activeOrderRepository.DeleteById(stale.Id);
+                    }
+
+                    updatedActiveOrders = updatedActiveOrders
+                        .Where(a => !a.MasterOrderId.HasValue || !closedMasterIds.Contains(a.MasterOrderId.Value))
+                        .ToList();
+                }
+            }
+
             var syncResponse = new PlatformActivePositionSyncPayload
             {
                 AccountNumber = payload.AccountNumber,
