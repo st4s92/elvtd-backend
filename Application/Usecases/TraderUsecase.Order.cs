@@ -1665,18 +1665,18 @@ public partial class TraderUsecase
 
                 await _telegram.SendAlertThrottled(
                     $"ghost-{payload.AccountNumber}",
-                    $"👻 Ghost terminal auto-killed!\n" +
+                    $"👻 Ghost terminal detected!\n" +
                     $"Account: {payload.AccountNumber}\n" +
                     $"Expected version: {account.CopierVersion}\n" +
                     $"Ghost version: {payload.CopierVersion}\n" +
+                    $"Ghost Source IP: {payload.SourceIp}\n" +
                     $"Broker Server: {payload.ServerName}\n" +
                     $"Assigned VM: {assignedIp}\n" +
                     $"Kill command sent to all bridges.",
                     TimeSpan.FromMinutes(5));
 
                 // Do NOT update account with ghost version — would cause infinite
-                // flip-flop between ghost and real terminal. Send flush to stop ghost EA.
-                payload.IsFlushOrder = 1;
+                // flip-flop between ghost and real terminal. Skip the rest of the sync.
                 return payload;
             }
 
