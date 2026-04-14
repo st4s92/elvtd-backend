@@ -2063,7 +2063,7 @@ public partial class TraderUsecase
                     var closedByMagic = (await _orderRepository.GetMany(o =>
                         o.AccountId == account.Id
                         && o.MasterOrderId.HasValue
-                        && externalMagics.Contains(o.OrderMagic)
+                        && o.OrderMagic.HasValue && externalMagics.Contains(o.OrderMagic.Value)
                     )).Where(o => o.MasterOrderId.HasValue).ToList();
 
                     foreach (var slaveOrder in closedByMagic)
