@@ -549,7 +549,7 @@ public partial class TraderUsecase
         try
         {
             var (account, accErr) = await GetAccount(
-                new Account { ServerName = payload.ServerName, AccountNumber = payload.AccountId }
+                new Account { AccountNumber = payload.AccountId }
             );
             if (accErr != null)
             {
@@ -719,7 +719,7 @@ public partial class TraderUsecase
         try
         {
             var (account, accErr) = await GetAccount(
-                new Account { ServerName = payload.ServerName, AccountNumber = payload.AccountId }
+                new Account { AccountNumber = payload.AccountId }
             );
             if (accErr != null)
                 return ("", accErr);
