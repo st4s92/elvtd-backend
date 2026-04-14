@@ -203,6 +203,15 @@ public partial class TraderUsecase
 
                 combinedOrders = uniqueOrdersMap.Values.ToList();
 
+                // Account-Role-Filter: When querying master orders, only return orders
+                // from accounts with role=MASTER (excludes slave manual/external trades)
+                if (param.IsMasterOnly == true)
+                {
+                    combinedOrders = combinedOrders
+                        .Where(o => o.Account != null && o.Account.Role == "MASTER")
+                        .ToList();
+                }
+
                 // Status-Filter NACH dem Merge anwenden.
                 // Dadurch wird der live-Status aus active_orders (der ggf. den orders-Tabellen-Status
                 // überschrieben hat) korrekt für die Filterung verwendet.
