@@ -15,7 +15,7 @@ public partial class TraderUsecase
             (param.Id == 0 || a.Id == param.Id)
             && (param.AccountId == 0 || a.AccountId == param.AccountId)
             && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
-            && (param.IsMasterOnly != true || a.MasterOrderId == null)
+            && (param.IsMasterOnly != true || (a.MasterOrderId == null && a.Account != null && a.Account.Role == "MASTER"))
             && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
             && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
             && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
@@ -52,7 +52,7 @@ public partial class TraderUsecase
             (param.Id == 0 || a.Id == param.Id)
             && (param.AccountId == 0 || a.AccountId == param.AccountId)
             && (!param.MasterOrderId.HasValue || a.MasterOrderId == param.MasterOrderId.Value)
-            && (param.IsMasterOnly != true || a.MasterOrderId == null)
+            && (param.IsMasterOnly != true || (a.MasterOrderId == null && a.Account != null && a.Account.Role == "MASTER"))
             && (param.OrderTicket == 0 || a.OrderTicket == param.OrderTicket)
             && (string.IsNullOrEmpty(param.OrderSymbol) || a.OrderSymbol == param.OrderSymbol)
             && (string.IsNullOrEmpty(param.OrderType) || a.OrderType == param.OrderType)
@@ -202,15 +202,6 @@ public partial class TraderUsecase
                 }
 
                 combinedOrders = uniqueOrdersMap.Values.ToList();
-
-                // Account-Role-Filter: When querying master orders, only return orders
-                // from accounts with role=MASTER (excludes slave manual/external trades)
-                if (param.IsMasterOnly == true)
-                {
-                    combinedOrders = combinedOrders
-                        .Where(o => o.Account != null && o.Account.Role == "MASTER")
-                        .ToList();
-                }
 
                 // Status-Filter NACH dem Merge anwenden.
                 // Dadurch wird der live-Status aus active_orders (der ggf. den orders-Tabellen-Status
