@@ -1673,6 +1673,11 @@ public partial class TraderUsecase
                     $"Assigned VM: {assignedIp}\n" +
                     $"Kill command sent to all bridges.",
                     TimeSpan.FromMinutes(5));
+
+                // Do NOT update account with ghost version — would cause infinite
+                // flip-flop between ghost and real terminal. Send flush to stop ghost EA.
+                payload.IsFlushOrder = 1;
+                return payload;
             }
 
             account.Balance = payload.Balance;
