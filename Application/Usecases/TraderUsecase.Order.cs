@@ -2178,13 +2178,16 @@ public partial class TraderUsecase
 
                 if (existingOrder != null)
                 {
-                    // Update existing order with latest data
+                    // Update existing order with latest data (full upsert to fix stale/wrong values)
                     await _orderRepository.Update(
                         o => o.Id == existingOrder.Id,
                         o =>
                         {
-                            o.OrderProfit = pos.OrderProfit;
+                            o.OrderPrice = pos.OrderPrice;
                             o.ClosePrice = pos.ClosePrice;
+                            o.OrderLot = pos.OrderLot;
+                            o.OrderProfit = pos.OrderProfit;
+                            o.OrderOpenAt = pos.OrderOpenAt;
                             o.OrderCloseAt = pos.OrderCloseAt;
                             o.Status = (OrderStatus)pos.Status;
                         }
