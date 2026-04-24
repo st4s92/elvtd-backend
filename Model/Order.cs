@@ -60,11 +60,11 @@ public class Order : IAuditableEntity
     [JsonPropertyName("order_lot")]
     public decimal OrderLot { get; set; }
 
-    [Column("order_price", TypeName = "decimal(13,6)")]
+    [Column("order_price", TypeName = "decimal(20,6)")]
     [JsonPropertyName("order_price")]
     public decimal? OrderPrice { get; set; }
 
-    [Column("close_price", TypeName = "decimal(13,6)")]
+    [Column("close_price", TypeName = "decimal(20,6)")]
     [JsonPropertyName("close_price")]
     public decimal? ClosePrice { get; set; }
 
@@ -92,7 +92,7 @@ public class Order : IAuditableEntity
     [JsonPropertyName("order_close_at")]
     public DateTime? OrderCloseAt { get; set; }
 
-    [Column("order_profit", TypeName = "decimal(13,2)")]
+    [Column("order_profit", TypeName = "decimal(20,2)")]
     [JsonPropertyName("order_profit")]
     public decimal? OrderProfit { get; set; }
 

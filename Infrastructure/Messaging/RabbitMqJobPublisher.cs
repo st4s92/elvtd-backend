@@ -34,15 +34,19 @@ public class RabbitMqJobPublisher : IJobPublisher
         var body = JsonSerializer.SerializeToUtf8Bytes(job);
         Console.WriteLine(Encoding.UTF8.GetString(body.ToArray()));
 
-        _channel.QueueDeclare("platform.create", true, false, false, null);
+        // JOURNAL accounts → journal.sync queue (handled by go-journal-worker)
+        var queue = job.Role == "JOURNAL" ? "journal.sync" : "platform.create";
+
+        _channel.QueueDeclare(queue, true, false, false, null);
 
         _channel.BasicPublish(
             exchange: "",
-            routingKey: "platform.create",
+            routingKey: queue,
             basicProperties: null,
             body: body
         );
 
+        Console.WriteLine($"Published to {queue}: account {job.AccountNumber} role={job.Role}");
         return Task.CompletedTask;
     }
 

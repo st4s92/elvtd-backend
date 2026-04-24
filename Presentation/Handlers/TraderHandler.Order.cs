@@ -215,6 +215,15 @@ public partial class TraderHandler
         return Response.Json(res);
     }
 
+    public async Task<IResult> SetAccountRole(long id, string role)
+    {
+        var success = await _usecase.SetAccountRole(id, role);
+        if (!success)
+            return Response.Json(TError.NewNotFound("Account not found or role change failed"));
+
+        return Response.Json("ok");
+    }
+
     public async Task<IResult> SoftDeleteOrder(long id)
     {
         var success = await _usecase.SoftDeleteOrder(id);

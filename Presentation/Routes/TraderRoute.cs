@@ -206,6 +206,17 @@ public static class TraderRoutes
             .WithName("SoftDeleteOrder")
             .WithTags("Orders");
 
+        group
+            .MapPatch(
+                "/trader/account/{id:long}/set-role/{role}",
+                async (long id, string role, TraderHandler handler) =>
+                {
+                    return await handler.SetAccountRole(id, role);
+                }
+            )
+            .WithName("SetAccountRole")
+            .WithTags("Accounts");
+
         // account
         group
             .MapGet(

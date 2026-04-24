@@ -131,6 +131,15 @@ public partial class TraderUsecase
             if (data == null)
                 return (null, TError.NewServer("cannot create new account"));
 
+            // JOURNAL accounts: no terminal installation needed
+            if (data.Role == "JOURNAL")
+            {
+                data.Status = ConnectionStatus.Success;
+                await _accountRepository.Save(data, a => a.Id == data.Id);
+                await _systemLogUsecase.CreateLog("Account", "Create", data.Id, $"JOURNAL account {data.AccountNumber} created — no terminal installation.");
+                return (data, null);
+            }
+
             if (isCtrader)
             {
                 // cTrader: no server assignment needed, notify cTrader bridge directly
@@ -393,15 +402,24 @@ public partial class TraderUsecase
                 BrokerName = existing.BrokerName,
                 ServerName = existing.ServerName,
                 UserId = existing.UserId,
-                Role = "SLAVE",
+                Role = existing.Role ?? "SLAVE",
                 Status = 100,
                 ServerIp = serverIp,
             };
-            Console.WriteLine($"try to publish delete account event (target server IP: {serverIp})");
 
-            await _jobPublisher.PublishDeleteJob(job);
+            // JOURNAL accounts have no terminal to clean up — skip RabbitMQ job
+            if (existing.Role == "JOURNAL")
+            {
+                Console.WriteLine($"JOURNAL account {existing.AccountNumber} — no terminal to delete, skipping job publish");
+            }
+            else
+            {
+                Console.WriteLine($"try to publish delete account event (target server IP: {serverIp})");
+                await _jobPublisher.PublishDeleteJob(job);
+            }
+
             await _systemLogUsecase.CreateLog("Account", "Delete", id,
-                $"Account {existing.AccountNumber} soft deleted. Target server: {serverName} ({serverIp})");
+                $"Account {existing.AccountNumber} ({existing.Role}) soft deleted. Target server: {serverName} ({serverIp})");
 
             return null;
         }
