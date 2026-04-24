@@ -1261,6 +1261,9 @@ public partial class TraderUsecase
                 .GroupBy(a => a.AccountId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
+            // Collect new ActiveOrders for batch insert
+            var activeOrdersToCreate = new List<ActiveOrder>();
+
             // iterasi slave relation
             foreach (var relation in slaveRelations)
             {
@@ -1286,24 +1289,24 @@ public partial class TraderUsecase
                     .GroupBy(a => a.MasterOrderId!.Value)
                     .ToDictionary(g => g.Key, g => g.First());
 
-                // 4. CREATE or UPDATE missing active orders
+                // 4. CREATE or UPDATE missing active orders (collect for batch)
+                decimal multiplier = 1;
+                if (configMap.TryGetValue(relation.Id, out var cfg))
+                {
+                    multiplier = cfg.Multiplier == 0 ? 1 : cfg.Multiplier;
+                }
+
+                pairMap.TryGetValue(relation.Id, out var relationPairs);
+
                 foreach (var masterOrder in masterOrders)
                 {
-                    // Calculate expected lot first
-                    decimal multiplier = 1;
-                    if (configMap.TryGetValue(relation.Id, out var cfg))
-                    {
-                        multiplier = cfg.Multiplier == 0 ? 1 : cfg.Multiplier;
-                    }
                     decimal riskRatio = masterOrder.OrderLot / masterBalance;
                     decimal finalLot = Math.Round(riskRatio * slaveAccount.Balance * multiplier, 2);
 
                     if (slaveActiveByMasterId.TryGetValue(masterOrder.Id, out var existingActive))
                     {
-                        // Update lot if it's still in Progress and incorrect
                         if (existingActive.Status == OrderStatus.Progress && existingActive.OrderLot != finalLot)
                         {
-                            _logger.Info($"Updating queued trade {masterOrder.Id} lot from {existingActive.OrderLot} to {finalLot}");
                             existingActive.OrderLot = finalLot;
                             await _activeOrderRepository.Update(existingActive);
                         }
@@ -1314,17 +1317,8 @@ public partial class TraderUsecase
                         DateTime.UtcNow - masterOrder.OrderOpenAt
                         > TimeSpan.FromSeconds(toleranceSeconds)
                     )
-                    {
-                        _logger.Info($"Skip stale master order {masterOrder.Id}");
-                        await _systemLogUsecase.CreateLog("CopyTrade", "SyncActive", slaveAccount.Id,
-                            $"Skipped stale master order: masterOrderId={masterOrder.Id} ticket={masterOrder.OrderTicket} age={(DateTime.UtcNow - masterOrder.OrderOpenAt)?.TotalSeconds:F0}s > tolerance={toleranceSeconds}s", "Warning");
                         continue;
-                    }
 
-                    // ambil pair mapping untuk relation ini
-                    pairMap.TryGetValue(relation.Id, out var relationPairs);
-
-                    // Symbol resolution with 5-tier priority using Helper Function
                     string? slavePair = ResolveSymbol(
                         masterOrder.OrderSymbol,
                         masterAccount?.BrokerName ?? "",
@@ -1336,31 +1330,21 @@ public partial class TraderUsecase
                     if (string.IsNullOrEmpty(slavePair))
                         continue;
 
-                    // CREATE ActiveOrder (intent)
-                    var activeOrder = new ActiveOrder
+                    activeOrdersToCreate.Add(new ActiveOrder
                     {
                         AccountId = slaveAccountId,
                         MasterOrderId = masterOrder.Id,
-
                         AccountNumber = slaveAccount.AccountNumber,
                         ServerName = slaveAccount.ServerName,
-
                         OrderTicket = 0,
                         OrderMagic = GenerateBridgeMagicNumber(masterOrder.Id, slaveAccountId),
-
                         OrderType = masterOrder.OrderType,
                         OrderLot = finalLot,
                         OrderProfit = 0,
-
                         OrderSymbol = slavePair,
                         Status = OrderStatus.Progress,
                         OrderOpenAt = masterOrder.OrderOpenAt,
-                    };
-
-                    await _activeOrderRepository.Add(activeOrder);
-
-                    await _systemLogUsecase.CreateLog("CopyTrade", "ActiveOrder", slaveAccount.Id,
-                        $"ActiveOrder created: masterOrderId={masterOrder.Id} ticket={masterOrder.OrderTicket} symbol={slavePair} type={masterOrder.OrderType} lot={finalLot}");
+                    });
                 }
 
                 // 5. BATCH PROCESSING: Close orphan active orders (master already closed)
@@ -1462,6 +1446,13 @@ public partial class TraderUsecase
                             $"Close signal sent (MASTER_ORDER_DELETE): masterOrderId={orphan.MasterOrderId} symbol={orphan.OrderSymbol} type={orphan.OrderType} lot={orphan.OrderLot} ticket={orphan.OrderTicket} platform={slaveAccount.PlatformName}");
                     }
                 }
+            }
+
+            // BATCH SAVE all new ActiveOrders (1 DB roundtrip instead of N)
+            if (activeOrdersToCreate.Count > 0)
+            {
+                await _activeOrderRepository.AddBatch(activeOrdersToCreate);
+                _logger.Info($"Batch created {activeOrdersToCreate.Count} ActiveOrders for master {masterAccountId}");
             }
 
             return null;
@@ -2196,6 +2187,7 @@ public partial class TraderUsecase
                 else
                 {
                     // Create new order (external trade, no master)
+                    var now = DateTime.Now;
                     var newOrder = new Order
                     {
                         AccountId = account.Id,
@@ -2211,6 +2203,8 @@ public partial class TraderUsecase
                         OrderCloseAt = pos.OrderCloseAt,
                         OrderLabel = string.IsNullOrEmpty(pos.OrderLabel) ? "manual" : pos.OrderLabel,
                         Status = (OrderStatus)pos.Status,
+                        CreatedAt = now,
+                        UpdatedAt = now,
                     };
                     await _orderRepository.Save(newOrder);
                 }
@@ -2225,8 +2219,9 @@ public partial class TraderUsecase
         }
         catch (Exception ex)
         {
-            _logger.Fail("SyncPositionHistory failed", ex);
-            return TError.NewServer("position history sync failed");
+            var innerMsg = ex.InnerException?.Message ?? ex.Message;
+            _logger.Fail($"SyncPositionHistory failed: {innerMsg}", ex);
+            return TError.NewServer($"position history sync failed: {innerMsg}");
         }
     }
 
@@ -2473,41 +2468,29 @@ public partial class TraderUsecase
             var allConfigs = await _masterSlaveConfigRepository.GetMany(c => slaveIds.Contains(c.MasterSlaveId));
             var allPairs = await _masterSlavePairRepository.GetMany(p => slaveIds.Contains(p.MasterSlaveId));
 
-            // 4. Process each slave
+            // 4. Build all slave orders (no DB yet)
+            var ordersToSave = new List<Order>();
+            var publishJobs = new List<(Account slave, BridgeOrderBroadcastPayload payload)>();
+            var now = DateTime.UtcNow;
+
             foreach (var slaveRelation in slaves)
             {
-                // Use preloaded config
                 var config = allConfigs.FirstOrDefault(c => c.MasterSlaveId == slaveRelation.Id);
                 var multiplier = config?.Multiplier ?? 1.0m;
                 if (multiplier == 0) multiplier = 1.0m;
 
-                // Use preloaded pairs
                 var pairs = allPairs.Where(p => p.MasterSlaveId == slaveRelation.Id).ToList();
 
-                // Use slave account already loaded by GetMasterSlaves()
                 var slaveAccount = slaveRelation.SlaveAccount;
                 if (slaveAccount == null || slaveAccount.Balance <= 0)
-                {
-                    _logger.Info($"Skipped slave {slaveRelation.SlaveId}: account not found or balance <= 0");
                     continue;
-                }
 
-                // BERECHNE LOT: (masterLot / masterBalance) * slaveBalance * multiplier
                 decimal riskRatio = masterOrder.OrderLot / masterBalance;
-                decimal slaveLot = Math.Round(
-                    riskRatio * slaveAccount.Balance * multiplier,
-                    2 // Round to 0.01
-                );
+                decimal slaveLot = Math.Round(riskRatio * slaveAccount.Balance * multiplier, 2);
+                if (slaveLot < 0.01m) slaveLot = 0.01m;
+                if (slaveLot > 100.0m) slaveLot = 100.0m;
 
-                _logger.Info($"Lot Calculation | Master: {masterAccount.AccountNumber} ({masterBalance}), Slave: {slaveAccount.AccountNumber} ({slaveAccount.Balance}), Multiplier: {multiplier}, MasterLot: {masterOrder.OrderLot} => SlaveLot: {slaveLot}");
-
-                // Validate Lot
-                if (slaveLot < 0.01m) slaveLot = 0.01m; // Minimum lot size
-                if (slaveLot > 100.0m) slaveLot = 100.0m; // Safety cap
-
-                // Symbol-Mapping using preloaded symbol maps
                 var relationPairs = pairs.ToDictionary(x => x.MasterPair, x => x.SlavePair);
-                
                 var mappedSymbol = ResolveSymbol(
                     masterOrder.OrderSymbol,
                     masterAccount.BrokerName ?? "",
@@ -2516,7 +2499,6 @@ public partial class TraderUsecase
                     allSymbolMaps
                 ) ?? masterOrder.OrderSymbol;
 
-                // Create Order
                 var slaveOrder = new Order
                 {
                     AccountId = slaveAccount.Id,
@@ -2527,47 +2509,39 @@ public partial class TraderUsecase
                     OrderMagic = GenerateBridgeMagicNumber(masterOrder.Id, slaveAccount.Id),
                     OrderLabel = $"copy_{masterOrder.Id}",
                     Status = OrderStatus.Progress,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = now,
+                    UpdatedAt = now,
                 };
 
-                var (newSlaveOrder, saveErr) = await CreateOrder(slaveOrder);
-                if (saveErr != null || newSlaveOrder == null)
-                {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveCopy", slaveAccount.Id,
-                        $"FAILED to create slave order: masterTicket={masterOrder.OrderTicket} symbol={mappedSymbol} lot={slaveLot} error={saveErr?.Message}", "Error");
-                    continue;
-                }
+                ordersToSave.Add(slaveOrder);
 
-                // 4. Publish to RabbitMQ
-                var broadcastPayload = new BridgeOrderBroadcastPayload
+                publishJobs.Add((slaveAccount, new BridgeOrderBroadcastPayload
                 {
                     SlavePair = mappedSymbol,
                     OrderType = masterOrder.OrderType,
                     OrderLot = slaveLot,
-                    OrderTicket = 0, // Ticket will be filled by slave EA execution
+                    OrderTicket = 0,
                     MasterOrderId = masterOrder.Id,
                     OrderMagic = slaveOrder.OrderMagic ?? 0,
                     CopyType = "MASTER_ORDER_UPDATE",
-                    CreatedAt = DateTime.UtcNow,
-                };
+                    CreatedAt = now,
+                }));
+            }
 
-                if (slaveAccount.PlatformName == "cTrader")
-                {
-                    await _jobPublisher.PublishCtraderPacketBatch(
-                        slaveAccount.AccountNumber,
-                        new List<object> { broadcastPayload }
-                    );
-                }
+            // 5. Batch save all orders (1 DB roundtrip instead of N)
+            if (ordersToSave.Count > 0)
+            {
+                await _orderRepository.SaveBatch(ordersToSave);
+                _logger.Info($"Batch saved {ordersToSave.Count} slave orders for master {masterOrder.Id}");
+            }
+
+            // 6. Publish all RabbitMQ messages (already fast, but now after batch save)
+            foreach (var (slave, payload) in publishJobs)
+            {
+                if (slave.PlatformName == "cTrader")
+                    await _jobPublisher.PublishCtraderPacketBatch(slave.AccountNumber, new List<object> { payload });
                 else
-                {
-                    await _jobPublisher.PublishMt5PacketBatch(
-                        slaveAccount.ServerName,
-                        slaveAccount.AccountNumber,
-                        new List<object> { broadcastPayload }
-                    );
-                }
-
-                _logger.Info($"CopyOrder: master={masterOrder.Id}, slave={slaveAccount.Id}, symbol={mappedSymbol}, lot={slaveLot}");
+                    await _jobPublisher.PublishMt5PacketBatch(slave.ServerName, slave.AccountNumber, new List<object> { payload });
             }
 
             return null;

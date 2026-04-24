@@ -106,6 +106,18 @@ public class ActiveOrderRepository : IActiveOrderRepository
         return entity;
     }
 
+    public async Task AddBatch(IEnumerable<ActiveOrder> entities)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var entity in entities)
+        {
+            entity.CreatedAt = now;
+            entity.UpdatedAt = now;
+            _db.Add(entity);
+        }
+        await _context.SaveChangesAsync();
+    }
+
     /// <summary>
     /// Update by primary key (whole object overwrite)
     /// </summary>

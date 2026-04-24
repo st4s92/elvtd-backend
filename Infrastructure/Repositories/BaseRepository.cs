@@ -87,9 +87,26 @@ namespace Backend.Infrastructure.Repositories
 
         public async Task<T> Save(T entity)
         {
+            if (entity.CreatedAt == default)
+                entity.CreatedAt = DateTime.Now;
+            if (entity.UpdatedAt == default)
+                entity.UpdatedAt = DateTime.Now;
             _db.Add(entity);
             await _context.SaveChangesAsync();
             return entity;
+        }
+
+        public async Task SaveBatch(IEnumerable<T> entities)
+        {
+            foreach (var entity in entities)
+            {
+                if (entity.CreatedAt == default)
+                    entity.CreatedAt = DateTime.Now;
+                if (entity.UpdatedAt == default)
+                    entity.UpdatedAt = DateTime.Now;
+                _db.Add(entity);
+            }
+            await _context.SaveChangesAsync();
         }
 
         // DELETE

@@ -29,6 +29,8 @@ public interface IActiveOrderRepository
 
     Task<ActiveOrder> Add(ActiveOrder entity);
 
+    Task AddBatch(IEnumerable<ActiveOrder> entities);
+
     Task<bool> Update(ActiveOrder entity);
 
     // -------------------------

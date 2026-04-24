@@ -30,6 +30,8 @@ namespace Backend.Application.Interfaces
 
         Task<T> Save(T entity);
 
+        Task SaveBatch(IEnumerable<T> entities);
+
         Task<bool> Delete(Expression<Func<T, bool>> predicate);
 
         Task<bool> Update(Expression<Func<T, bool>> predicate, Action<T> updateAction);
