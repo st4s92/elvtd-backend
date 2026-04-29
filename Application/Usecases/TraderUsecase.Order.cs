@@ -579,17 +579,37 @@ public partial class TraderUsecase
                         AccountId = account.Id,
                     }
                 );
-                if (terr != null)
+
+                // Fallback: MasterOrderId might be a cTrader position ticket (not DB ID).
+                // The copier sends pos.PositionID as MasterOrderID, but CopyMasterOrderToSlaves
+                // stores the DB order ID. Resolve via master order's OrderTicket.
+                if (existingOrder == null && payload.Order.MasterOrderId != 0)
                 {
-                    await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
-                        $"FAILED: order not found for masterOrderId={payload.Order.MasterOrderId} type={payload.Order.OrderType}", "Error");
-                    return terr;
+                    var masterByTicket = await _orderRepository.Get(o =>
+                        o.OrderTicket == payload.Order.MasterOrderId
+                        && o.MasterOrderId == null
+                        && o.OrderCloseAt == null
+                    );
+                    if (masterByTicket != null)
+                    {
+                        _logger.Info($"Resolved masterOrderId via ticket: cTraderPosID={payload.Order.MasterOrderId} → dbMasterOrderId={masterByTicket.Id}");
+                        (existingOrder, terr) = await GetOrder(
+                            new Order
+                            {
+                                MasterOrderId = masterByTicket.Id,
+                                AccountId = account.Id,
+                            }
+                        );
+                        // Fix the payload so downstream ActiveOrder lookup also works
+                        if (existingOrder != null)
+                            payload.Order.MasterOrderId = masterByTicket.Id;
+                    }
                 }
 
                 if (existingOrder == null)
                 {
                     await _systemLogUsecase.CreateLog("CopyTrade", "SlaveConfirm", account.Id,
-                        $"FAILED: order is null for masterOrderId={payload.Order.MasterOrderId} type={payload.Order.OrderType}", "Error");
+                        $"FAILED: order not found for masterOrderId={payload.Order.MasterOrderId} type={payload.Order.OrderType}", "Error");
                     return TError.NewNotFound("order not found");
                 }
 
@@ -642,6 +662,28 @@ public partial class TraderUsecase
                             AccountId = account.Id,
                         }
                     );
+
+                    // Fallback: MasterOrderId might be cTrader position ticket
+                    if (existingOrder == null)
+                    {
+                        var masterByTicket = await _orderRepository.Get(o =>
+                            o.OrderTicket == payload.Order.MasterOrderId
+                            && o.MasterOrderId == null
+                        );
+                        if (masterByTicket != null)
+                        {
+                            _logger.Info($"Close: resolved masterOrderId via ticket: cTraderPosID={payload.Order.MasterOrderId} → dbMasterOrderId={masterByTicket.Id}");
+                            (existingOrder, terr) = await GetOrder(
+                                new Order
+                                {
+                                    MasterOrderId = masterByTicket.Id,
+                                    AccountId = account.Id,
+                                }
+                            );
+                            if (existingOrder != null)
+                                payload.Order.MasterOrderId = masterByTicket.Id;
+                        }
+                    }
                 }
 
                 // Fallback: find by OrderTicket if MasterOrderId=0 or not found
@@ -1679,6 +1721,70 @@ public partial class TraderUsecase
             await _accountRepository.Save(account, a => a.Id == account.Id);
 
             // ------------------------------------
+            // 2b. REPAIR failed orders (status=300, ticket=0) from broken confirmations
+            //     Match by label (cTrader positions have label "copy_{masterOrderId}")
+            // ------------------------------------
+            var failedOrders = await _orderRepository.GetMany(o =>
+                o.AccountId == account.Id
+                && o.Status == OrderStatus.Failed
+                && o.OrderTicket == 0
+                && o.MasterOrderId != null
+            );
+            if (failedOrders.Count > 0)
+            {
+                // Build lookup: DB master_order_id → failed slave order
+                var failedByMasterOrderId = failedOrders
+                    .GroupBy(o => o.MasterOrderId!.Value)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                foreach (var mtPos in payload.PositionList)
+                {
+                    if (string.IsNullOrEmpty(mtPos.OrderLabel)) continue;
+
+                    // Extract the ID from label (ELVTD_{id} or copy_{id})
+                    long? labelId = null;
+                    if (mtPos.OrderLabel.StartsWith("copy_") && long.TryParse(mtPos.OrderLabel[5..], out var cid))
+                        labelId = cid;
+                    else if (mtPos.OrderLabel.StartsWith("ELVTD_") && long.TryParse(mtPos.OrderLabel[6..], out var eid))
+                        labelId = eid;
+                    if (!labelId.HasValue) continue;
+
+                    // labelId could be either DB master order ID (from backend) or cTrader position ID (from copier).
+                    // Try direct match first, then resolve via master order ticket.
+                    long? dbMasterOrderId = null;
+                    if (failedByMasterOrderId.ContainsKey(labelId.Value))
+                    {
+                        dbMasterOrderId = labelId.Value;
+                    }
+                    else
+                    {
+                        // labelId is a cTrader position ID → find master order by ticket
+                        var masterByTicket = await _orderRepository.Get(o =>
+                            o.OrderTicket == labelId.Value && o.MasterOrderId == null);
+                        if (masterByTicket != null && failedByMasterOrderId.ContainsKey(masterByTicket.Id))
+                            dbMasterOrderId = masterByTicket.Id;
+                    }
+
+                    if (dbMasterOrderId.HasValue && failedByMasterOrderId.TryGetValue(dbMasterOrderId.Value, out var failedOrder))
+                    {
+                        await _orderRepository.Update(o => o.Id == failedOrder.Id, o =>
+                        {
+                            o.OrderTicket = mtPos.OrderTicket;
+                            o.OrderPrice = mtPos.OrderPrice;
+                            o.OrderLot = mtPos.OrderLot;
+                            o.OrderOpenAt = mtPos.OrderOpenAt;
+                            o.OrderProfit = mtPos.OrderProfit;
+                            o.OrderLabel = mtPos.OrderLabel;
+                            o.Status = OrderStatus.Success;
+                            o.CopyMessage = null;
+                        });
+                        _logger.Info($"Repaired failed order: orderId={failedOrder.Id} ticket={mtPos.OrderTicket} symbol={mtPos.OrderSymbol} label={mtPos.OrderLabel} dbMasterOrderId={dbMasterOrderId} account={account.Id}");
+                        failedByMasterOrderId.Remove(dbMasterOrderId.Value);
+                    }
+                }
+            }
+
+            // ------------------------------------
             // 3. Load active orders from DB
             // ------------------------------------
             var dbActiveOrders = await _activeOrderRepository.GetMany(a =>
@@ -2167,6 +2273,49 @@ public partial class TraderUsecase
                     o => o.OrderTicket == pos.PositionId && o.AccountId == account.Id
                 );
 
+                // Fallback: if not found by ticket, try to repair a failed order by matching label
+                if (existingOrder == null && !string.IsNullOrEmpty(pos.OrderLabel))
+                {
+                    long? labelId = null;
+                    if (pos.OrderLabel.StartsWith("copy_") && long.TryParse(pos.OrderLabel[5..], out var cid))
+                        labelId = cid;
+                    else if (pos.OrderLabel.StartsWith("ELVTD_") && long.TryParse(pos.OrderLabel[6..], out var eid))
+                        labelId = eid;
+
+                    if (labelId.HasValue)
+                    {
+                        // labelId could be DB master order ID or cTrader position ID
+                        var failedOrder = await _orderRepository.Get(o =>
+                            o.AccountId == account.Id
+                            && o.Status == OrderStatus.Failed
+                            && o.OrderTicket == 0
+                            && o.MasterOrderId == labelId.Value
+                        );
+
+                        // If not found, resolve cTrader position ID → DB master order ID
+                        if (failedOrder == null)
+                        {
+                            var masterByTicket = await _orderRepository.Get(o =>
+                                o.OrderTicket == labelId.Value && o.MasterOrderId == null);
+                            if (masterByTicket != null)
+                            {
+                                failedOrder = await _orderRepository.Get(o =>
+                                    o.AccountId == account.Id
+                                    && o.Status == OrderStatus.Failed
+                                    && o.OrderTicket == 0
+                                    && o.MasterOrderId == masterByTicket.Id
+                                );
+                            }
+                        }
+
+                        if (failedOrder != null)
+                        {
+                            existingOrder = failedOrder;
+                            _logger.Info($"History sync: matched failed order {failedOrder.Id} (masterOrderId={failedOrder.MasterOrderId}) via label={pos.OrderLabel} ticket={pos.PositionId}");
+                        }
+                    }
+                }
+
                 if (existingOrder != null)
                 {
                     // Update existing order with latest data (full upsert to fix stale/wrong values)
@@ -2174,13 +2323,16 @@ public partial class TraderUsecase
                         o => o.Id == existingOrder.Id,
                         o =>
                         {
+                            o.OrderTicket = pos.PositionId;
                             o.OrderPrice = pos.OrderPrice;
                             o.ClosePrice = pos.ClosePrice;
                             o.OrderLot = pos.OrderLot;
                             o.OrderProfit = pos.OrderProfit;
                             o.OrderOpenAt = pos.OrderOpenAt;
                             o.OrderCloseAt = pos.OrderCloseAt;
+                            o.OrderLabel = pos.OrderLabel;
                             o.Status = (OrderStatus)pos.Status;
+                            o.CopyMessage = null;
                         }
                     );
                 }
