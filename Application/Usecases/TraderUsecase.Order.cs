@@ -617,8 +617,10 @@ public partial class TraderUsecase
                 existingOrder.OrderTicket = payload.Order.OrderTicket;
                 existingOrder.OrderPrice = payload.Order.OrderPrice;
                 existingOrder.OrderLot = payload.Order.OrderLot;
-                if (!string.IsNullOrEmpty(payload.Order.OrderLabel))
-                    existingOrder.OrderLabel = payload.Order.OrderLabel;
+                // Always set label from master_order_id (reliable) — payload label may use cTrader posID
+                existingOrder.OrderLabel = existingOrder.MasterOrderId.HasValue
+                    ? $"copy_{existingOrder.MasterOrderId}"
+                    : payload.Order.OrderLabel;
 
                 // Set status based on what the copier reported
                 if (payload.Order.OrderStatus == "FAILED")
