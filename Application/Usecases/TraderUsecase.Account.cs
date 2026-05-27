@@ -368,6 +368,11 @@ public partial class TraderUsecase
         await _accountRepository.Save(account, a => a.Id == account.Id);
     }
 
+    public async Task LogRiskEvent(long accountId, string message)
+    {
+        await _systemLogUsecase.CreateLog("RiskManagement", "LockChange", accountId, message, "Warning");
+    }
+
     public async Task<ITError?> DeleteAccountByID(long id)
     {
         try

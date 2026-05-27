@@ -401,6 +401,7 @@ public partial class TraderHandler
 
         existing.LockedUntil = payload.LockedUntil;
         await _usecase.SaveAccountDirect(existing);
+        await _usecase.LogRiskEvent(existing.Id, $"Konto {existing.AccountNumber} gesperrt bis {payload.LockedUntil:dd.MM HH:mm} UTC");
 
         Console.WriteLine($"[LOCK] Account {existing.AccountNumber} locked until {payload.LockedUntil:u}");
         return Response.Json(existing);
@@ -417,6 +418,7 @@ public partial class TraderHandler
 
         existing.LockedUntil = null;
         await _usecase.SaveAccountDirect(existing);
+        await _usecase.LogRiskEvent(existing.Id, $"Konto {existing.AccountNumber} entsperrt (manuell)");
 
         Console.WriteLine($"[LOCK] Account {existing.AccountNumber} unlocked");
         return Response.Json(existing);
