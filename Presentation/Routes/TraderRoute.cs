@@ -350,6 +350,28 @@ public static class TraderRoutes
             .WithTags("Account");
 
         group
+            .MapPatch(
+                "/trader/account/{id:long}/lock",
+                async (long id, [FromBody] LockAccountPayload payload, TraderHandler handler) =>
+                {
+                    return await handler.LockAccount(id, payload);
+                }
+            )
+            .WithName("LockAccount")
+            .WithTags("Account");
+
+        group
+            .MapPatch(
+                "/trader/account/{id:long}/unlock",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.UnlockAccount(id);
+                }
+            )
+            .WithName("UnlockAccount")
+            .WithTags("Account");
+
+        group
             .MapPost(
                 "/trader/bridge/account-sync",
                 async ([FromBody] SyncAccountStatePayload payload, TraderHandler handler, HttpContext ctx) =>

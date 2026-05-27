@@ -2639,6 +2639,13 @@ public partial class TraderUsecase
                 if (slaveAccount == null || slaveAccount.Balance <= 0)
                     continue;
 
+                // Risk Management: skip locked accounts
+                if (slaveAccount.IsLocked)
+                {
+                    Console.WriteLine($"[COPY] Skipped locked slave {slaveAccount.AccountNumber} (locked until {slaveAccount.LockedUntil:u})");
+                    continue;
+                }
+
                 decimal riskRatio = masterOrder.OrderLot / masterBalance;
                 decimal slaveLot = Math.Round(riskRatio * slaveAccount.Balance * multiplier, 2);
                 if (slaveLot < 0.01m) slaveLot = 0.01m;

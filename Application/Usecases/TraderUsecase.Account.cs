@@ -363,6 +363,11 @@ public partial class TraderUsecase
         }
     }
 
+    public async Task SaveAccountDirect(Account account)
+    {
+        await _accountRepository.Save(account, a => a.Id == account.Id);
+    }
+
     public async Task<ITError?> DeleteAccountByID(long id)
     {
         try

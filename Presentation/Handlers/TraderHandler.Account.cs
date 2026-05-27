@@ -124,6 +124,8 @@ public partial class TraderHandler
             RefreshToken = a.RefreshToken,
             TokenExpiredAt = a.TokenExpiredAt,
             CtidTraderAccountId = a.CtidTraderAccountId,
+            LockedUntil = a.LockedUntil,
+            IsLocked = a.IsLocked,
         }).ToList();
 
         return Response.Json(data);
@@ -380,6 +382,40 @@ public partial class TraderHandler
         }
 
         return Response.Json(res);
+    }
+
+    public async Task<IResult> LockAccount(long id, LockAccountPayload payload)
+    {
+        if (id == 0)
+            return Response.Json(TError.NewClient("Id should be filled"));
+        if (payload.LockedUntil == null)
+            return Response.Json(TError.NewClient("locked_until is required"));
+
+        var (existing, terr) = await _usecase.GetAccount(new Account { Id = id });
+        if (terr != null || existing == null)
+            return Response.Json(terr ?? TError.NewClient("Account not found"));
+
+        existing.LockedUntil = payload.LockedUntil;
+        await _usecase.SaveAccountDirect(existing);
+
+        Console.WriteLine($"[LOCK] Account {existing.AccountNumber} locked until {payload.LockedUntil:u}");
+        return Response.Json(existing);
+    }
+
+    public async Task<IResult> UnlockAccount(long id)
+    {
+        if (id == 0)
+            return Response.Json(TError.NewClient("Id should be filled"));
+
+        var (existing, terr) = await _usecase.GetAccount(new Account { Id = id });
+        if (terr != null || existing == null)
+            return Response.Json(terr ?? TError.NewClient("Account not found"));
+
+        existing.LockedUntil = null;
+        await _usecase.SaveAccountDirect(existing);
+
+        Console.WriteLine($"[LOCK] Account {existing.AccountNumber} unlocked");
+        return Response.Json(existing);
     }
 
 }

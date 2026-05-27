@@ -55,6 +55,14 @@ public class Account : IAuditableEntity
     [Column("is_flush_order")]
     public int IsFlushOrder { get; set; } = 0;
 
+    [Column("locked_until")]
+    [JsonPropertyName("locked_until")]
+    public DateTime? LockedUntil { get; set; }
+
+    [NotMapped]
+    [JsonPropertyName("is_locked")]
+    public bool IsLocked => LockedUntil.HasValue && LockedUntil.Value > DateTime.UtcNow;
+
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
@@ -257,6 +265,18 @@ public class AccountGetPaginatedObject
 
     [JsonPropertyName("ctid_trader_account_id")]
     public long? CtidTraderAccountId { get; set; }
+
+    [JsonPropertyName("locked_until")]
+    public DateTime? LockedUntil { get; set; }
+
+    [JsonPropertyName("is_locked")]
+    public bool IsLocked { get; set; }
+}
+
+public class LockAccountPayload
+{
+    [JsonPropertyName("locked_until")]
+    public DateTime? LockedUntil { get; set; }
 }
 
 public class TradePlatformCreateJob
