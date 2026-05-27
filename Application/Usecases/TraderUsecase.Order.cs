@@ -2195,6 +2195,16 @@ public partial class TraderUsecase
                 }
             }
 
+            // Auto-unlock: lock expired — log once and clear
+            if (account.LockedUntil.HasValue && !account.IsLocked)
+            {
+                await _systemLogUsecase.CreateLog("RiskManagement", "AutoUnlock", account.Id,
+                    $"Konto {account.AccountNumber} automatisch entsperrt (Sperre abgelaufen: {account.LockedUntil:dd.MM HH:mm} UTC)",
+                    "Info");
+                account.LockedUntil = null;
+                await _accountRepository.Save(account, a => a.Id == account.Id);
+            }
+
             var syncResponse = new PlatformActivePositionSyncPayload
             {
                 AccountNumber = payload.AccountNumber,
