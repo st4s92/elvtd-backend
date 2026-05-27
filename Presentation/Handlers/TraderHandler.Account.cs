@@ -433,11 +433,23 @@ public partial class TraderHandler
         if (terr != null || existing == null)
             return Response.Json(terr ?? TError.NewClient("Account not found"));
 
+        var oldDll = existing.DailyLossLimit;
+        var oldDpt = existing.DailyProfitTarget;
+
         existing.DailyLossLimit = payload.DailyLossLimit;
         existing.DailyProfitTarget = payload.DailyProfitTarget;
         existing.DllAction = payload.DllAction ?? "liquidate";
         existing.DptAction = payload.DptAction ?? "liquidate";
         await _usecase.SaveAccountDirect(existing);
+
+        // Log changes
+        var changes = new List<string>();
+        if (oldDll != payload.DailyLossLimit)
+            changes.Add(payload.DailyLossLimit.HasValue ? $"DLL auf ${payload.DailyLossLimit:F0} gesetzt" : "DLL deaktiviert");
+        if (oldDpt != payload.DailyProfitTarget)
+            changes.Add(payload.DailyProfitTarget.HasValue ? $"DPT auf ${payload.DailyProfitTarget:F0} gesetzt" : "DPT deaktiviert");
+        if (changes.Count > 0)
+            await _usecase.LogRiskEvent(existing.Id, $"Konto {existing.AccountNumber}: {string.Join(", ", changes)}");
 
         Console.WriteLine($"[RISK] Account {existing.AccountNumber} limits: DLL={payload.DailyLossLimit}, DPT={payload.DailyProfitTarget}");
         return Response.Json(existing);
