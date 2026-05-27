@@ -234,6 +234,11 @@ public class CtraderUsecase
                 refresh_token = account.RefreshToken ?? "",
                 expired_at = account.TokenExpiredAt?.ToString("o") ?? "",
                 ctid_trader_account_id = account.CtidTraderAccountId ?? 0,
+                daily_loss_limit = account.DailyLossLimit.HasValue ? (double)account.DailyLossLimit.Value : (double?)null,
+                daily_profit_target = account.DailyProfitTarget.HasValue ? (double)account.DailyProfitTarget.Value : (double?)null,
+                dll_action = account.DllAction ?? "liquidate",
+                dpt_action = account.DptAction ?? "liquidate",
+                locked_until = account.LockedUntil?.ToString("o"),
             });
         }
 
