@@ -23,7 +23,9 @@ public class SystemLogUsecase
                 Action = action,
                 AccountId = accountId,
                 Message = message,
-                Level = level
+                Level = level,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             await _systemLogRepository.Save(log);
