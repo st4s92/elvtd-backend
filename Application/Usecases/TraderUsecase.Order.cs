@@ -2648,6 +2648,9 @@ public partial class TraderUsecase
                 if (slaveAccount.IsLocked)
                 {
                     Console.WriteLine($"[COPY] Skipped locked slave {slaveAccount.AccountNumber} (locked until {slaveAccount.LockedUntil:u})");
+                    await _systemLogUsecase.CreateLog("RiskManagement", "CopyBlocked", slaveAccount.Id,
+                        $"Trade nicht kopiert: Konto {slaveAccount.AccountNumber} gesperrt bis {slaveAccount.LockedUntil:dd.MM HH:mm} UTC — Master-Ticket: {masterOrder.OrderTicket}, Symbol: {masterOrder.OrderSymbol}",
+                        "Warning");
                     continue;
                 }
 
