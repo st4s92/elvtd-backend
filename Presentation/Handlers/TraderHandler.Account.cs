@@ -126,6 +126,10 @@ public partial class TraderHandler
             CtidTraderAccountId = a.CtidTraderAccountId,
             LockedUntil = a.LockedUntil,
             IsLocked = a.IsLocked,
+            DailyLossLimit = a.DailyLossLimit,
+            DailyProfitTarget = a.DailyProfitTarget,
+            DllAction = a.DllAction,
+            DptAction = a.DptAction,
         }).ToList();
 
         return Response.Json(data);
@@ -415,6 +419,25 @@ public partial class TraderHandler
         await _usecase.SaveAccountDirect(existing);
 
         Console.WriteLine($"[LOCK] Account {existing.AccountNumber} unlocked");
+        return Response.Json(existing);
+    }
+
+    public async Task<IResult> UpdateRiskLimits(long id, RiskLimitsPayload payload)
+    {
+        if (id == 0)
+            return Response.Json(TError.NewClient("Id should be filled"));
+
+        var (existing, terr) = await _usecase.GetAccount(new Account { Id = id });
+        if (terr != null || existing == null)
+            return Response.Json(terr ?? TError.NewClient("Account not found"));
+
+        existing.DailyLossLimit = payload.DailyLossLimit;
+        existing.DailyProfitTarget = payload.DailyProfitTarget;
+        existing.DllAction = payload.DllAction ?? "liquidate";
+        existing.DptAction = payload.DptAction ?? "liquidate";
+        await _usecase.SaveAccountDirect(existing);
+
+        Console.WriteLine($"[RISK] Account {existing.AccountNumber} limits: DLL={payload.DailyLossLimit}, DPT={payload.DailyProfitTarget}");
         return Response.Json(existing);
     }
 

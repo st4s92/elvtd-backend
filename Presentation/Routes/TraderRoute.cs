@@ -372,6 +372,17 @@ public static class TraderRoutes
             .WithTags("Account");
 
         group
+            .MapPatch(
+                "/trader/account/{id:long}/risk-limits",
+                async (long id, [FromBody] RiskLimitsPayload payload, TraderHandler handler) =>
+                {
+                    return await handler.UpdateRiskLimits(id, payload);
+                }
+            )
+            .WithName("UpdateRiskLimits")
+            .WithTags("Account");
+
+        group
             .MapPost(
                 "/trader/bridge/account-sync",
                 async ([FromBody] SyncAccountStatePayload payload, TraderHandler handler, HttpContext ctx) =>

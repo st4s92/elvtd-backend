@@ -63,6 +63,22 @@ public class Account : IAuditableEntity
     [JsonPropertyName("is_locked")]
     public bool IsLocked => LockedUntil.HasValue && LockedUntil.Value > DateTime.UtcNow;
 
+    [Column("daily_loss_limit")]
+    [JsonPropertyName("daily_loss_limit")]
+    public decimal? DailyLossLimit { get; set; }
+
+    [Column("daily_profit_target")]
+    [JsonPropertyName("daily_profit_target")]
+    public decimal? DailyProfitTarget { get; set; }
+
+    [Column("dll_action"), MaxLength(20)]
+    [JsonPropertyName("dll_action")]
+    public string DllAction { get; set; } = "liquidate";
+
+    [Column("dpt_action"), MaxLength(20)]
+    [JsonPropertyName("dpt_action")]
+    public string DptAction { get; set; } = "liquidate";
+
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
@@ -271,12 +287,39 @@ public class AccountGetPaginatedObject
 
     [JsonPropertyName("is_locked")]
     public bool IsLocked { get; set; }
+
+    [JsonPropertyName("daily_loss_limit")]
+    public decimal? DailyLossLimit { get; set; }
+
+    [JsonPropertyName("daily_profit_target")]
+    public decimal? DailyProfitTarget { get; set; }
+
+    [JsonPropertyName("dll_action")]
+    public string? DllAction { get; set; }
+
+    [JsonPropertyName("dpt_action")]
+    public string? DptAction { get; set; }
 }
 
 public class LockAccountPayload
 {
     [JsonPropertyName("locked_until")]
     public DateTime? LockedUntil { get; set; }
+}
+
+public class RiskLimitsPayload
+{
+    [JsonPropertyName("daily_loss_limit")]
+    public decimal? DailyLossLimit { get; set; }
+
+    [JsonPropertyName("daily_profit_target")]
+    public decimal? DailyProfitTarget { get; set; }
+
+    [JsonPropertyName("dll_action")]
+    public string? DllAction { get; set; }
+
+    [JsonPropertyName("dpt_action")]
+    public string? DptAction { get; set; }
 }
 
 public class TradePlatformCreateJob

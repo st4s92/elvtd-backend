@@ -123,6 +123,18 @@ public class PlatformActivePositionSyncPayload
 
     [JsonIgnore]
     public string SourceIp { get; set; } = "";
+
+    [JsonPropertyName("daily_loss_limit")]
+    public decimal? DailyLossLimit { get; set; }
+
+    [JsonPropertyName("daily_profit_target")]
+    public decimal? DailyProfitTarget { get; set; }
+
+    [JsonPropertyName("dll_action")]
+    public string? DllAction { get; set; }
+
+    [JsonPropertyName("dpt_action")]
+    public string? DptAction { get; set; }
 }
 
 public class PlatformPositionDto

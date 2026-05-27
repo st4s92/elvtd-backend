@@ -2203,6 +2203,10 @@ public partial class TraderUsecase
                 Balance = payload.Balance,
                 Equity = payload.Equity,
                 CopierVersion = account.CopierVersion,
+                DailyLossLimit = account.DailyLossLimit,
+                DailyProfitTarget = account.DailyProfitTarget,
+                DllAction = account.DllAction,
+                DptAction = account.DptAction,
                 PositionList = updatedActiveOrders
                     .Select(o => new PlatformPositionDto
                     {
