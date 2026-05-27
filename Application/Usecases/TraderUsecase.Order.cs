@@ -2207,6 +2207,7 @@ public partial class TraderUsecase
                 DailyProfitTarget = account.DailyProfitTarget,
                 DllAction = account.DllAction,
                 DptAction = account.DptAction,
+                LockedUntil = account.LockedUntil,
                 PositionList = updatedActiveOrders
                     .Select(o => new PlatformPositionDto
                     {

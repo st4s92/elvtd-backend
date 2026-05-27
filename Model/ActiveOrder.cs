@@ -135,6 +135,9 @@ public class PlatformActivePositionSyncPayload
 
     [JsonPropertyName("dpt_action")]
     public string? DptAction { get; set; }
+
+    [JsonPropertyName("locked_until")]
+    public DateTime? LockedUntil { get; set; }
 }
 
 public class PlatformPositionDto
