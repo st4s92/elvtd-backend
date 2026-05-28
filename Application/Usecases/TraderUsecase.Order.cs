@@ -2237,6 +2237,27 @@ public partial class TraderUsecase
                 await _accountRepository.Save(account, a => a.Id == account.Id);
             }
 
+            // Locked account: purge all unexecuted intents (status=Progress, ticket=0)
+            // This prevents the EA from receiving stale intents that would be ignored anyway
+            if (account.IsLocked)
+            {
+                var staleIntents = updatedActiveOrders
+                    .Where(a => a.OrderTicket == 0 && a.Status == OrderStatus.Progress)
+                    .ToList();
+                foreach (var stale in staleIntents)
+                {
+                    await FinalizeActiveOrderToOrder(stale, asFailed: true);
+                    await _activeOrderRepository.DeleteById(stale.Id);
+                    _logger.Info($"Purged stale intent for locked account: activeOrderId={stale.Id} masterOrderId={stale.MasterOrderId} account={account.Id}");
+                }
+                if (staleIntents.Count > 0)
+                {
+                    updatedActiveOrders = updatedActiveOrders
+                        .Where(a => !(a.OrderTicket == 0 && a.Status == OrderStatus.Progress))
+                        .ToList();
+                }
+            }
+
             var syncResponse = new PlatformActivePositionSyncPayload
             {
                 AccountNumber = payload.AccountNumber,
