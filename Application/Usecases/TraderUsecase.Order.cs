@@ -1013,6 +1013,10 @@ public partial class TraderUsecase
                 if (item == null)
                     continue;
 
+                // Skip locked slaves — prevents open→close loop when DLL/DPT/manual lock active
+                if (item.SlaveAccount?.IsLocked == true)
+                    continue;
+
                 // 1. Check MasterSlavePair override first
                 allPairsMap.TryGetValue(item.Id, out var masterSlavePair);
 
@@ -1321,6 +1325,10 @@ public partial class TraderUsecase
 
                 // Skip slaves with zero balance — no point creating intents with lot=0
                 if (slaveAccount.Balance <= 0)
+                    continue;
+
+                // Skip locked slaves — prevents open→close loop when DLL/DPT/manual lock active
+                if (slaveAccount.IsLocked)
                     continue;
 
                 // 3. ambil active order slave existing
