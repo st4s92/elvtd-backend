@@ -186,6 +186,12 @@ public partial class TraderHandler
             RefreshToken = a.RefreshToken,
             TokenExpiredAt = a.TokenExpiredAt,
             CtidTraderAccountId = a.CtidTraderAccountId,
+            LockedUntil = a.LockedUntil,
+            IsLocked = a.IsLocked,
+            DailyLossLimit = a.DailyLossLimit,
+            DailyProfitTarget = a.DailyProfitTarget,
+            DllAction = a.DllAction,
+            DptAction = a.DptAction,
         })
             .ToList();
 
