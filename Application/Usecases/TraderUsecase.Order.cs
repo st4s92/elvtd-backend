@@ -2495,7 +2495,7 @@ public partial class TraderUsecase
             {
                 // Log DLL/DPT trigger events from EA to system_log
                 if ((dto.ServerStatus == "DLL_TRIGGERED" || dto.ServerStatus == "DPT_TRIGGERED")
-                    && account.ServerStatus != dto.ServerStatus) // only log once (status change)
+                    && !account.IsLocked) // only log+lock once (not already locked)
                 {
                     var triggerType = dto.ServerStatus == "DLL_TRIGGERED" ? "DLL" : "DPT";
                     await _systemLogUsecase.CreateLog("RiskManagement", "Liquidation", account.Id,
