@@ -2468,6 +2468,25 @@ public partial class TraderUsecase
             // Update server status if reported by copier (e.g. 10017 Close-Only)
             if (!string.IsNullOrEmpty(dto.ServerStatus))
             {
+                // Log DLL/DPT trigger events from EA to system_log
+                if ((dto.ServerStatus == "DLL_TRIGGERED" || dto.ServerStatus == "DPT_TRIGGERED")
+                    && account.ServerStatus != dto.ServerStatus) // only log once (status change)
+                {
+                    var triggerType = dto.ServerStatus == "DLL_TRIGGERED" ? "DLL" : "DPT";
+                    await _systemLogUsecase.CreateLog("RiskManagement", "Liquidation", account.Id,
+                        $"{triggerType} ausgelöst: Konto {account.AccountNumber} — {dto.ServerStatusMessage ?? "alle Positionen geschlossen"}",
+                        "Warning");
+
+                    // Auto-lock until end of day
+                    if (!account.IsLocked)
+                    {
+                        account.LockedUntil = DateTime.UtcNow.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+                        await _systemLogUsecase.CreateLog("RiskManagement", "LockChange", account.Id,
+                            $"Konto {account.AccountNumber} automatisch gesperrt bis {account.LockedUntil:dd.MM HH:mm} UTC ({triggerType})",
+                            "Warning");
+                    }
+                }
+
                 account.ServerStatus = dto.ServerStatus;
                 account.ServerStatusMessage = dto.ServerStatusMessage;
             }
