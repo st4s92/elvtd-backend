@@ -138,6 +138,9 @@ public class PlatformActivePositionSyncPayload
 
     [JsonPropertyName("locked_until")]
     public DateTime? LockedUntil { get; set; }
+
+    [JsonPropertyName("day_start_balance")]
+    public decimal? DayStartBalance { get; set; }
 }
 
 public class PlatformPositionDto

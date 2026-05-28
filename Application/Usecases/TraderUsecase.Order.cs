@@ -1530,6 +1530,30 @@ public partial class TraderUsecase
         await _orderRepository.Save(order);
     }
 
+    /// <summary>
+    /// Calculates the balance at the start of today (00:00 UTC) by subtracting
+    /// all realized profits from today's closed orders from the current balance.
+    /// dayStartBalance = currentBalance - sum(today's closed order profits)
+    /// </summary>
+    private async Task<decimal> CalculateDayStartBalance(Account account)
+    {
+        var todayStart = DateTime.UtcNow.Date;
+        var todayOrders = await _orderRepository.GetMany(
+            o => o.AccountId == account.Id
+                && o.Status == OrderStatus.Complete
+                && o.OrderCloseAt != null
+                && o.OrderCloseAt >= todayStart
+        );
+
+        decimal todayRealizedPnL = 0;
+        foreach (var o in todayOrders)
+        {
+            todayRealizedPnL += o.OrderProfit ?? 0;
+        }
+
+        return account.Balance - todayRealizedPnL;
+    }
+
     private string? ResolveSymbol(
         string masterSymbol,
         string masterBroker,
@@ -2218,6 +2242,7 @@ public partial class TraderUsecase
                 DllAction = account.DllAction,
                 DptAction = account.DptAction,
                 LockedUntil = account.IsLocked ? account.LockedUntil : null,
+                DayStartBalance = await CalculateDayStartBalance(account),
                 PositionList = updatedActiveOrders
                     .Select(o => new PlatformPositionDto
                     {
