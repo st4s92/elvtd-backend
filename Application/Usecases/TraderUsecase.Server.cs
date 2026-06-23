@@ -233,6 +233,8 @@ public partial class TraderUsecase
                     ActiveTerminals = param.ActiveTerminals,
                     CpuUsage = param.CpuUsage,
                     RamUsage = param.RamUsage,
+                    DiskUsedGb = param.DiskUsedGb,
+                    DiskTotalGb = param.DiskTotalGb,
                     UptimeString = param.Uptime,
                 };
                 var (created, terr) = await AddServer(newServer);
@@ -244,6 +246,8 @@ public partial class TraderUsecase
             server.ActiveTerminals = param.ActiveTerminals;
             server.CpuUsage = param.CpuUsage;
             server.RamUsage = param.RamUsage;
+            server.DiskUsedGb = param.DiskUsedGb;
+            server.DiskTotalGb = param.DiskTotalGb;
             server.UptimeString = param.Uptime;
             // Update server name if the worker sends one
             if (!string.IsNullOrEmpty(param.Name))

@@ -45,6 +45,12 @@ public class Server : IAuditableEntity
     [Column("uptime"), MaxLength(100)]
     public string UptimeString { get; set; } = "";
 
+    [Column("disk_used_gb")]
+    public double DiskUsedGb { get; set; }
+
+    [Column("disk_total_gb")]
+    public double DiskTotalGb { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 
@@ -166,6 +172,12 @@ public class ServerHeartbeatRequest
 
     [JsonPropertyName("uptime")]
     public string Uptime { get; set; } = "";
+
+    [JsonPropertyName("disk_used_gb")]
+    public double DiskUsedGb { get; set; }
+
+    [JsonPropertyName("disk_total_gb")]
+    public double DiskTotalGb { get; set; }
 }
 
 public class HealthCheckResponse
