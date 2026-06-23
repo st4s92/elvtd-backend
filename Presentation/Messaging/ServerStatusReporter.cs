@@ -16,6 +16,13 @@ public class ServerStatusReporter : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Only run on one instance to avoid 5x duplicate Telegram messages.
+        // Use ENABLE_STATUS_REPORTER env var — only set on app1 in docker-compose.
+        if (Environment.GetEnvironmentVariable("ENABLE_STATUS_REPORTER") != "true")
+        {
+            return;
+        }
+
         // Wait 60s after startup before first report
         await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
 

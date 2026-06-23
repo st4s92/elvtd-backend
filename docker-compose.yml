@@ -34,6 +34,8 @@ services:
   app1:
     <<: *backend-common
     container_name: elvtd_backend_1
+    environment:
+      - ENABLE_STATUS_REPORTER=true
 
   app2:
     <<: *backend-common
