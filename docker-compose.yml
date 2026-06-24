@@ -102,7 +102,7 @@ services:
       - MYSQL_ROOT_PASSWORD=${DOC_DB_PASSWORD}
     volumes:
       - database_mysql:/var/lib/mysql
-    command: --binlog_expire_logs_seconds=259200 --max_connections=500
+    command: --binlog_expire_logs_seconds=259200 --max_connections=500 --innodb_buffer_pool_size=4G --innodb_log_file_size=256M --innodb_flush_log_at_trx_commit=2
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DOC_DB_PASSWORD}"]
       interval: 5s
