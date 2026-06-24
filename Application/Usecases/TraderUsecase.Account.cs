@@ -429,7 +429,20 @@ public partial class TraderUsecase
             }
 
             await _systemLogUsecase.CreateLog("Account", "Delete", id,
-                $"Account {existing.AccountNumber} ({existing.Role}) soft deleted. Target server: {serverName} ({serverIp})");
+                $"Account {existing.AccountNumber} ({existing.Role}) deleted. Target server: {serverName} ({serverIp})");
+
+            // Hard-delete related data immediately (account_logs + active_orders)
+            try
+            {
+                await _accountLogRepository.Delete(x => x.AccountId == id);
+                await _activeOrderRepository.Delete(x => x.AccountId == id);
+                Console.WriteLine($"[DELETE] Cleaned up account_logs + active_orders for {existing.AccountNumber}");
+            }
+            catch (Exception cleanupEx)
+            {
+                Console.WriteLine($"[DELETE] Cleanup warning for {existing.AccountNumber}: {cleanupEx.Message}");
+                // Non-critical — nightly DataCleanupService will catch the rest
+            }
 
             return null;
         }

@@ -80,5 +80,6 @@ public static class Rest
         builder.Services.AddHostedService<ServerPlatformRestartedConsumer>();
         builder.Services.AddHostedService<ServerPlatformDeletedConsumer>();
         builder.Services.AddHostedService<ServerStatusReporter>();
+        builder.Services.AddHostedService<DataCleanupService>();
     }
 }
