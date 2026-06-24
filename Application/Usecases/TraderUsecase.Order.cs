@@ -2470,18 +2470,22 @@ public partial class TraderUsecase
             }
 
             // =========================
-            // 2. LOG ACCOUNT SNAPSHOT
+            // 2. LOG ACCOUNT SNAPSHOT (throttled: 1x per minute per account)
             // =========================
-            var accountLog = new AccountLog
+            var now = DateTime.UtcNow;
+            if (!_lastAccountLogTime.TryGetValue(account.Id, out var lastLog) || (now - lastLog).TotalSeconds >= 60)
             {
-                AccountId = account.Id,
-                Balance = dto.Balance,
-                Equity = dto.Equity,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-            };
-
-            await _accountLogRepository.Save(accountLog);
+                var accountLog = new AccountLog
+                {
+                    AccountId = account.Id,
+                    Balance = dto.Balance,
+                    Equity = dto.Equity,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                };
+                await _accountLogRepository.Save(accountLog);
+                _lastAccountLogTime[account.Id] = now;
+            }
 
             // =========================
             // 3. ACCOUNT UPDATE LATEST DATA

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Backend.Application.Interfaces;
 using Backend.Helper;
 using Backend.Infrastructure.Messaging;
@@ -7,6 +8,8 @@ namespace Backend.Application.Usecases;
 
 public partial class TraderUsecase
 {
+    // Throttle account_log writes to 1x per minute per account (saves ~98% DB writes)
+    private static readonly ConcurrentDictionary<long, DateTime> _lastAccountLogTime = new();
     private readonly ITradingRepository _tradingRepository;
     private readonly IAccountRepository _accountRepository;
     private readonly IOrderRepository _orderRepository;
