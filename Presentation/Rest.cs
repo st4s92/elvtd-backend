@@ -24,7 +24,7 @@ public static class Rest
 
         var connectionString =
             $"Host={host};Port={port};Database={db};Username={user};Password={pass}"
-            + ";Max Pool Size=200;Min Pool Size=10;Connection Timeout=30";
+            + ";Max Pool Size=50;Min Pool Size=5;Connection Timeout=30;Connection Lifetime=300;Connection Reset=true";
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
         );
