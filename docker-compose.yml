@@ -35,6 +35,19 @@ services:
     <<: *backend-common
     container_name: elvtd_backend_1
     environment:
+      - DB_DRIVER=${DOC_DB_DRIVER}
+      - DB_HOST=${DOC_DB_HOST}
+      - DB_PORT=${DOC_DB_PORT}
+      - DB_NAME=${DOC_DB_NAME}
+      - DB_USER=${DOC_DB_USER}
+      - DB_PASSWORD=${DOC_DB_PASSWORD}
+      - COPY_TOLERANCE_SECOND=${COPY_TOLERANCE_SECOND}
+      - MAX_SERVER_ACCOUNTS=${MAX_SERVER_ACCOUNTS}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ENABLE_STATUS_REPORTER=true
 
   app2:
