@@ -131,12 +131,25 @@ public partial class TraderUsecase
             if (data == null)
                 return (null, TError.NewServer("cannot create new account"));
 
-            // JOURNAL accounts: no terminal installation needed
+            // JOURNAL accounts: no terminal installation needed, but notify journal worker
             if (data.Role == "JOURNAL")
             {
                 data.Status = ConnectionStatus.Success;
                 await _accountRepository.Save(data, a => a.Id == data.Id);
-                await _systemLogUsecase.CreateLog("Account", "Create", data.Id, $"JOURNAL account {data.AccountNumber} created — no terminal installation.");
+
+                // Publish to journal.sync so go-journal-worker picks it up immediately
+                await _jobPublisher.PublishCreateJob(new TradePlatformCreateJob
+                {
+                    Id = data.Id,
+                    AccountNumber = data.AccountNumber,
+                    AccountPassword = data.AccountPassword,
+                    PlatformName = data.PlatformName,
+                    BrokerName = data.BrokerName,
+                    ServerName = data.ServerName,
+                    Role = "JOURNAL",
+                });
+
+                await _systemLogUsecase.CreateLog("Account", "Create", data.Id, $"JOURNAL account {data.AccountNumber} created — queued for journal sync.");
                 return (data, null);
             }
 
