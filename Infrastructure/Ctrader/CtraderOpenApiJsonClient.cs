@@ -34,8 +34,12 @@ public class CtraderOpenApiJsonClient
 
     public CtraderOpenApiJsonClient()
     {
-        _clientId = Environment.GetEnvironmentVariable("CTRADER_CLIENT_ID") ?? "";
-        _clientSecret = Environment.GetEnvironmentVariable("CTRADER_CLIENT_SECRET") ?? "";
+        // Access tokens are bound to the cTrader app that issued them (the Symfony
+        // OAuth app), which differs from the backend's own CTRADER_CLIENT_ID app.
+        _clientId = Environment.GetEnvironmentVariable("CTRADER_OPENAPI_CLIENT_ID")
+            ?? Environment.GetEnvironmentVariable("CTRADER_CLIENT_ID") ?? "";
+        _clientSecret = Environment.GetEnvironmentVariable("CTRADER_OPENAPI_CLIENT_SECRET")
+            ?? Environment.GetEnvironmentVariable("CTRADER_CLIENT_SECRET") ?? "";
     }
 
     public class LiveBrokerPosition
