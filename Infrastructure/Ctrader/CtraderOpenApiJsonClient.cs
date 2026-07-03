@@ -125,8 +125,9 @@ public class CtraderOpenApiJsonClient
                 }
             }
 
-            // stepVolume for lot conversion (lots = volume / stepVolume)
-            var stepVolumes = new Dictionary<long, long>();
+            // lotSize for lot conversion (lots = volume / lotSize; broker-specific,
+            // e.g. FTMO GER40 lotSize=100, Quantum DE40 lotSize=10000)
+            var lotSizes = new Dictionary<long, long>();
             var distinctIds = positions.Select(p => p.SymbolId).Distinct().ToArray();
             try
             {
@@ -135,8 +136,8 @@ public class CtraderOpenApiJsonClient
                 {
                     foreach (var s in fullArr.EnumerateArray())
                     {
-                        var step = s.TryGetProperty("stepVolume", out var sv) ? L(sv) : 0;
-                        if (step > 0) stepVolumes[L(s, "symbolId")] = step;
+                        var lotSize = s.TryGetProperty("lotSize", out var ls) ? L(ls) : 0;
+                        if (lotSize > 0) lotSizes[L(s, "symbolId")] = lotSize;
                     }
                 }
             }
@@ -168,8 +169,8 @@ public class CtraderOpenApiJsonClient
             foreach (var p in positions)
             {
                 p.Symbol = symbolNames.TryGetValue(p.SymbolId, out var name) ? name : $"#{p.SymbolId}";
-                var step = stepVolumes.TryGetValue(p.SymbolId, out var s) && s > 0 ? s : 100;
-                p.Lot = Math.Round((double)p.Volume / step, 2);
+                var lotSize = lotSizes.TryGetValue(p.SymbolId, out var s) && s > 0 ? s : 100;
+                p.Lot = Math.Round((double)p.Volume / lotSize, 2);
                 if (pnlMap.TryGetValue(p.PositionId, out var upnl)) p.UnrealizedPnl = Math.Round(upnl, 2);
             }
 
