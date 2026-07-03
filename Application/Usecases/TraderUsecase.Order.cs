@@ -2399,6 +2399,8 @@ public partial class TraderUsecase
                             o.ClosePrice = pos.ClosePrice;
                             o.OrderLot = pos.OrderLot;
                             o.OrderProfit = pos.OrderProfit;
+                            o.OrderSl = pos.OrderSl;
+                            o.OrderTp = pos.OrderTp;
                             o.OrderOpenAt = pos.OrderOpenAt;
                             o.OrderCloseAt = pos.OrderCloseAt;
                             o.OrderLabel = pos.OrderLabel;
@@ -2422,6 +2424,8 @@ public partial class TraderUsecase
                         OrderPrice = pos.OrderPrice,
                         ClosePrice = pos.ClosePrice,
                         OrderProfit = pos.OrderProfit,
+                        OrderSl = pos.OrderSl,
+                        OrderTp = pos.OrderTp,
                         OrderOpenAt = pos.OrderOpenAt,
                         OrderCloseAt = pos.OrderCloseAt,
                         OrderLabel = string.IsNullOrEmpty(pos.OrderLabel) ? "manual" : pos.OrderLabel,

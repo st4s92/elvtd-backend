@@ -96,6 +96,14 @@ public class Order : IAuditableEntity
     [JsonPropertyName("order_profit")]
     public decimal? OrderProfit { get; set; }
 
+    [Column("order_sl", TypeName = "decimal(20,6)")]
+    [JsonPropertyName("order_sl")]
+    public decimal? OrderSl { get; set; }
+
+    [Column("order_tp", TypeName = "decimal(20,6)")]
+    [JsonPropertyName("order_tp")]
+    public decimal? OrderTp { get; set; }
+
     [Column("order_label"), MaxLength(100)]
     [JsonPropertyName("order_label")]
     public string? OrderLabel { get; set; }
@@ -414,6 +422,12 @@ public class HistoricalPositionDto
 
     [JsonPropertyName("order_profit")]
     public decimal? OrderProfit { get; set; }
+
+    [JsonPropertyName("order_sl")]
+    public decimal? OrderSl { get; set; }
+
+    [JsonPropertyName("order_tp")]
+    public decimal? OrderTp { get; set; }
 
     [JsonPropertyName("order_open_at")]
     public DateTime? OrderOpenAt { get; set; }
