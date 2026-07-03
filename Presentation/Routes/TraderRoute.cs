@@ -241,6 +241,16 @@ public static class TraderRoutes
 
         group
             .MapGet(
+                "/trader/account/{id:long}/live-positions",
+                async (long id, TraderHandler handler) =>
+                {
+                    return await handler.GetLivePositions(id);
+                }
+            ).WithName("GetTraderAccountLivePositions")
+            .WithTags("Account");
+
+        group
+            .MapGet(
                 "/trader/account/{id:long}/slave-orders",
                 async (long id, TraderHandler handler) =>
                 {

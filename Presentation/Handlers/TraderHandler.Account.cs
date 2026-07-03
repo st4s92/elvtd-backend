@@ -394,6 +394,24 @@ public partial class TraderHandler
         return Response.Json(res);
     }
 
+    public async Task<IResult> GetLivePositions(long id)
+    {
+        if (id == 0)
+        {
+            return Response.Json(
+                TError.NewClient("account id must be provided")
+            );
+        }
+
+        var (res, terr) = await _usecase.GetLivePositions(id);
+        if (terr != null)
+        {
+            return Response.Json(terr);
+        }
+
+        return Response.Json(res);
+    }
+
     public async Task<IResult> LockAccount(long id, LockAccountPayload payload)
     {
         if (id == 0)
