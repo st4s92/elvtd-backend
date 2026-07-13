@@ -2085,6 +2085,24 @@ public partial class TraderUsecase
                         await _orderRepository.Save(closedOrder);
                     }
                 }
+                else if (staleOrder.MasterOrderId.HasValue)
+                {
+                    // Intent never executed by EA: mark the pending copy order as Failed instead of leaving it in Progress forever
+                    var updated = await _orderRepository.Update(
+                        o => o.AccountId == staleOrder.AccountId
+                             && o.MasterOrderId == staleOrder.MasterOrderId
+                             && o.OrderTicket == 0
+                             && (o.Status == OrderStatus.Progress || o.Status == OrderStatus.Success),
+                        o =>
+                        {
+                            o.Status = OrderStatus.Failed;
+                            o.OrderCloseAt = DateTime.UtcNow;
+                            o.CopyMessage = "Intent expired: not executed by EA within 5 minutes";
+                        }
+                    );
+
+                    _logger.Info($"Expired copy intent marked Failed: account={staleOrder.AccountId} masterOrderId={staleOrder.MasterOrderId} symbol={staleOrder.OrderSymbol} updatedOrders={updated}");
+                }
 
                 await _activeOrderRepository.DeleteById(staleOrder.Id);
 
