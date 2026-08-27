@@ -2455,6 +2455,10 @@ public partial class TraderUsecase
                 }
             }
 
+            // Update account timestamp so dashboard knows sync happened
+            account.UpdatedAt = DateTime.UtcNow;
+            await _accountRepository.Save(account, a => a.Id == account.Id);
+
             _logger.Info(
                 "Position history synced",
                 new { payload.AccountNumber, Count = payload.Positions.Count }

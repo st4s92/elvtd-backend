@@ -16,14 +16,11 @@ public class ServerStatusReporter : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Only run on one instance to avoid 5x duplicate Telegram messages.
-        // Use ENABLE_STATUS_REPORTER env var — only set on app1 in docker-compose.
         if (Environment.GetEnvironmentVariable("ENABLE_STATUS_REPORTER") != "true")
         {
             return;
         }
 
-        // Wait 60s after startup before first report
         await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -53,41 +50,43 @@ public class ServerStatusReporter : BackgroundService
         var now = DateTime.UtcNow;
         var onlineThreshold = now.AddMinutes(-5);
 
-        var lines = new List<string>();
-        lines.Add($"📊 <b>Server Status ({now:dd.MM HH:mm} UTC)</b>");
-        lines.Add("");
-
+        // Check if any server has critical issues
+        var criticalServers = new List<string>();
         int totalTerminals = 0;
         int onlineCount = 0;
         int offlineCount = 0;
-        int diskWarnings = 0;
 
         foreach (var s in servers.OrderBy(s => s.ServerIp))
         {
-            // Skip dummy/invalid servers
             if (s.ServerIp == "string" || s.ServerIp == "10.10.10.10") continue;
 
             bool isOnline = s.UpdatedAt > onlineThreshold;
-            var status = isOnline ? "🟢" : "🔴";
             if (isOnline) onlineCount++; else offlineCount++;
             totalTerminals += s.ActiveTerminals;
 
-            var diskInfo = "";
-            if (s.DiskTotalGb > 0)
-            {
-                var diskPct = s.DiskUsedGb / s.DiskTotalGb * 100;
-                diskInfo = $" | 💾 {s.DiskUsedGb:F0}/{s.DiskTotalGb:F0}GB ({diskPct:F0}%)";
-                if (diskPct > 85) diskWarnings++;
-            }
+            // Detect critical conditions
+            var issues = new List<string>();
+            if (!isOnline) issues.Add("OFFLINE");
+            if (s.CpuUsage > 90) issues.Add($"CPU {s.CpuUsage:F0}%");
+            if (s.RamUsage > 90) issues.Add($"RAM {s.RamUsage:F0}%");
+            if (s.DiskTotalGb > 0 && (s.DiskUsedGb / s.DiskTotalGb * 100) > 85)
+                issues.Add($"DISK {s.DiskUsedGb:F0}/{s.DiskTotalGb:F0}GB ({s.DiskUsedGb / s.DiskTotalGb * 100:F0}%)");
 
-            lines.Add($"{status} <b>{s.ServerName}</b>");
-            lines.Add($"   {s.ActiveTerminals}T | CPU {s.CpuUsage:F0}% | RAM {s.RamUsage:F0}%{diskInfo}");
+            if (issues.Count > 0)
+            {
+                criticalServers.Add($"🔴 <b>{s.ServerName}</b>: {string.Join(", ", issues)}");
+            }
         }
 
+        // Only send alert if there are critical issues
+        if (criticalServers.Count == 0) return;
+
+        var lines = new List<string>();
+        lines.Add($"⚠️ <b>ELVTD Server Alert ({now:dd.MM HH:mm} UTC)</b>");
+        lines.Add("");
+        lines.AddRange(criticalServers);
         lines.Add("");
         lines.Add($"📈 {onlineCount} online, {offlineCount} offline, {totalTerminals} terminals");
-        if (diskWarnings > 0)
-            lines.Add($"⚠️ {diskWarnings} server mit >85% Festplatte!");
 
         var message = string.Join("\n", lines);
         await telegram.SendAlert(message);
