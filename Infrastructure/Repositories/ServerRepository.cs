@@ -26,7 +26,12 @@ public class ServerRepository : BaseRepository<Server>, IServerRepository
                     .Count(sa => sa.ServerId == s.Id && sa.DeletedAt == null)
                 < maxAccountPerServer
             )
-            .OrderBy(s => s.CreatedAt) // FIFO, or change strategy
+            .Where(s => s.ServerIp.StartsWith("192.168.")) // nur MT-Worker-VMs (nicht ctrader-bridge)
+            .OrderBy(s =>
+                _context.ServerAccount
+                    .Count(sa => sa.ServerId == s.Id && sa.DeletedAt == null)
+            ) // least-loaded: Server mit wenigsten Accounts zuerst
+            .ThenBy(s => s.CreatedAt)
             .FirstOrDefaultAsync();
     }
 }
