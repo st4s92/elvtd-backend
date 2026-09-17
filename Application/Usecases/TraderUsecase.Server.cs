@@ -332,8 +332,9 @@ public partial class TraderUsecase
                 // Delete old assignment
                 await _serverAccountRepository.Delete(x => x.Id == sa.Id);
 
-                // Assign to a new available server
-                var newServer = await _serverRepository.GetFirstAvailableServer(maxAccountPerServer);
+                // Assign to a new available server (plattformgleich)
+                var reAcc = await _accountRepository.Get(a => a.Id == sa.AccountId);
+                var newServer = await _serverRepository.GetFirstAvailableServer(maxAccountPerServer, reAcc?.PlatformName ?? "");
                 if (newServer != null)
                 {
                     var newSa = new ServerAccount

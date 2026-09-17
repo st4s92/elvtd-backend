@@ -166,7 +166,7 @@ public partial class TraderUsecase
                 Environment.GetEnvironmentVariable("MAX_SERVER_ACCOUNTS") ?? "10"
             );
 
-            var server = await _serverRepository.GetFirstAvailableServer(maxAccountPerServer);
+            var server = await _serverRepository.GetFirstAvailableServer(maxAccountPerServer, data.PlatformName);
             if (server == null)
                 return (null, TError.NewServer("no available server"));
 

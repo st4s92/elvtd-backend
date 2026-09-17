@@ -4,5 +4,5 @@ namespace Backend.Application.Interfaces;
 
 public interface IServerRepository : IRepository<Server>
 {
-    Task<Server?> GetFirstAvailableServer(int maxAccountPerServer);
+    Task<Server?> GetFirstAvailableServer(int maxAccountPerServer, string platformName);
 }

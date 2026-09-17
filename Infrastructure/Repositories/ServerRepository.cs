@@ -16,7 +16,7 @@ public class ServerRepository : BaseRepository<Server>, IServerRepository
         _logger = logger;
     }
 
-    public async Task<Server?> GetFirstAvailableServer(int maxAccountPerServer)
+    public async Task<Server?> GetFirstAvailableServer(int maxAccountPerServer, string platformName)
     {
         return await _context.Server
             .Where(s => s.DeletedAt == null)
@@ -27,6 +27,14 @@ public class ServerRepository : BaseRepository<Server>, IServerRepository
                 < maxAccountPerServer
             )
             .Where(s => s.ServerIp.StartsWith("192.168.")) // nur MT-Worker-VMs (nicht ctrader-bridge)
+            // Plattform-Trennung: nur Server, die bereits >=1 Account derselben Plattform hosten
+            // (MT5 nur auf MT5-VMs .10x, MT4 nur auf MT4-VMs .9x)
+            .Where(s =>
+                _context.ServerAccount.Any(sa =>
+                    sa.ServerId == s.Id && sa.DeletedAt == null
+                    && sa.Account.PlatformName == platformName
+                )
+            )
             .OrderBy(s =>
                 _context.ServerAccount
                     .Count(sa => sa.ServerId == s.Id && sa.DeletedAt == null)
